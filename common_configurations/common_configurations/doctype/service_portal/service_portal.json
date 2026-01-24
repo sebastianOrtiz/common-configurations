@@ -1,0 +1,166 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:portal_name",
+ "creation": "2026-01-23 21:26:20.524201",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "portal_name",
+  "title",
+  "description",
+  "is_active",
+  "configuraci\u00f3n_de_registro_section",
+  "request_contact_user_data",
+  "registration_title",
+  "registration_description",
+  "estilos_section",
+  "primary_color",
+  "secondary_color",
+  "logo",
+  "background_image",
+  "custom_css",
+  "herramientas_section",
+  "tools"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "description": "Nombre \u00fanico identificador",
+   "fieldname": "portal_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Portal Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "T\u00edtulo visible al usuario",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "description": "Descripci\u00f3n del portal",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "default": "1",
+   "description": "Portal activo/inactivo",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "configuraci\u00f3n_de_registro_section",
+   "fieldtype": "Section Break",
+   "label": "Configuraci\u00f3n de Registro"
+  },
+  {
+   "default": "0",
+   "description": "Mostrar formulario de registro",
+   "fieldname": "request_contact_user_data",
+   "fieldtype": "Check",
+   "label": "Request Contact User Data"
+  },
+  {
+   "description": "T\u00edtulo del formulario",
+   "fieldname": "registration_title",
+   "fieldtype": "Data",
+   "label": "Registration Title"
+  },
+  {
+   "description": "Instrucciones del formulario",
+   "fieldname": "registration_description",
+   "fieldtype": "Small Text",
+   "label": "Registration Description"
+  },
+  {
+   "fieldname": "estilos_section",
+   "fieldtype": "Section Break",
+   "label": "Estilos"
+  },
+  {
+   "default": "#000000",
+   "description": "Color principal",
+   "fieldname": "primary_color",
+   "fieldtype": "Color",
+   "label": "Primary Color"
+  },
+  {
+   "description": "Color secundario",
+   "fieldname": "secondary_color",
+   "fieldtype": "Color",
+   "label": "Secondary Color",
+   "options": "#FFFFFF"
+  },
+  {
+   "description": "Logo del portal",
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "description": "Imagen de fondo",
+   "fieldname": "background_image",
+   "fieldtype": "Attach Image",
+   "label": "Background Image"
+  },
+  {
+   "description": "CSS personalizado",
+   "fieldname": "custom_css",
+   "fieldtype": "HTML Editor",
+   "label": "Custom CSS",
+   "options": "CSS"
+  },
+  {
+   "fieldname": "herramientas_section",
+   "fieldtype": "Section Break",
+   "label": "Herramientas"
+  },
+  {
+   "description": "Herramientas del portal",
+   "fieldname": "tools",
+   "fieldtype": "Table",
+   "label": "Tools",
+   "options": "Service Portal Tool"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-23 21:35:00.012022",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Service Portal",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
