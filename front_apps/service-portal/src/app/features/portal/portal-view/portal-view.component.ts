@@ -118,28 +118,35 @@ export class PortalViewComponent implements OnInit {
   }
 
   /**
-   * Navigate back to portal selector
+   * Exit to registration form
+   * Clears user contact data and returns to registration
    */
-  backToPortals(): void {
-    this.stateService.clearPortal();
-    this.router.navigate(['/portals']);
+  exitToRegistration(): void {
+    const portal = this.portal();
+    if (!portal) return;
+
+    // Clear user contact from state
+    this.stateService.clearUserContact();
+
+    // Navigate back to registration
+    this.router.navigate(['/portal', portal.portal_name, 'register']);
   }
 
   /**
-   * Logout and return to login
+   * Get display name for user contact
    */
-  logout(): void {
-    this.authService.logout().subscribe({
-      next: () => {
-        this.router.navigate(['/login']);
-      },
-      error: (err) => {
-        console.error('Logout error:', err);
-        // Force navigation even if logout fails
-        this.stateService.resetState();
-        this.router.navigate(['/login']);
-      }
-    });
+  getUserDisplayName(): string {
+    const contact = this.userContact();
+    if (!contact) return '';
+    return contact.full_name || contact.email || 'Usuario';
+  }
+
+  /**
+   * Get initial letter for user avatar
+   */
+  getUserInitial(): string {
+    const displayName = this.getUserDisplayName();
+    return displayName.charAt(0).toUpperCase();
   }
 
   /**
