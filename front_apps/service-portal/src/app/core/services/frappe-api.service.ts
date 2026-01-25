@@ -88,7 +88,13 @@ export class FrappeApiService {
    * Get CSRF token from window or cookies
    */
   private getCsrfToken(): string {
-    // Try from window global
+    // Try from frappe global (most common in Frappe)
+    const frappe = (window as any).frappe;
+    if (frappe && frappe.csrf_token) {
+      return frappe.csrf_token;
+    }
+
+    // Try from window.csrf_token (legacy)
     const windowCsrf = (window as any).csrf_token;
     if (windowCsrf) return windowCsrf;
 
@@ -102,6 +108,37 @@ export class FrappeApiService {
     }
 
     return '';
+  }
+
+  /**
+   * Fetch CSRF token from Frappe server
+   * This is needed when the token is not injected in the page (e.g., website routes)
+   * Call this method on app initialization before making POST requests
+   */
+  fetchCsrfToken(): Observable<string> {
+    return from(
+      fetch('/api/method/common_configurations.api.portal_api.get_csrf_token', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.message) {
+          const token = data.message;
+          // Store token in window for future use
+          if (!(window as any).frappe) {
+            (window as any).frappe = {};
+          }
+          (window as any).frappe.csrf_token = token;
+          return token;
+        }
+        return '';
+      })
+      .catch(() => '')
+    );
   }
 
   /**
@@ -153,7 +190,6 @@ export class FrappeApiService {
 
     // Check cache
     if (!skipCache && pendingRequests.has(cacheKey)) {
-      console.log(`[Frappe API] Reusing pending GET request: ${url}`);
       return pendingRequests.get(cacheKey)!;
     }
 
@@ -194,7 +230,6 @@ export class FrappeApiService {
 
     // Check cache (optional for POST, usually skipped)
     if (!skipCache && pendingRequests.has(cacheKey)) {
-      console.log(`[Frappe API] Reusing pending POST request: ${url}`);
       return pendingRequests.get(cacheKey)!;
     }
 
@@ -253,10 +288,18 @@ export class FrappeApiService {
    *
    * @param methodPath Full method path (e.g., 'meet_scheduling.api.appointment_api.get_available_slots')
    * @param args Method arguments
+   * @param useGet Use GET request instead of POST (for read-only operations, avoids CSRF issues)
    */
-  callMethod<T = any>(methodPath: string, args?: any): Observable<ApiResponse<T>> {
+  callMethod<T = any>(methodPath: string, args?: any, useGet: boolean = false): Observable<ApiResponse<T>> {
     const url = `/api/method/${methodPath}`;
-    return this.post<T>(url, args, true); // Skip cache for method calls
+
+    if (useGet) {
+      // Use GET for read-only operations (avoids CSRF token issues)
+      return this.get<T>(url, args, true); // Skip cache
+    } else {
+      // Use POST for write operations
+      return this.post<T>(url, args, true); // Skip cache for method calls
+    }
   }
 
   /**
@@ -427,8 +470,9 @@ export class FrappeApiService {
   /**
    * Get DocType metadata (fields configuration)
    * Uses GET request to avoid CSRF issues
+   * Returns raw response without normalization
    */
-  getDocTypeMeta(doctype: string): Observable<ApiResponse> {
+  getDocTypeMeta(doctype: string): Observable<any> {
     const url = `/api/method/frappe.desk.form.load.getdoctype`;
 
     const params = new HttpParams()
@@ -439,7 +483,7 @@ export class FrappeApiService {
       headers: this.getAuthHeaders(),
       params: params
     }).pipe(
-      map(response => this.normalizeResponse(response)),
+      // Return raw response - it already has the correct structure
       catchError(err => this.handleError(err))
     );
   }

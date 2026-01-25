@@ -10,7 +10,7 @@ import { FrappeApiService, ApiResponse } from './frappe-api.service';
 import { ServicePortal, UserContact, ToolType, DocField } from '../models/service-portal.model';
 
 // Base API paths for common_configurations
-const API_BASE = '/api/method/common_configurations.api';
+const API_BASE = 'common_configurations.api';
 
 @Injectable({
   providedIn: 'root'
@@ -56,68 +56,31 @@ export class PortalService {
    * Create User Contact
    */
   createUserContact(data: Partial<UserContact>): Observable<UserContact> {
-    return this.frappeApi.createDoc('User Contact', data).pipe(
-      map(response => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to create user contact');
-        }
-        return response.data as UserContact;
-      })
-    );
+    return this.callPortalMethod<UserContact>('create_user_contact', { data: JSON.stringify(data) });
   }
 
   /**
    * Update User Contact
    */
   updateUserContact(name: string, data: Partial<UserContact>): Observable<UserContact> {
-    return this.frappeApi.updateDoc('User Contact', name, data).pipe(
-      map(response => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to update user contact');
-        }
-        return response.data as UserContact;
-      })
-    );
+    return this.callPortalMethod<UserContact>('update_user_contact', {
+      name,
+      data: JSON.stringify(data)
+    });
   }
 
   /**
    * Get User Contact by email
    */
   getUserContactByEmail(email: string): Observable<UserContact | null> {
-    return this.frappeApi.getList(
-      'User Contact',
-      [['email', '=', email]],
-      ['*'],
-      0,
-      1
-    ).pipe(
-      map(response => {
-        if (!response.success || !response.data || response.data.length === 0) {
-          return null;
-        }
-        return response.data[0] as UserContact;
-      })
-    );
+    return this.callPortalMethodGet<UserContact | null>('get_user_contact_by_email', { email });
   }
 
   /**
    * Get User Contact by document number
    */
   getUserContactByDocument(document: string): Observable<UserContact | null> {
-    return this.frappeApi.getList(
-      'User Contact',
-      [['document', '=', document]],
-      ['*'],
-      0,
-      1
-    ).pipe(
-      map(response => {
-        if (!response.success || !response.data || response.data.length === 0) {
-          return null;
-        }
-        return response.data[0] as UserContact;
-      })
-    );
+    return this.callPortalMethodGet<UserContact | null>('get_user_contact_by_document', { document });
   }
 
   /**
@@ -141,14 +104,24 @@ export class PortalService {
   }
 
   /**
-   * Call custom portal API methods (if any exist in common_configurations/api)
-   *
-   * Example usage if you create custom methods:
-   * - common_configurations.api.portal_api.validate_access
-   * - common_configurations.api.portal_api.log_portal_visit
+   * Call custom portal API methods using GET (for read-only operations)
+   */
+  callPortalMethodGet<T = any>(methodName: string, args?: any): Observable<T> {
+    return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, true).pipe(
+      map(response => {
+        if (!response.success && response.message === undefined) {
+          throw new Error(response.error || 'API call failed');
+        }
+        return response.message as T;
+      })
+    );
+  }
+
+  /**
+   * Call custom portal API methods using POST (for write operations)
    */
   callPortalMethod<T = any>(methodName: string, args?: any): Observable<T> {
-    return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args).pipe(
+    return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, false).pipe(
       map(response => {
         if (!response.success && response.message === undefined) {
           throw new Error(response.error || 'API call failed');
@@ -163,42 +136,6 @@ export class PortalService {
    * Returns only the visible, editable fields that should appear in the registration form
    */
   getUserContactFields(): Observable<DocField[]> {
-    return this.frappeApi.getDocTypeMeta('User Contact').pipe(
-      map(response => {
-        if (!response.success || !response.message || !response.message.docs) {
-          throw new Error('Failed to load User Contact metadata');
-        }
-
-        const doctype = response.message.docs[0];
-        const fields: DocField[] = doctype.fields || [];
-
-        // Filter fields that should appear in the form
-        return fields.filter((field: DocField) => {
-          // Exclude hidden fields
-          if (field.hidden) return false;
-
-          // Exclude read-only fields
-          if (field.read_only) return false;
-
-          // Include only data entry field types
-          const includedTypes = [
-            'Data', 'Select', 'Int', 'Float', 'Currency',
-            'Date', 'Datetime', 'Time', 'Check', 'Text',
-            'Small Text', 'Long Text', 'Link', 'Dynamic Link',
-            'Phone', 'Email'
-          ];
-
-          if (!includedTypes.includes(field.fieldtype)) return false;
-
-          // Exclude section breaks, column breaks, etc.
-          return true;
-        }).sort((a, b) => {
-          // Sort by field order if available
-          const orderA = doctype.field_order?.indexOf(a.fieldname) ?? 999;
-          const orderB = doctype.field_order?.indexOf(b.fieldname) ?? 999;
-          return orderA - orderB;
-        });
-      })
-    );
+    return this.callPortalMethodGet<DocField[]>('get_user_contact_fields');
   }
 }
