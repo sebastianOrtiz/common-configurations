@@ -5,6 +5,23 @@ app_description = "Aplciacion que contiene modelos basicos del sistema de workfl
 app_email = "sebastianortiz989@gmail.com"
 app_license = "mit"
 
+# Fixtures
+# --------
+# Export roles to be created on install
+fixtures = [
+	{
+		"doctype": "Role",
+		"filters": [["name", "in", ["Common Config Manager", "Portal API User"]]]
+	}
+]
+
+# Website Route Rules
+# -------------------
+# Permite que Angular maneje el routing del lado del cliente
+website_route_rules = [
+	{"from_route": "/service-portal/<path:app_path>", "to_route": "service-portal"}
+]
+
 # Apps
 # ------------------
 
