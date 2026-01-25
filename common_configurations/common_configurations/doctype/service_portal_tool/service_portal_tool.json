@@ -26,7 +26,6 @@
   },
   {
    "description": "Texto del bot\u00f3n",
-   "fetch_from": "tool_type.tool_label",
    "fieldname": "label",
    "fieldtype": "Data",
    "in_list_view": 1,
@@ -35,7 +34,6 @@
   },
   {
    "description": "Descripci\u00f3n breve",
-   "fetch_from": "tool_type.description",
    "fieldname": "tool_description",
    "fieldtype": "Small Text",
    "in_list_view": 1,
@@ -43,7 +41,6 @@
   },
   {
    "description": "Icono (sobreescribible)",
-   "fetch_from": "tool_type.icon",
    "fieldname": "icon",
    "fieldtype": "Select",
    "label": "Icon",
