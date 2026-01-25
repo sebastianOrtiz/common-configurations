@@ -51,6 +51,16 @@ export class PortalViewComponent implements OnInit {
   }
 
   /**
+   * Check if contact registration is required and redirect if needed
+   */
+  private checkContactRegistration(portal: ServicePortal): void {
+    if (portal.request_contact_user_data && !this.stateService.userContact()) {
+      // Redirect to registration
+      this.router.navigate(['/portal', portal.portal_name, 'register']);
+    }
+  }
+
+  /**
    * Load portal by name
    */
   private loadPortal(portalName: string): void {
@@ -61,6 +71,9 @@ export class PortalViewComponent implements OnInit {
       next: (portal) => {
         this.portal.set(portal);
         this.stateService.setSelectedPortal(portal);
+
+        // Check if contact registration is required
+        this.checkContactRegistration(portal);
 
         // Filter and sort tools
         const enabledSorted = portal.tools
@@ -86,7 +99,7 @@ export class PortalViewComponent implements OnInit {
     if (!portal) return;
 
     // Navigate to tool route (will be lazy loaded)
-    this.router.navigate(['/portal', portal.name, 'tool', tool.tool_type]);
+    this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
   }
 
   /**

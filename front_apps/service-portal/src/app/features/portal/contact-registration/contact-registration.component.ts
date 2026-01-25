@@ -103,7 +103,7 @@ export class ContactRegistrationComponent implements OnInit {
         this.loading.set(false);
 
         // Navigate to portal
-        this.router.navigate(['/portal', portal.name]);
+        this.router.navigate(['/portal', portal.portal_name]);
       },
       error: (err) => {
         console.error('Error creating contact:', err);
@@ -119,7 +119,7 @@ export class ContactRegistrationComponent implements OnInit {
   skip(): void {
     const portal = this.selectedPortal();
     if (portal && !portal.request_contact_user_data) {
-      this.router.navigate(['/portal', portal.name]);
+      this.router.navigate(['/portal', portal.portal_name]);
     }
   }
 
