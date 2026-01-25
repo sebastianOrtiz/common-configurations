@@ -4,7 +4,7 @@
  * Dynamically loads the appropriate tool component based on the :toolType route parameter
  */
 
-import { Component, OnInit, OnDestroy, inject, Type, ViewContainerRef, ComponentRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, Type, ViewContainerRef, ComponentRef, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 
@@ -32,6 +32,7 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private viewContainerRef = inject(ViewContainerRef);
+  private cdr = inject(ChangeDetectorRef);
 
   toolType: string = '';
   loading = true;
@@ -74,6 +75,7 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.warn('[ToolRouter] Unknown tool type:', toolType);
           this.error = true;
           this.loading = false;
+          this.cdr.detectChanges();
           return;
       }
 
@@ -85,14 +87,17 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
         this.componentRef = this.viewContainerRef.createComponent(ComponentClass);
         console.log('[ToolRouter] Component created successfully');
         this.loading = false;
+        this.cdr.detectChanges();
       } else {
         this.error = true;
         this.loading = false;
+        this.cdr.detectChanges();
       }
     } catch (error) {
       console.error('[ToolRouter] Error loading component:', error);
       this.error = true;
       this.loading = false;
+      this.cdr.detectChanges();
     }
   }
 
