@@ -58,11 +58,17 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected selectedPortal = this.stateService.selectedPortal;
 
   ngOnInit(): void {
+    console.log('[MeetScheduling] ngOnInit called');
+
     // Get calendar resource from portal tool configuration
     const portal = this.selectedPortal();
+    console.log('[MeetScheduling] Portal:', portal);
+
     const tool = portal?.tools.find(t => t.tool_type === 'meet_scheduling');
+    console.log('[MeetScheduling] Tool found:', tool);
 
     if (tool && tool.calendar_resource) {
+      console.log('[MeetScheduling] Calendar resource:', tool.calendar_resource);
       this.calendarResource.set(tool.calendar_resource);
       this.showCalendarView.set(tool.show_calendar_view ?? true);
 
@@ -72,6 +78,7 @@ export class MeetSchedulingToolComponent implements OnInit {
       // Load user appointments
       this.loadUserAppointments();
     } else {
+      console.error('[MeetScheduling] No tool or calendar resource found');
       this.error.set('Configuración de calendario no encontrada');
     }
   }
@@ -142,7 +149,9 @@ export class MeetSchedulingToolComponent implements OnInit {
    * Load available slots for a specific date
    */
   private loadAvailableSlots(date: string): void {
+    console.log('[MeetScheduling] loadAvailableSlots called for date:', date);
     const resource = this.calendarResource();
+    console.log('[MeetScheduling] Calendar resource:', resource);
     if (!resource) return;
 
     this.loadingSlots.set(true);
@@ -224,11 +233,17 @@ export class MeetSchedulingToolComponent implements OnInit {
    * Load user's appointments
    */
   private loadUserAppointments(): void {
+    console.log('[MeetScheduling] loadUserAppointments called');
     const contact = this.userContact();
-    if (!contact?.name) return;
+    console.log('[MeetScheduling] User contact:', contact);
+    if (!contact?.name) {
+      console.warn('[MeetScheduling] No contact name found');
+      return;
+    }
 
     this.meetSchedulingService.getUserAppointments(contact.name).subscribe({
       next: (appointments) => {
+        console.log('[MeetScheduling] User appointments loaded:', appointments);
         // Sort by start date, most recent first
         const sorted = appointments.sort((a, b) =>
           new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime()
@@ -236,7 +251,7 @@ export class MeetSchedulingToolComponent implements OnInit {
         this.userAppointments.set(sorted);
       },
       error: (err) => {
-        console.error('Error loading appointments:', err);
+        console.error('[MeetScheduling] Error loading appointments:', err);
       }
     });
   }
