@@ -45,8 +45,10 @@
    "description": "Icono (sobreescribible)",
    "fetch_from": "tool_type.icon",
    "fieldname": "icon",
-   "fieldtype": "Data",
-   "label": "Icon"
+   "fieldtype": "Select",
+   "label": "Icon",
+   "options": "Calendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox",
+   "translatable": 0
   },
   {
    "description": "Color del bot\u00f3n",
