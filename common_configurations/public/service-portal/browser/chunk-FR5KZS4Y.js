@@ -1,1 +1,0 @@
-import"./chunk-2NFLSA4Y.js";var t=[{path:"",loadComponent:()=>(console.log("[ToolRoutes] Loading tool router wrapper"),import("./chunk-HQAYFS5Q.js").then(o=>o.ToolRouterComponent))}];export{t as toolRoutes};
