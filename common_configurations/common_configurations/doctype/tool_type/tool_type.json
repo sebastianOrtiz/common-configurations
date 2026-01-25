@@ -44,7 +44,8 @@
    "fieldname": "icon",
    "fieldtype": "Select",
    "label": "Icon",
-   "options": "Calendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox"
+   "options": "Calendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox",
+   "translatable": 0
   },
   {
    "description": "Descripci\u00f3n de la herramienta",
