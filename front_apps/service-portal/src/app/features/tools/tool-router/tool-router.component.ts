@@ -17,8 +17,7 @@ import { CommonModule } from '@angular/common';
       <div style="padding: 20px; text-align: center;">
         <p>Cargando herramienta...</p>
       </div>
-    }
-    @if (error) {
+    } @else if (error) {
       <div style="padding: 20px; text-align: center;">
         <h2>Herramienta No Encontrada</h2>
         <p>La herramienta "{{ toolType }}" no está disponible.</p>
