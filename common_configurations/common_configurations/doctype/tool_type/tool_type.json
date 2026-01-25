@@ -40,10 +40,11 @@
    "reqd": 1
   },
   {
-   "description": "Nombre del icono",
+   "description": "Icono de la herramienta (Lucide Icons)",
    "fieldname": "icon",
-   "fieldtype": "Data",
-   "label": "Icon"
+   "fieldtype": "Select",
+   "label": "Icon",
+   "options": "Calendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox"
   },
   {
    "description": "Descripci\u00f3n de la herramienta",

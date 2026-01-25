@@ -11,11 +11,12 @@ import { PortalService } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ServicePortal, ServicePortalTool } from '../../../core/models/service-portal.model';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-portal-view',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './portal-view.component.html',
   styleUrls: ['./portal-view.component.scss']
 })
