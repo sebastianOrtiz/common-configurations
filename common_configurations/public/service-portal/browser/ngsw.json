@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1769308947781,
+  "timestamp": 1769343131913,
   "index": "/service-portal/index.html",
   "assetGroups": [
     {
@@ -11,9 +11,22 @@
         "ignoreVary": true
       },
       "urls": [
+        "/service-portal/chunk-2NFLSA4Y.js",
+        "/service-portal/chunk-3GIQAZYV.js",
+        "/service-portal/chunk-5Q6YERZJ.js",
+        "/service-portal/chunk-6B42QCZA.js",
+        "/service-portal/chunk-FVZTSKA4.js",
+        "/service-portal/chunk-FZ7ZXR4J.js",
+        "/service-portal/chunk-KZEDZDNS.js",
+        "/service-portal/chunk-MOJUR3E2.js",
+        "/service-portal/chunk-PZAKFKJE.js",
+        "/service-portal/chunk-QYZT7EZC.js",
+        "/service-portal/chunk-RWENPOH4.js",
+        "/service-portal/chunk-YWH6KJOC.js",
+        "/service-portal/chunk-ZAK7YB2E.js",
         "/service-portal/favicon.ico",
         "/service-portal/index.html",
-        "/service-portal/main-IL3CP2WU.js",
+        "/service-portal/main-IBI3RX7V.js",
         "/service-portal/manifest.webmanifest",
         "/service-portal/styles-5INURTSO.css"
       ],
@@ -37,10 +50,64 @@
         "/service-portal/icons/icon-96x96.png"
       ],
       "patterns": []
+    },
+    {
+      "name": "lazy-bundles",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [],
+      "patterns": []
     }
   ],
-  "dataGroups": [],
+  "dataGroups": [
+    {
+      "name": "api-fresh",
+      "patterns": [
+        "\\/api\\/method\\/frappe\\.auth\\.get_logged_user",
+        "\\/api\\/method\\/frappe\\.auth\\.logout"
+      ],
+      "strategy": "freshness",
+      "maxSize": 10,
+      "maxAge": 60000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-performance",
+      "patterns": [
+        "\\/api\\/resource\\/.*",
+        "\\/api\\/method\\/common_configurations\\.api\\.[^/]*[^/]*",
+        "\\/api\\/method\\/meet_scheduling\\.api\\.[^/]*[^/]*"
+      ],
+      "strategy": "performance",
+      "maxSize": 100,
+      "maxAge": 3600000,
+      "timeoutMs": 10000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    }
+  ],
   "hashTable": {
+    "/service-portal/chunk-2NFLSA4Y.js": "a26cd3e959939fe26b8cfc160ad681ba7b6b4468",
+    "/service-portal/chunk-3GIQAZYV.js": "c510bbb8cd3a6119ad53bf665a723e8dfbbdee42",
+    "/service-portal/chunk-5Q6YERZJ.js": "fe71768f17d82282032f67103057070c2a186851",
+    "/service-portal/chunk-6B42QCZA.js": "91c19bc5d20ff66794f1b575f9ebe0eead76bdf3",
+    "/service-portal/chunk-FVZTSKA4.js": "c7a8b9adb0273ed6815efffb6fe700fd074e2946",
+    "/service-portal/chunk-FZ7ZXR4J.js": "4d6feb2eb9e72d73e9c808cea4f5a1f5561c380c",
+    "/service-portal/chunk-KZEDZDNS.js": "1795de71132f88768ed8f09a7dfd2b3e2b5eb4e4",
+    "/service-portal/chunk-MOJUR3E2.js": "868b3105ab1635246e525b1d952db7a9d9da2a2a",
+    "/service-portal/chunk-PZAKFKJE.js": "3067bd6db2965aded7000150d412a0ac1165f58f",
+    "/service-portal/chunk-QYZT7EZC.js": "6d8959dd54cb33e7d9296ee2e8cd018ca8d539f9",
+    "/service-portal/chunk-RWENPOH4.js": "c293e0bf3c913ea9f08651f69cceda58d2ced6ed",
+    "/service-portal/chunk-YWH6KJOC.js": "cac937c6def11cd9feb53fdc8811a19ec406c38e",
+    "/service-portal/chunk-ZAK7YB2E.js": "50fcc7c3b1c2bc32e2544f1d2becfbf72bf4b526",
     "/service-portal/favicon.ico": "9c39f434fe1261f68c5e3eefdf734630d99c5670",
     "/service-portal/icons/icon-128x128.png": "f912963bdc6d5a38d8f1dd0afbaab2ce8d657acb",
     "/service-portal/icons/icon-144x144.png": "b155fd5f2fd5d2ea7760721063003c4cd95fd783",
@@ -50,9 +117,9 @@
     "/service-portal/icons/icon-512x512.png": "1de182f76f7329dfa8f9fcdd1fdcdd695bea6a99",
     "/service-portal/icons/icon-72x72.png": "aa88a6096bd973be7f6d7a5489bfa6bc2463f8c4",
     "/service-portal/icons/icon-96x96.png": "7fb8f59c30ce2ff12c700321a0b39e14b3dc8f95",
-    "/service-portal/index.html": "f7c5e851bc594582380d1e1185a78981f272962e",
-    "/service-portal/main-IL3CP2WU.js": "e947ac9b6b0219ce9c96d455ea5ce630e9946f11",
-    "/service-portal/manifest.webmanifest": "87ffbfe158490011441b1e0be69acb736e0cbe39",
+    "/service-portal/index.html": "5bac6b8242e338fa2224e98aa7e8d8f3d84a72f5",
+    "/service-portal/main-IBI3RX7V.js": "78e941df22c80b6067df69bc51e4a26dd00ac276",
+    "/service-portal/manifest.webmanifest": "e5c7c8e539aef46efb9d0be6670a39c1465f3f4a",
     "/service-portal/styles-5INURTSO.css": "da39a3ee5e6b4b0d3255bfef95601890afd80709"
   },
   "navigationUrls": [
