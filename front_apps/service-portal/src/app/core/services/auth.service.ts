@@ -4,7 +4,7 @@
  * Handles user authentication with Frappe
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, tap, map, of } from 'rxjs';
 import { FrappeApiService, ApiResponse } from './frappe-api.service';
 import { StateService } from './state.service';
@@ -14,15 +14,15 @@ import { User, LoginCredentials, LoginResponse } from '../models/user.model';
   providedIn: 'root'
 })
 export class AuthService {
+  private frappeApi = inject(FrappeApiService);
+  private stateService = inject(StateService);
+
   // Expose state from StateService
   readonly currentUser = this.stateService.currentUser;
   readonly isAuthenticated = this.stateService.isAuthenticated;
   readonly isLoading = this.stateService.isLoading;
 
-  constructor(
-    private frappeApi: FrappeApiService,
-    private stateService: StateService
-  ) {
+  constructor() {
     // Check auth status on init
     this.checkAuthStatus();
   }

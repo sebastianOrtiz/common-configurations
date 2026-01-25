@@ -4,7 +4,7 @@
  * Displays a list of available Service Portals for the user to choose from
  */
 
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
@@ -19,6 +19,10 @@ import { ServicePortal } from '../../../core/models/service-portal.model';
   styleUrls: ['./portal-selector.component.scss']
 })
 export class PortalSelectorComponent implements OnInit {
+  private portalService = inject(PortalService);
+  private stateService = inject(StateService);
+  private router = inject(Router);
+
   // Component state
   protected portals = signal<ServicePortal[]>([]);
   protected loading = signal<boolean>(false);
@@ -26,12 +30,6 @@ export class PortalSelectorComponent implements OnInit {
 
   // User info from state
   protected currentUser = this.stateService.currentUser;
-
-  constructor(
-    private portalService: PortalService,
-    private stateService: StateService,
-    private router: Router
-  ) {}
 
   ngOnInit(): void {
     this.loadPortals();

@@ -4,7 +4,7 @@
  * Provides appointment scheduling functionality
  */
 
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,6 +26,10 @@ interface DateOption {
   styleUrls: ['./meet-scheduling-tool.component.scss']
 })
 export class MeetSchedulingToolComponent implements OnInit {
+  private meetSchedulingService = inject(MeetSchedulingService);
+  private stateService = inject(StateService);
+  private router = inject(Router);
+
   // Configuration from portal tool
   protected calendarResource = signal<string>('');
   protected showCalendarView = signal<boolean>(true);
@@ -52,12 +56,6 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected currentUser = this.stateService.currentUser;
   protected userContact = this.stateService.userContact;
   protected selectedPortal = this.stateService.selectedPortal;
-
-  constructor(
-    private meetSchedulingService: MeetSchedulingService,
-    private stateService: StateService,
-    private router: Router
-  ) {}
 
   ngOnInit(): void {
     // Get calendar resource from portal tool configuration

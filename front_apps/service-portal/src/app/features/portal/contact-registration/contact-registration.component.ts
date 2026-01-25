@@ -4,7 +4,7 @@
  * Allows users to register their contact information for portal access
  */
 
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -20,6 +20,11 @@ import { UserContact } from '../../../core/models/service-portal.model';
   styleUrls: ['./contact-registration.component.scss']
 })
 export class ContactRegistrationComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private portalService = inject(PortalService);
+  private stateService = inject(StateService);
+
   // Form fields
   protected firstName = signal('');
   protected lastName = signal('');
@@ -33,13 +38,6 @@ export class ContactRegistrationComponent implements OnInit {
   // State
   protected currentUser = this.stateService.currentUser;
   protected selectedPortal = this.stateService.selectedPortal;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private portalService: PortalService,
-    private stateService: StateService
-  ) {}
 
   ngOnInit(): void {
     // Check if user already has a contact
@@ -95,8 +93,7 @@ export class ContactRegistrationComponent implements OnInit {
       first_name: first,
       last_name: last,
       phone: this.phone().trim() || undefined,
-      company: this.company().trim() || undefined,
-      user: user.name
+      company: this.company().trim() || undefined
     };
 
     this.portalService.createUserContact(contactData).subscribe({

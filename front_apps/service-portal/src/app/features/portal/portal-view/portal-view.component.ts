@@ -4,7 +4,7 @@
  * Displays the selected Service Portal with its tool grid
  */
 
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
@@ -20,6 +20,12 @@ import { ServicePortal, ServicePortalTool } from '../../../core/models/service-p
   styleUrls: ['./portal-view.component.scss']
 })
 export class PortalViewComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private portalService = inject(PortalService);
+  private stateService = inject(StateService);
+  private authService = inject(AuthService);
+
   // Component state
   protected portal = signal<ServicePortal | null>(null);
   protected loading = signal<boolean>(false);
@@ -31,14 +37,6 @@ export class PortalViewComponent implements OnInit {
   // User info from state
   protected currentUser = this.stateService.currentUser;
   protected userContact = this.stateService.userContact;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private portalService: PortalService,
-    private stateService: StateService,
-    private authService: AuthService
-  ) {}
 
   ngOnInit(): void {
     // Get portal name from route
