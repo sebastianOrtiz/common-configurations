@@ -20,6 +20,7 @@ Un sistema completo que permite:
 
 ### Para Desarrolladores
 - **[API_EXAMPLES.md](./API_EXAMPLES.md)** - 🔌 Ejemplos de APIs con cURL y código
+- **[DYNAMIC_FORMS.md](./DYNAMIC_FORMS.md)** - 📝 Formularios dinámicos y campos personalizados
 - **[FRONTEND_INTEGRATION.md](./FRONTEND_INTEGRATION.md)** - 🎨 Integración frontend-backend
 - **[PROJECT_STATUS.md](../meet_scheduling/PROJECT_STATUS.md)** - 📊 Estado del proyecto
 
