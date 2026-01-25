@@ -1,0 +1,123 @@
+<div class="portal-view-container" [style.--portal-color]="portal()?.primary_color || '#667eea'">
+  <!-- Header -->
+  <header class="portal-header">
+    <div class="header-content">
+      <!-- Left: Portal Info -->
+      <div class="portal-info">
+        @if (portal()) {
+          <div class="portal-logo">
+            @if (portal()!.logo) {
+              <img [src]="portal()!.logo" [alt]="portal()!.title" />
+            } @else {
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            }
+          </div>
+          <div class="portal-text">
+            <h1>{{ portal()!.title }}</h1>
+            @if (portal()!.description) {
+              <p>{{ portal()!.description }}</p>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Right: User Menu -->
+      <div class="user-menu">
+        @if (currentUser()) {
+          <div class="user-info">
+            <span class="user-name">{{ currentUser()!.full_name || currentUser()!.email }}</span>
+            @if (currentUser()!.user_image) {
+              <img class="user-avatar" [src]="currentUser()!.user_image" [alt]="currentUser()!.full_name" />
+            } @else {
+              <div class="user-avatar-placeholder">
+                {{ (currentUser()!.full_name || currentUser()!.email).charAt(0).toUpperCase() }}
+              </div>
+            }
+          </div>
+        }
+        <button class="btn-logout" (click)="logout()" title="Cerrar sesión">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+        <button class="btn-back" (click)="backToPortals()" title="Cambiar portal">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="portal-main">
+    <!-- Loading State -->
+    @if (loading()) {
+      <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Cargando portal...</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @if (error() && !loading()) {
+      <div class="error-container">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>{{ error() }}</p>
+        <button class="btn-retry" (click)="retry()">
+          Reintentar
+        </button>
+      </div>
+    }
+
+    <!-- Tools Grid -->
+    @if (!loading() && !error() && portal()) {
+      <div class="tools-section">
+        <h2 class="tools-title">Servicios Disponibles</h2>
+
+        @if (enabledTools().length > 0) {
+          <div class="tools-grid">
+            @for (tool of enabledTools(); track tool.tool_type) {
+              <div
+                class="tool-card"
+                (click)="selectTool(tool)"
+                [style.--tool-color]="getToolColor(tool)"
+              >
+                <div class="tool-icon">
+                  @if (tool.icon) {
+                    <img [src]="tool.icon" [alt]="tool.label" />
+                  } @else {
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  }
+                </div>
+
+                <div class="tool-content">
+                  <h3>{{ tool.label }}</h3>
+                </div>
+
+                <div class="tool-arrow">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-tools">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+            </svg>
+            <p>No hay herramientas disponibles en este portal</p>
+          </div>
+        }
+      </div>
+    }
+  </main>
+</div>

@@ -1,0 +1,334 @@
+.portal-selector-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portal-selector-content {
+  max-width: 1200px;
+  width: 100%;
+}
+
+// Header
+.selector-header {
+  text-align: center;
+  margin-bottom: 3rem;
+  color: white;
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .welcome-text {
+    font-size: 1.1rem;
+    opacity: 0.95;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin: 0;
+  }
+}
+
+// Loading State
+.loading-container {
+  background: white;
+  border-radius: 1rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(102, 126, 234, 0.2);
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 1.5rem;
+  }
+
+  p {
+    color: #4a5568;
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Error State
+.error-container {
+  background: white;
+  border-radius: 1rem;
+  padding: 3rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+  svg {
+    width: 64px;
+    height: 64px;
+    color: #e53e3e;
+    margin: 0 auto 1.5rem;
+  }
+
+  p {
+    color: #4a5568;
+    font-size: 1rem;
+    margin: 0 0 1.5rem;
+  }
+
+  .btn-retry {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+// Portals Grid
+.portals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Portal Card
+.portal-card {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--portal-color, #667eea);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s;
+  }
+
+  &:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+
+    &::before {
+      transform: scaleX(1);
+    }
+
+    .portal-arrow {
+      opacity: 1;
+      transform: translateX(8px);
+    }
+  }
+
+  &:active {
+    transform: translateY(-4px);
+  }
+
+  .portal-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, var(--portal-color, #667eea) 0%, rgba(118, 75, 162, 0.8) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 0.75rem;
+    }
+
+    svg {
+      width: 48px;
+      height: 48px;
+      color: white;
+    }
+  }
+
+  .portal-info {
+    flex: 1;
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin: 0 0 0.5rem;
+    }
+
+    .portal-description {
+      font-size: 0.95rem;
+      color: #718096;
+      line-height: 1.5;
+      margin: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+  }
+
+  .portal-arrow {
+    position: absolute;
+    right: 1.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: all 0.3s;
+
+    svg {
+      width: 24px;
+      height: 24px;
+      color: var(--portal-color, #667eea);
+    }
+  }
+}
+
+// Empty State
+.empty-container {
+  background: white;
+  border-radius: 1rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+
+  svg {
+    width: 80px;
+    height: 80px;
+    color: #cbd5e0;
+    margin: 0 auto 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 0 0 0.5rem;
+  }
+
+  p {
+    color: #718096;
+    font-size: 1rem;
+    margin: 0;
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .portal-selector-container {
+    padding: 1.5rem;
+  }
+
+  .selector-header {
+    margin-bottom: 2rem;
+
+    h1 {
+      font-size: 2rem;
+    }
+  }
+
+  .portals-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-card {
+    .portal-arrow {
+      opacity: 1;
+      position: static;
+      transform: none;
+      align-self: flex-end;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-selector-container {
+    padding: 1rem;
+  }
+
+  .selector-header {
+    h1 {
+      font-size: 1.75rem;
+    }
+
+    .welcome-text {
+      font-size: 1rem;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+    }
+  }
+
+  .portal-card {
+    padding: 1.5rem;
+
+    .portal-logo {
+      width: 64px;
+      height: 64px;
+
+      svg {
+        width: 36px;
+        height: 36px;
+      }
+    }
+
+    .portal-info h2 {
+      font-size: 1.25rem;
+    }
+  }
+}

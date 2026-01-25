@@ -25,6 +25,44 @@
           "/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
         ]
       }
+    },
+    {
+      "name": "lazy-bundles",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": [
+          "/chunk-*.js"
+        ]
+      }
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "api-fresh",
+      "urls": [
+        "/api/method/frappe.auth.get_logged_user",
+        "/api/method/frappe.auth.logout"
+      ],
+      "cacheConfig": {
+        "maxSize": 10,
+        "maxAge": "1m",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "api-performance",
+      "urls": [
+        "/api/resource/**",
+        "/api/method/common_configurations.api.**",
+        "/api/method/meet_scheduling.api.**"
+      ],
+      "cacheConfig": {
+        "maxSize": 100,
+        "maxAge": "1h",
+        "strategy": "performance",
+        "timeout": "10s"
+      }
     }
   ]
 }

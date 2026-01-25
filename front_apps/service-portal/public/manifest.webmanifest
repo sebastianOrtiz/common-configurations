@@ -1,9 +1,13 @@
 {
-  "name": "service-portal",
-  "short_name": "service-portal",
+  "name": "Portal de Servicios",
+  "short_name": "Portal",
+  "description": "Portal de servicios interactivo con múltiples herramientas",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "scope": "./",
   "start_url": "./",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
   "icons": [
     {
       "src": "icons/icon-72x72.png",
