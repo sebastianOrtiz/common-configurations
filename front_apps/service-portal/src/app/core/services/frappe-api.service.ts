@@ -426,11 +426,21 @@ export class FrappeApiService {
 
   /**
    * Get DocType metadata (fields configuration)
+   * Uses GET request to avoid CSRF issues
    */
   getDocTypeMeta(doctype: string): Observable<ApiResponse> {
-    return this.callMethod('frappe.desk.form.load.getdoctype', {
-      doctype: doctype,
-      with_parent: 1
-    });
+    const url = `/api/method/frappe.desk.form.load.getdoctype`;
+
+    const params = new HttpParams()
+      .set('doctype', doctype)
+      .set('with_parent', '1');
+
+    return this.http.get<any>(this.buildUrl(url), {
+      headers: this.getAuthHeaders(),
+      params: params
+    }).pipe(
+      map(response => this.normalizeResponse(response)),
+      catchError(err => this.handleError(err))
+    );
   }
 }
