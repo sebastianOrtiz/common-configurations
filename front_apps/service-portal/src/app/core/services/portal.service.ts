@@ -7,7 +7,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { FrappeApiService, ApiResponse } from './frappe-api.service';
-import { ServicePortal, UserContact, ToolType } from '../models/service-portal.model';
+import { ServicePortal, UserContact, ToolType, DocField } from '../models/service-portal.model';
 
 // Base API paths for common_configurations
 const API_BASE = '/api/method/common_configurations.api';
@@ -134,6 +134,50 @@ export class PortalService {
           throw new Error(response.error || 'API call failed');
         }
         return response.message as T;
+      })
+    );
+  }
+
+  /**
+   * Get User Contact DocType fields metadata
+   * Returns only the visible, editable fields that should appear in the registration form
+   */
+  getUserContactFields(): Observable<DocField[]> {
+    return this.frappeApi.getDocTypeMeta('User Contact').pipe(
+      map(response => {
+        if (!response.success || !response.message || !response.message.docs) {
+          throw new Error('Failed to load User Contact metadata');
+        }
+
+        const doctype = response.message.docs[0];
+        const fields: DocField[] = doctype.fields || [];
+
+        // Filter fields that should appear in the form
+        return fields.filter((field: DocField) => {
+          // Exclude hidden fields
+          if (field.hidden) return false;
+
+          // Exclude read-only fields
+          if (field.read_only) return false;
+
+          // Include only data entry field types
+          const includedTypes = [
+            'Data', 'Select', 'Int', 'Float', 'Currency',
+            'Date', 'Datetime', 'Time', 'Check', 'Text',
+            'Small Text', 'Long Text', 'Link', 'Dynamic Link',
+            'Phone', 'Email'
+          ];
+
+          if (!includedTypes.includes(field.fieldtype)) return false;
+
+          // Exclude section breaks, column breaks, etc.
+          return true;
+        }).sort((a, b) => {
+          // Sort by field order if available
+          const orderA = doctype.field_order?.indexOf(a.fieldname) ?? 999;
+          const orderB = doctype.field_order?.indexOf(b.fieldname) ?? 999;
+          return orderA - orderB;
+        });
       })
     );
   }

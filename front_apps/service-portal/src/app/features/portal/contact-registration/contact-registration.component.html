@@ -7,126 +7,143 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
       </div>
-      <h1>{{ selectedPortal()?.registration_title || 'Completa tu Perfil' }}</h1>
-      <p>Por favor proporciona la siguiente información para continuar</p>
+      <h1>{{ selectedPortal()?.registration_title || 'Registro de Contacto' }}</h1>
+      <p>{{ selectedPortal()?.registration_description || 'Por favor ingresa los datos de la persona para quien se agendará el servicio' }}</p>
     </div>
 
-    <!-- Registration Form -->
-    <form class="registration-form" (ngSubmit)="onSubmit()" #regForm="ngForm">
-      <!-- Error Alert -->
-      @if (error()) {
-        <div class="alert alert-error">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{{ error() }}</span>
+    <!-- Loading Fields State -->
+    @if (loadingFields()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando formulario...</p>
+      </div>
+    }
+
+    <!-- Error State -->
+    @else if (error() && fields().length === 0) {
+      <div class="error-state">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p>{{ error() }}</p>
+        <button class="btn-primary" (click)="loadFields()">Reintentar</button>
+      </div>
+    }
+
+    <!-- Registration Form (Dynamic) -->
+    @else {
+      <form class="registration-form" (ngSubmit)="onSubmit()" #regForm="ngForm">
+        <!-- Error Alert -->
+        @if (error()) {
+          <div class="alert alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{{ error() }}</span>
+          </div>
+        }
+
+        <!-- Dynamic Fields -->
+        @for (field of fields(); track field.fieldname) {
+          <div class="form-group">
+            <label [for]="field.fieldname">
+              {{ field.label }}
+              @if (field.reqd) {
+                <span class="required">*</span>
+              }
+            </label>
+
+            <!-- Text, Number, Email, Phone, Date, etc. -->
+            @if (field.fieldtype !== 'Select' && field.fieldtype !== 'Check' && field.fieldtype !== 'Text' && field.fieldtype !== 'Small Text' && field.fieldtype !== 'Long Text') {
+              <input
+                [type]="getInputType(field)"
+                [id]="field.fieldname"
+                [name]="field.fieldname"
+                [ngModel]="getFieldValue(field.fieldname)"
+                (ngModelChange)="setFieldValue(field.fieldname, $event)"
+                [placeholder]="field.description || field.label"
+                [disabled]="loading()"
+                [required]="field.reqd === 1"
+              />
+            }
+
+            <!-- Select Dropdown -->
+            @else if (field.fieldtype === 'Select') {
+              <select
+                [id]="field.fieldname"
+                [name]="field.fieldname"
+                [ngModel]="getFieldValue(field.fieldname)"
+                (ngModelChange)="setFieldValue(field.fieldname, $event)"
+                [disabled]="loading()"
+                [required]="field.reqd === 1"
+              >
+                <option value="">Seleccionar...</option>
+                @for (option of getSelectOptions(field); track option) {
+                  <option [value]="option">{{ option }}</option>
+                }
+              </select>
+            }
+
+            <!-- Checkbox -->
+            @else if (field.fieldtype === 'Check') {
+              <div class="checkbox-wrapper">
+                <input
+                  type="checkbox"
+                  [id]="field.fieldname"
+                  [name]="field.fieldname"
+                  [ngModel]="getFieldValue(field.fieldname)"
+                  (ngModelChange)="setFieldValue(field.fieldname, $event ? 1 : 0)"
+                  [disabled]="loading()"
+                />
+                <span>{{ field.description || field.label }}</span>
+              </div>
+            }
+
+            <!-- Text Area (Text, Small Text, Long Text) -->
+            @else {
+              <textarea
+                [id]="field.fieldname"
+                [name]="field.fieldname"
+                [ngModel]="getFieldValue(field.fieldname)"
+                (ngModelChange)="setFieldValue(field.fieldname, $event)"
+                [placeholder]="field.description || field.label"
+                [disabled]="loading()"
+                [required]="field.reqd === 1"
+                [rows]="field.fieldtype === 'Long Text' ? 6 : 3"
+              ></textarea>
+            }
+
+            <!-- Field Description (if any) -->
+            @if (field.description && field.fieldtype !== 'Check') {
+              <small class="field-description">{{ field.description }}</small>
+            }
+          </div>
+        }
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn-secondary"
+            (click)="cancel()"
+            [disabled]="loading()"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            class="btn-primary"
+            [disabled]="loading() || loadingFields()"
+          >
+            @if (loading()) {
+              <span class="spinner"></span>
+              Registrando...
+            } @else {
+              Continuar
+            }
+          </button>
         </div>
-      }
-
-      <!-- First Name -->
-      <div class="form-group">
-        <label for="firstName">
-          Nombre *
-        </label>
-        <input
-          type="text"
-          id="firstName"
-          name="firstName"
-          [ngModel]="firstName()"
-          (ngModelChange)="firstName.set($event)"
-          placeholder="Tu nombre"
-          [disabled]="loading()"
-          required
-        />
-      </div>
-
-      <!-- Last Name -->
-      <div class="form-group">
-        <label for="lastName">
-          Apellido *
-        </label>
-        <input
-          type="text"
-          id="lastName"
-          name="lastName"
-          [ngModel]="lastName()"
-          (ngModelChange)="lastName.set($event)"
-          placeholder="Tu apellido"
-          [disabled]="loading()"
-          required
-        />
-      </div>
-
-      <!-- Email (read-only) -->
-      <div class="form-group">
-        <label for="email">
-          Email
-        </label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          [value]="currentUser()?.email || ''"
-          readonly
-          disabled
-        />
-      </div>
-
-      <!-- Phone (optional) -->
-      <div class="form-group">
-        <label for="phone">
-          Teléfono
-        </label>
-        <input
-          type="tel"
-          id="phone"
-          name="phone"
-          [ngModel]="phone()"
-          (ngModelChange)="phone.set($event)"
-          placeholder="+1234567890"
-          [disabled]="loading()"
-        />
-      </div>
-
-      <!-- Company (optional) -->
-      <div class="form-group">
-        <label for="company">
-          Empresa
-        </label>
-        <input
-          type="text"
-          id="company"
-          name="company"
-          [ngModel]="company()"
-          (ngModelChange)="company.set($event)"
-          placeholder="Nombre de tu empresa"
-          [disabled]="loading()"
-        />
-      </div>
-
-      <!-- Actions -->
-      <div class="form-actions">
-        <button
-          type="button"
-          class="btn-secondary"
-          (click)="cancel()"
-          [disabled]="loading()"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          class="btn-primary"
-          [disabled]="loading() || !regForm.form.valid"
-        >
-          @if (loading()) {
-            <span class="spinner"></span>
-            Registrando...
-          } @else {
-            Continuar
-          }
-        </button>
-      </div>
-    </form>
+      </form>
+    }
   </div>
 </div>

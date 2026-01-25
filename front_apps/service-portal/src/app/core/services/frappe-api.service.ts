@@ -423,4 +423,14 @@ export class FrappeApiService {
     this.config.token = undefined;
     localStorage.removeItem('frappe_api_token');
   }
+
+  /**
+   * Get DocType metadata (fields configuration)
+   */
+  getDocTypeMeta(doctype: string): Observable<ApiResponse> {
+    return this.callMethod('frappe.desk.form.load.getdoctype', {
+      doctype: doctype,
+      with_parent: 1
+    });
+  }
 }

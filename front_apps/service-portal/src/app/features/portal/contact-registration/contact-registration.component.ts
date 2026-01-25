@@ -1,7 +1,9 @@
 /**
  * Contact Registration Component
  *
- * Allows users to register their contact information for portal access
+ * Dynamically generates registration form based on User Contact DocType fields
+ * Allows system users to register third-party contact information
+ * (clients, patients, etc.) who will receive the service
  */
 
 import { Component, OnInit, signal, inject } from '@angular/core';
@@ -10,7 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
-import { UserContact } from '../../../core/models/service-portal.model';
+import { UserContact, DocField } from '../../../core/models/service-portal.model';
 
 @Component({
   selector: 'app-contact-registration',
@@ -25,11 +27,10 @@ export class ContactRegistrationComponent implements OnInit {
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
 
-  // Form fields
-  protected firstName = signal('');
-  protected lastName = signal('');
-  protected phone = signal('');
-  protected company = signal('');
+  // Dynamic form fields from DocType metadata
+  protected fields = signal<DocField[]>([]);
+  protected formData = signal<Record<string, any>>({});
+  protected loadingFields = signal(true);
 
   // UI state
   protected loading = signal(false);
@@ -47,19 +48,121 @@ export class ContactRegistrationComponent implements OnInit {
       if (portalName) {
         this.router.navigate(['/portal', portalName]);
       }
+      return;
     }
 
-    // Pre-fill email if available
-    const user = this.currentUser();
-    if (user && user.full_name) {
-      const nameParts = user.full_name.split(' ');
-      if (nameParts.length >= 2) {
-        this.firstName.set(nameParts[0]);
-        this.lastName.set(nameParts.slice(1).join(' '));
-      } else {
-        this.firstName.set(user.full_name);
+    // Load User Contact DocType fields
+    this.loadFields();
+  }
+
+  /**
+   * Load fields from User Contact DocType
+   */
+  protected loadFields(): void {
+    this.loadingFields.set(true);
+    this.error.set(null);
+
+    this.portalService.getUserContactFields().subscribe({
+      next: (fields) => {
+        this.fields.set(fields);
+
+        // Initialize form data with default values
+        const initialData: Record<string, any> = {};
+        fields.forEach(field => {
+          if (field.default) {
+            initialData[field.fieldname] = field.default;
+          }
+        });
+        this.formData.set(initialData);
+
+        this.loadingFields.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading fields:', err);
+        this.error.set('Error al cargar el formulario. Por favor intenta de nuevo.');
+        this.loadingFields.set(false);
+      }
+    });
+  }
+
+  /**
+   * Get field value
+   */
+  getFieldValue(fieldname: string): any {
+    return this.formData()[fieldname] || '';
+  }
+
+  /**
+   * Set field value
+   */
+  setFieldValue(fieldname: string, value: any): void {
+    const currentData = this.formData();
+    this.formData.set({
+      ...currentData,
+      [fieldname]: value
+    });
+  }
+
+  /**
+   * Get select options as array
+   */
+  getSelectOptions(field: DocField): string[] {
+    if (!field.options) return [];
+    return field.options.split('\n').map(opt => opt.trim()).filter(opt => opt);
+  }
+
+  /**
+   * Get input type for field
+   */
+  getInputType(field: DocField): string {
+    switch (field.fieldtype) {
+      case 'Int':
+      case 'Float':
+      case 'Currency':
+        return 'number';
+      case 'Email':
+      case 'Phone':
+        return field.fieldtype.toLowerCase();
+      case 'Date':
+        return 'date';
+      case 'Datetime':
+        return 'datetime-local';
+      case 'Time':
+        return 'time';
+      case 'Check':
+        return 'checkbox';
+      default:
+        return 'text';
+    }
+  }
+
+  /**
+   * Validate form
+   */
+  private validateForm(): string | null {
+    const data = this.formData();
+    const fields = this.fields();
+
+    // Check required fields
+    for (const field of fields) {
+      if (field.reqd) {
+        const value = data[field.fieldname];
+        if (value === undefined || value === null || value === '') {
+          return `El campo "${field.label}" es obligatorio`;
+        }
       }
     }
+
+    // Validate email format if email field exists
+    const emailField = fields.find(f => f.fieldtype === 'Email' || f.options === 'Email');
+    if (emailField && data[emailField.fieldname]) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(data[emailField.fieldname])) {
+        return `Por favor ingresa un email válido en "${emailField.label}"`;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -68,33 +171,24 @@ export class ContactRegistrationComponent implements OnInit {
   onSubmit(): void {
     this.error.set(null);
 
-    // Validation
-    const first = this.firstName().trim();
-    const last = this.lastName().trim();
-
-    if (!first || !last) {
-      this.error.set('Por favor completa tu nombre y apellido');
+    // Validate form
+    const validationError = this.validateForm();
+    if (validationError) {
+      this.error.set(validationError);
       return;
     }
 
-    const user = this.currentUser();
     const portal = this.selectedPortal();
 
-    if (!user || !portal) {
-      this.error.set('Error de sesión. Por favor intenta de nuevo.');
+    if (!portal) {
+      this.error.set('Error de sesión. Por favor recarga la página.');
       return;
     }
 
-    // Create user contact
+    // Create user contact with form data
     this.loading.set(true);
 
-    const contactData: Partial<UserContact> = {
-      email: user.email,
-      first_name: first,
-      last_name: last,
-      phone: this.phone().trim() || undefined,
-      company: this.company().trim() || undefined
-    };
+    const contactData: Partial<UserContact> = { ...this.formData() };
 
     this.portalService.createUserContact(contactData).subscribe({
       next: (contact) => {
@@ -107,7 +201,7 @@ export class ContactRegistrationComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error creating contact:', err);
-        this.error.set('Error al registrar tu información. Por favor intenta de nuevo.');
+        this.error.set(err.error || 'Error al registrar la información. Por favor intenta de nuevo.');
         this.loading.set(false);
       }
     });

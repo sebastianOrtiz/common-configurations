@@ -57,10 +57,41 @@ export interface ToolType {
 
 export interface UserContact {
   name?: string;
-  first_name: string;
-  last_name?: string;
-  email: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
+  full_name: string;
+  document_type: string;
+  document: string;
+  phone_number?: string;
+  email?: string;
+  gender?: string;
+  // Allow additional custom fields
+  [key: string]: any;
+}
+
+/**
+ * DocType Field Metadata from Frappe
+ */
+export interface DocField {
+  fieldname: string;
+  fieldtype: string;
+  label: string;
+  reqd?: number;
+  options?: string;
+  default?: string;
+  description?: string;
+  read_only?: number;
+  hidden?: number;
+  depends_on?: string;
+  mandatory_depends_on?: string;
+  length?: number;
+  precision?: number;
+  in_list_view?: number;
+}
+
+/**
+ * DocType Metadata from Frappe
+ */
+export interface DocTypeMeta {
+  name: string;
+  fields: DocField[];
+  field_order?: string[];
 }
