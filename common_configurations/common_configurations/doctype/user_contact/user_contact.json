@@ -7,9 +7,9 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_buz6",
-  "full_name",
   "document_type",
   "document",
+  "full_name",
   "phone_number",
   "email",
   "gender"
@@ -65,7 +65,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-11-21 19:30:45.123187",
+ "modified": "2026-01-25 13:56:51.522166",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "User contact",

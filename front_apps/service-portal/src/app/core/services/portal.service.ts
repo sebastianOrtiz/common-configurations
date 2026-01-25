@@ -101,6 +101,26 @@ export class PortalService {
   }
 
   /**
+   * Get User Contact by document number
+   */
+  getUserContactByDocument(document: string): Observable<UserContact | null> {
+    return this.frappeApi.getList(
+      'User Contact',
+      [['document', '=', document]],
+      ['*'],
+      0,
+      1
+    ).pipe(
+      map(response => {
+        if (!response.success || !response.data || response.data.length === 0) {
+          return null;
+        }
+        return response.data[0] as UserContact;
+      })
+    );
+  }
+
+  /**
    * Get available Tool Types
    */
   getToolTypes(): Observable<ToolType[]> {

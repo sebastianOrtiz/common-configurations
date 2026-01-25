@@ -35,6 +35,11 @@ export class ContactRegistrationComponent implements OnInit {
   // UI state
   protected loading = signal(false);
   protected error = signal<string | null>(null);
+  protected searchingContact = signal(false);
+  protected contactFound = signal(false);
+
+  // Existing contact (for updates)
+  private existingContact: UserContact | null = null;
 
   // State
   protected currentUser = this.stateService.currentUser;
@@ -100,6 +105,58 @@ export class ContactRegistrationComponent implements OnInit {
     this.formData.set({
       ...currentData,
       [fieldname]: value
+    });
+
+    // If document field changed, search for existing contact
+    if (fieldname === 'document' && value && value.toString().trim()) {
+      this.searchContactByDocument(value.toString().trim());
+    }
+  }
+
+  /**
+   * Search for existing contact by document number
+   */
+  private searchContactByDocument(document: string): void {
+    // Don't search if too short
+    if (document.length < 3) {
+      this.contactFound.set(false);
+      this.existingContact = null;
+      return;
+    }
+
+    this.searchingContact.set(true);
+    this.error.set(null);
+
+    this.portalService.getUserContactByDocument(document).subscribe({
+      next: (contact) => {
+        this.searchingContact.set(false);
+
+        if (contact) {
+          // Contact found - fill form with existing data
+          this.existingContact = contact;
+          this.contactFound.set(true);
+
+          // Fill all fields with existing data
+          const updatedData: Record<string, any> = {};
+          this.fields().forEach(field => {
+            if (contact[field.fieldname] !== undefined) {
+              updatedData[field.fieldname] = contact[field.fieldname];
+            }
+          });
+
+          this.formData.set(updatedData);
+        } else {
+          // Contact not found - clear except document
+          this.existingContact = null;
+          this.contactFound.set(false);
+        }
+      },
+      error: (err) => {
+        console.error('Error searching contact:', err);
+        this.searchingContact.set(false);
+        this.existingContact = null;
+        this.contactFound.set(false);
+      }
     });
   }
 
@@ -185,26 +242,46 @@ export class ContactRegistrationComponent implements OnInit {
       return;
     }
 
-    // Create user contact with form data
     this.loading.set(true);
 
     const contactData: Partial<UserContact> = { ...this.formData() };
 
-    this.portalService.createUserContact(contactData).subscribe({
-      next: (contact) => {
-        // Save to state
-        this.stateService.setUserContact(contact);
-        this.loading.set(false);
+    // Update existing contact or create new one
+    if (this.existingContact && this.existingContact.name) {
+      // Update existing contact
+      this.portalService.updateUserContact(this.existingContact.name, contactData).subscribe({
+        next: (contact) => {
+          // Save to state
+          this.stateService.setUserContact(contact);
+          this.loading.set(false);
 
-        // Navigate to portal
-        this.router.navigate(['/portal', portal.portal_name]);
-      },
-      error: (err) => {
-        console.error('Error creating contact:', err);
-        this.error.set(err.error || 'Error al registrar la información. Por favor intenta de nuevo.');
-        this.loading.set(false);
-      }
-    });
+          // Navigate to portal
+          this.router.navigate(['/portal', portal.portal_name]);
+        },
+        error: (err) => {
+          console.error('Error updating contact:', err);
+          this.error.set(err.error || 'Error al actualizar la información. Por favor intenta de nuevo.');
+          this.loading.set(false);
+        }
+      });
+    } else {
+      // Create new contact
+      this.portalService.createUserContact(contactData).subscribe({
+        next: (contact) => {
+          // Save to state
+          this.stateService.setUserContact(contact);
+          this.loading.set(false);
+
+          // Navigate to portal
+          this.router.navigate(['/portal', portal.portal_name]);
+        },
+        error: (err) => {
+          console.error('Error creating contact:', err);
+          this.error.set(err.error || 'Error al registrar la información. Por favor intenta de nuevo.');
+          this.loading.set(false);
+        }
+      });
+    }
   }
 
   /**
