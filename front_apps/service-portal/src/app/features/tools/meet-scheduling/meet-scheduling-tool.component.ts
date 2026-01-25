@@ -30,6 +30,10 @@ export class MeetSchedulingToolComponent implements OnInit {
   private stateService = inject(StateService);
   private router = inject(Router);
 
+  constructor() {
+    console.log('[MeetScheduling] Constructor called');
+  }
+
   // Configuration from portal tool
   protected calendarResource = signal<string>('');
   protected showCalendarView = signal<boolean>(true);

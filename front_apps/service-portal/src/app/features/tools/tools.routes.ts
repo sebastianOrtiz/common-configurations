@@ -11,7 +11,13 @@ export const toolRoutes: Routes = [
   // Meet Scheduling Tool
   {
     path: 'meet_scheduling',
-    loadComponent: () => import('./meet-scheduling/meet-scheduling-tool.component').then(m => m.MeetSchedulingToolComponent)
+    loadComponent: () => {
+      console.log('[ToolRoutes] Loading meet_scheduling component');
+      return import('./meet-scheduling/meet-scheduling-tool.component').then(m => {
+        console.log('[ToolRoutes] meet_scheduling component loaded:', m);
+        return m.MeetSchedulingToolComponent;
+      });
+    }
   },
 
   // Future tools can be added here
@@ -24,6 +30,9 @@ export const toolRoutes: Routes = [
   // Fallback for unknown tool types
   {
     path: '**',
-    loadComponent: () => import('./tool-not-found/tool-not-found.component').then(m => m.ToolNotFoundComponent)
+    loadComponent: () => {
+      console.log('[ToolRoutes] Loading tool-not-found (fallback)');
+      return import('./tool-not-found/tool-not-found.component').then(m => m.ToolNotFoundComponent);
+    }
   }
 ];

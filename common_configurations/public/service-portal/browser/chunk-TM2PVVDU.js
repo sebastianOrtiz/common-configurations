@@ -1,1 +1,0 @@
-import"./chunk-2NFLSA4Y.js";var t=[{path:"meet_scheduling",loadComponent:()=>import("./chunk-DPHZT5FQ.js").then(o=>o.MeetSchedulingToolComponent)},{path:"**",loadComponent:()=>import("./chunk-OCKTCNGO.js").then(o=>o.ToolNotFoundComponent)}];export{t as toolRoutes};
