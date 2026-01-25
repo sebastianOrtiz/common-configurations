@@ -18,6 +18,15 @@ interface DateOption {
   value: string;
 }
 
+interface CalendarDay {
+  date: Date;
+  dateStr: string;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  hasAvailability: boolean;
+  isPast: boolean;
+}
+
 @Component({
   selector: 'app-meet-scheduling-tool',
   standalone: true,
@@ -30,9 +39,6 @@ export class MeetSchedulingToolComponent implements OnInit {
   private stateService = inject(StateService);
   private router = inject(Router);
 
-  constructor() {
-    console.log('[MeetScheduling] Constructor called');
-  }
 
   // Configuration from portal tool
   protected calendarResource = signal<string>('');
@@ -43,12 +49,22 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected loadingSlots = signal<boolean>(false);
   protected error = signal<string | null>(null);
   protected successMessage = signal<string | null>(null);
+  protected activeTab = signal<'book' | 'appointments'>('book');
+  protected showConfirmModal = signal<boolean>(false);
+  protected confirmedAppointment = signal<Appointment | null>(null);
 
   // Scheduling state
   protected selectedDate = signal<string>('');
   protected availableSlots = signal<AvailableSlot[]>([]);
   protected selectedSlot = signal<AvailableSlot | null>(null);
   protected dateOptions = signal<DateOption[]>([]);
+
+  // Calendar state
+  protected currentMonth = signal<Date>(new Date());
+  protected calendarDays = signal<CalendarDay[]>([]);
+  protected availabilityMap = signal<Map<string, AvailableSlot[]>>(new Map());
+  protected monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  protected weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   // User appointments
   protected userAppointments = signal<Appointment[]>([]);
@@ -62,33 +78,203 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected selectedPortal = this.stateService.selectedPortal;
 
   ngOnInit(): void {
-    console.log('[MeetScheduling] ngOnInit called');
-
     // Get calendar resource from portal tool configuration
     const portal = this.selectedPortal();
-    console.log('[MeetScheduling] Portal:', portal);
-
     const tool = portal?.tools.find(t => t.tool_type === 'meet_scheduling');
-    console.log('[MeetScheduling] Tool found:', tool);
 
     if (tool && tool.calendar_resource) {
-      console.log('[MeetScheduling] Calendar resource:', tool.calendar_resource);
       this.calendarResource.set(tool.calendar_resource);
       this.showCalendarView.set(tool.show_calendar_view ?? true);
 
-      // Generate date options for next 14 days
-      this.generateDateOptions();
+      // Load calendar for current month
+      this.loadCalendarMonth(this.currentMonth());
 
       // Load user appointments
       this.loadUserAppointments();
     } else {
-      console.error('[MeetScheduling] No tool or calendar resource found');
       this.error.set('Configuración de calendario no encontrada');
     }
   }
 
   /**
-   * Generate date options for the next 14 days
+   * Load calendar for a specific month
+   */
+  private loadCalendarMonth(monthDate: Date): void {
+    const resource = this.calendarResource();
+    if (!resource) return;
+
+    // Get first and last day of month
+    const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+    const lastDay = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+
+    // Generate calendar days
+    this.generateCalendarDays(monthDate);
+
+    // Load slots for the entire month
+    this.loading.set(true);
+    this.error.set(null);
+
+    const fromDate = this.formatDateISO(firstDay);
+    const toDate = this.formatDateISO(lastDay);
+
+    this.meetSchedulingService.getAvailableSlots(resource, fromDate, toDate).subscribe({
+      next: (slots) => {
+        // Group slots by date
+        const map = new Map<string, AvailableSlot[]>();
+        slots.filter(s => s.is_available).forEach(slot => {
+          const dateStr = slot.start.split(' ')[0];
+          if (!map.has(dateStr)) {
+            map.set(dateStr, []);
+          }
+          map.get(dateStr)!.push(slot);
+        });
+
+        this.availabilityMap.set(map);
+
+        // Update calendar days with availability info
+        this.updateCalendarAvailability();
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Error loading month slots:', err);
+        this.error.set('Error al cargar disponibilidad del mes');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Generate calendar days for a month
+   */
+  private generateCalendarDays(monthDate: Date): void {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // First day of month
+    const firstDay = new Date(year, month, 1);
+    const firstDayOfWeek = firstDay.getDay();
+
+    // Last day of month
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+
+    const days: CalendarDay[] = [];
+
+    // Add previous month days to fill the week
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      const date = new Date(year, month, -firstDayOfWeek + i + 1);
+      days.push({
+        date,
+        dateStr: this.formatDateISO(date),
+        isCurrentMonth: false,
+        isToday: false,
+        hasAvailability: false,
+        isPast: date < today
+      });
+    }
+
+    // Add current month days
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const isToday = this.isSameDay(date, today);
+      days.push({
+        date,
+        dateStr: this.formatDateISO(date),
+        isCurrentMonth: true,
+        isToday,
+        hasAvailability: false,
+        isPast: date < today
+      });
+    }
+
+    // Add next month days to complete the grid
+    const remainingDays = 42 - days.length; // 6 weeks * 7 days
+    for (let day = 1; day <= remainingDays; day++) {
+      const date = new Date(year, month + 1, day);
+      days.push({
+        date,
+        dateStr: this.formatDateISO(date),
+        isCurrentMonth: false,
+        isToday: false,
+        hasAvailability: false,
+        isPast: date < today
+      });
+    }
+
+    this.calendarDays.set(days);
+  }
+
+  /**
+   * Update calendar days with availability information
+   */
+  private updateCalendarAvailability(): void {
+    const map = this.availabilityMap();
+    const updatedDays = this.calendarDays().map(day => ({
+      ...day,
+      hasAvailability: map.has(day.dateStr) && (map.get(day.dateStr)?.length ?? 0) > 0
+    }));
+    this.calendarDays.set(updatedDays);
+  }
+
+  /**
+   * Navigate to previous month
+   */
+  previousMonth(): void {
+    const current = this.currentMonth();
+    const previous = new Date(current.getFullYear(), current.getMonth() - 1, 1);
+    this.currentMonth.set(previous);
+    this.loadCalendarMonth(previous);
+    this.clearSelection();
+  }
+
+  /**
+   * Navigate to next month
+   */
+  nextMonth(): void {
+    const current = this.currentMonth();
+    const next = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+    this.currentMonth.set(next);
+    this.loadCalendarMonth(next);
+    this.clearSelection();
+  }
+
+  /**
+   * Get current month name
+   */
+  getCurrentMonthName(): string {
+    const date = this.currentMonth();
+    return `${this.monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  }
+
+  /**
+   * Select a day from calendar
+   */
+  onDaySelected(day: CalendarDay): void {
+    if (!day.isCurrentMonth || day.isPast || !day.hasAvailability) {
+      return;
+    }
+
+    this.selectedDate.set(day.dateStr);
+    this.selectedSlot.set(null);
+
+    // Load slots for this specific day from the map
+    const slots = this.availabilityMap().get(day.dateStr) || [];
+    this.availableSlots.set(slots);
+  }
+
+  /**
+   * Clear selection
+   */
+  private clearSelection(): void {
+    this.selectedDate.set('');
+    this.selectedSlot.set(null);
+    this.availableSlots.set([]);
+  }
+
+  /**
+   * Generate date options for the next 14 days (legacy, keeping for compatibility)
    */
   private generateDateOptions(): void {
     const options: DateOption[] = [];
@@ -153,9 +339,7 @@ export class MeetSchedulingToolComponent implements OnInit {
    * Load available slots for a specific date
    */
   private loadAvailableSlots(date: string): void {
-    console.log('[MeetScheduling] loadAvailableSlots called for date:', date);
     const resource = this.calendarResource();
-    console.log('[MeetScheduling] Calendar resource:', resource);
     if (!resource) return;
 
     this.loadingSlots.set(true);
@@ -182,6 +366,15 @@ export class MeetSchedulingToolComponent implements OnInit {
   }
 
   /**
+   * Switch tabs
+   */
+  switchTab(tab: 'book' | 'appointments'): void {
+    this.activeTab.set(tab);
+    this.error.set(null);
+    this.successMessage.set(null);
+  }
+
+  /**
    * Book the selected appointment
    */
   bookAppointment(): void {
@@ -189,7 +382,7 @@ export class MeetSchedulingToolComponent implements OnInit {
     const contact = this.userContact();
     const resource = this.calendarResource();
 
-    if (!slot || !contact || !resource) {
+    if (!slot || !contact || !contact.name || !resource) {
       this.error.set('Por favor selecciona un horario');
       return;
     }
@@ -198,32 +391,22 @@ export class MeetSchedulingToolComponent implements OnInit {
     this.error.set(null);
     this.successMessage.set(null);
 
-    // Create appointment
-    this.meetSchedulingService.createAppointment({
-      calendar_resource: resource,
-      user_contact: contact.name,
-      start_datetime: slot.start,
-      end_datetime: slot.end,
-      status: 'Draft'
-    }).subscribe({
+    // Create and confirm appointment in one operation
+    this.meetSchedulingService.createAndConfirmAppointment(
+      resource,
+      contact.name,
+      slot.start,
+      slot.end
+    ).subscribe({
       next: (appointment) => {
-        // Submit the appointment to confirm it
-        this.meetSchedulingService.submitAppointment(appointment.name!).subscribe({
-          next: () => {
-            this.successMessage.set('¡Cita agendada exitosamente!');
-            this.loading.set(false);
-            this.selectedSlot.set(null);
-            this.selectedDate.set('');
-            this.availableSlots.set([]);
-            // Reload user appointments
-            this.loadUserAppointments();
-          },
-          error: (err) => {
-            console.error('Error submitting appointment:', err);
-            this.error.set('Error al confirmar la cita');
-            this.loading.set(false);
-          }
-        });
+        this.confirmedAppointment.set(appointment);
+        this.showConfirmModal.set(true);
+        this.loading.set(false);
+        this.selectedSlot.set(null);
+        this.selectedDate.set('');
+        this.availableSlots.set([]);
+        // Reload user appointments
+        this.loadUserAppointments();
       },
       error: (err) => {
         console.error('Error creating appointment:', err);
@@ -234,20 +417,30 @@ export class MeetSchedulingToolComponent implements OnInit {
   }
 
   /**
+   * Close confirmation modal
+   */
+  closeConfirmModal(): void {
+    this.showConfirmModal.set(false);
+    this.confirmedAppointment.set(null);
+  }
+
+  /**
+   * Close modal and switch to appointments tab
+   */
+  viewAppointments(): void {
+    this.closeConfirmModal();
+    this.switchTab('appointments');
+  }
+
+  /**
    * Load user's appointments
    */
   private loadUserAppointments(): void {
-    console.log('[MeetScheduling] loadUserAppointments called');
     const contact = this.userContact();
-    console.log('[MeetScheduling] User contact:', contact);
-    if (!contact?.name) {
-      console.warn('[MeetScheduling] No contact name found');
-      return;
-    }
+    if (!contact?.name) return;
 
     this.meetSchedulingService.getUserAppointments(contact.name).subscribe({
       next: (appointments) => {
-        console.log('[MeetScheduling] User appointments loaded:', appointments);
         // Sort by start date, most recent first
         const sorted = appointments.sort((a, b) =>
           new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime()
@@ -255,7 +448,7 @@ export class MeetSchedulingToolComponent implements OnInit {
         this.userAppointments.set(sorted);
       },
       error: (err) => {
-        console.error('[MeetScheduling] Error loading appointments:', err);
+        console.error('Error loading appointments:', err);
       }
     });
   }
@@ -271,8 +464,9 @@ export class MeetSchedulingToolComponent implements OnInit {
     }
 
     this.meetSchedulingService.cancelAppointment(appointment.name).subscribe({
-      next: () => {
-        this.successMessage.set('Cita cancelada exitosamente');
+      next: (result) => {
+        // Use the message from backend (handles both deleted and cancelled)
+        this.successMessage.set(result.message || 'Cita cancelada exitosamente');
         this.loadUserAppointments();
       },
       error: (err) => {

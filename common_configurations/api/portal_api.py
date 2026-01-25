@@ -52,7 +52,7 @@ def get_user_contact_by_document(document):
 		contacts = frappe.get_all(
 			'User contact',
 			filters={'document': document},
-			fields=['*'],
+			fields=['name', 'full_name', 'document_type', 'document', 'phone_number', 'email', 'gender'],
 			limit=1
 		)
 

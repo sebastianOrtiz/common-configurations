@@ -1,45 +1,6 @@
 <div class="portal-view-container" [style.--portal-color]="portal()?.primary_color || '#667eea'">
-  <!-- Header -->
-  <header class="portal-header">
-    <div class="header-content">
-      <!-- Left: Portal Info -->
-      <div class="portal-info">
-        @if (portal()) {
-          <div class="portal-logo">
-            @if (portal()!.logo) {
-              <img [src]="portal()!.logo" [alt]="portal()!.title" />
-            } @else {
-              <app-icon name="Building" [size]="32" [strokeWidth]="2"></app-icon>
-            }
-          </div>
-          <div class="portal-text">
-            <h1>{{ portal()!.title }}</h1>
-            @if (portal()!.description) {
-              <p>{{ portal()!.description }}</p>
-            }
-          </div>
-        }
-      </div>
-
-      <!-- Right: User Menu -->
-      <div class="user-menu">
-        @if (userContact()) {
-          <div class="user-info">
-            <span class="user-name">{{ getUserDisplayName() }}</span>
-            <div class="user-avatar-placeholder">
-              {{ getUserInitial() }}
-            </div>
-          </div>
-        }
-        <button class="btn-logout" (click)="exitToRegistration()" title="Salir">
-          <app-icon name="LogOut" [size]="20" [strokeWidth]="2"></app-icon>
-        </button>
-      </div>
-    </div>
-  </header>
-
   <!-- Main Content -->
-  <main class="portal-main">
+  <div class="portal-content">
     <!-- Loading State -->
     @if (loading()) {
       <div class="loading-container">
@@ -94,5 +55,5 @@
         }
       </div>
     }
-  </main>
+  </div>
 </div>

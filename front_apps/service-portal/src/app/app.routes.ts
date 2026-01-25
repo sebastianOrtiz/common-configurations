@@ -26,6 +26,7 @@ export const routes: Routes = [
   {
     path: 'portal/:portalName',
     canActivate: [authGuard],
+    loadComponent: () => import('./features/portal/portal-layout/portal-layout.component').then(m => m.PortalLayoutComponent),
     children: [
       // Portal main view
       {

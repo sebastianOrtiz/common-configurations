@@ -1,9 +1,4 @@
 <div class="meet-scheduling-tool">
-  <!-- DEBUG: Component is rendering -->
-  <div style="background: yellow; padding: 10px; margin: 10px; border: 2px solid red;">
-    DEBUG: MeetScheduling Component Rendered! Calendar Resource: {{ calendarResource() }}
-  </div>
-
   <!-- Header -->
   <div class="tool-header">
     <button class="btn-back" (click)="goBack()">
@@ -12,7 +7,7 @@
       </svg>
       Volver
     </button>
-    <h1>Agendar Cita</h1>
+    <h1>Gestión de Citas</h1>
   </div>
 
   <!-- Messages -->
@@ -36,133 +31,273 @@
     </div>
   }
 
-  <!-- Main Content -->
-  <div class="tool-content">
-    <!-- Booking Section -->
-    <div class="booking-section">
-      <h2>Nueva Cita</h2>
+  <!-- Tabs -->
+  <div class="tabs">
+    <button
+      class="tab-btn"
+      [class.active]="activeTab() === 'book'"
+      (click)="switchTab('book')"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      Agendar Cita
+    </button>
+    <button
+      class="tab-btn"
+      [class.active]="activeTab() === 'appointments'"
+      (click)="switchTab('appointments')"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+      Mis Citas
+    </button>
+  </div>
 
-      <!-- Date Selector -->
-      <div class="form-group">
-        <label>Selecciona una fecha</label>
-        <select
-          class="date-select"
-          [ngModel]="selectedDate()"
-          (ngModelChange)="onDateSelected($event)"
-          [disabled]="loading()"
-        >
-          <option value="">-- Selecciona una fecha --</option>
-          @for (option of dateOptions(); track option.value) {
-            <option [value]="option.value">{{ option.label }}</option>
-          }
-        </select>
-      </div>
-
-      <!-- Time Slots -->
-      @if (selectedDate()) {
-        <div class="slots-section">
-          <h3>Horarios Disponibles</h3>
-
-          @if (loadingSlots()) {
-            <div class="loading-slots">
-              <div class="spinner"></div>
-              <p>Cargando horarios...</p>
-            </div>
-          } @else if (hasSlots()) {
-            <div class="slots-grid">
-              @for (slot of availableSlots(); track slot.start) {
-                <button
-                  class="slot-btn"
-                  [class.selected]="selectedSlot() === slot"
-                  (click)="selectSlot(slot)"
-                  [disabled]="loading()"
-                >
-                  {{ formatTime(slot.start) }} - {{ formatTime(slot.end) }}
+  <!-- Tab Content -->
+  <div class="tab-content">
+    <!-- Book Appointment Tab -->
+    @if (activeTab() === 'book') {
+      <div class="booking-layout">
+        <!-- Calendar Section (Left) -->
+        <div class="calendar-section">
+          <div class="section-card">
+            <h2>Selecciona una Fecha</h2>
+            
+            <div class="calendar-container">
+              <!-- Calendar Header -->
+              <div class="calendar-header">
+                <button class="btn-nav" (click)="previousMonth()" [disabled]="loading()">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
+                <h3>{{ getCurrentMonthName() }}</h3>
+                <button class="btn-nav" (click)="nextMonth()" [disabled]="loading()">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+
+              @if (loading()) {
+                <div class="calendar-loading">
+                  <div class="spinner"></div>
+                  <p>Cargando disponibilidad...</p>
+                </div>
+              } @else {
+                <!-- Week Days -->
+                <div class="calendar-weekdays">
+                  @for (day of weekDays; track day) {
+                    <div class="weekday">{{ day }}</div>
+                  }
+                </div>
+
+                <!-- Calendar Days -->
+                <div class="calendar-days">
+                  @for (day of calendarDays(); track day.dateStr) {
+                    <button
+                      class="calendar-day"
+                      [class.other-month]="!day.isCurrentMonth"
+                      [class.today]="day.isToday"
+                      [class.has-availability]="day.hasAvailability"
+                      [class.selected]="selectedDate() === day.dateStr"
+                      [class.past]="day.isPast"
+                      [disabled]="!day.hasAvailability || day.isPast || !day.isCurrentMonth"
+                      (click)="onDaySelected(day)"
+                    >
+                      <span class="day-number">{{ day.date.getDate() }}</span>
+                      @if (day.hasAvailability && !day.isPast) {
+                        <span class="availability-dot"></span>
+                      }
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Time Slots Section (Right) -->
+        <div class="slots-section-container">
+          <div class="section-card">
+            <h2>Horarios Disponibles</h2>
+            
+            @if (!selectedDate()) {
+              <div class="no-selection">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p>Selecciona una fecha del calendario</p>
+              </div>
+            } @else {
+              @if (hasSlots()) {
+                <div class="slots-grid">
+                  @for (slot of availableSlots(); track slot.start) {
+                    <button
+                      class="slot-btn"
+                      [class.selected]="selectedSlot() === slot"
+                      (click)="selectSlot(slot)"
+                      [disabled]="loading()"
+                    >
+                      {{ formatTime(slot.start) }} - {{ formatTime(slot.end) }}
+                    </button>
+                  }
+                </div>
+
+                @if (selectedSlot()) {
+                  <button
+                    class="btn-book"
+                    (click)="bookAppointment()"
+                    [disabled]="loading()"
+                  >
+                    @if (loading()) {
+                      <span class="spinner"></span>
+                      Agendando...
+                    } @else {
+                      Confirmar Cita
+                    }
+                  </button>
+                }
+              } @else {
+                <div class="no-slots">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p>No hay horarios disponibles para esta fecha</p>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- My Appointments Tab -->
+    @if (activeTab() === 'appointments') {
+      <div class="appointments-container">
+        <div class="section-card">
+          <h2>Mis Citas Agendadas</h2>
+
+          @if (userAppointments().length > 0) {
+            <div class="appointments-list">
+              @for (appointment of userAppointments(); track appointment.name) {
+                <div class="appointment-card" [class]="getStatusClass(appointment.status)">
+                  <div class="appointment-header">
+                    <div class="appointment-date">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>{{ formatDate(appointment.start_datetime) }}</span>
+                    </div>
+                    <span class="status-badge" [class]="getStatusClass(appointment.status)">
+                      {{ appointment.status }}
+                    </span>
+                  </div>
+
+                  <div class="appointment-time">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>{{ formatTime(appointment.start_datetime) }} - {{ formatTime(appointment.end_datetime) }}</span>
+                  </div>
+
+                  @if (appointment.meeting_url) {
+                    <div class="appointment-link">
+                      <a [href]="appointment.meeting_url" target="_blank" rel="noopener noreferrer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Unirse a la reunión
+                      </a>
+                    </div>
+                  }
+
+                  @if (appointment.status === 'Confirmed' || appointment.status === 'Draft') {
+                    <button class="btn-cancel" (click)="cancelAppointment(appointment)">
+                      Cancelar Cita
+                    </button>
+                  }
+                </div>
               }
             </div>
           } @else {
-            <div class="no-slots">
+            <div class="no-appointments">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <p>No tienes citas agendadas</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+@if (showConfirmModal()) {
+  <div class="modal-overlay" (click)="closeConfirmModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-icon success">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2>¡Cita Agendada Exitosamente!</h2>
+        <p>Tu cita ha sido confirmada</p>
+      </div>
+
+      @if (confirmedAppointment()) {
+        <div class="modal-body">
+          <div class="appointment-details">
+            <div class="detail-row">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <div>
+                <span class="label">Fecha</span>
+                <span class="value">{{ formatDate(confirmedAppointment()!.start_datetime) }}</span>
+              </div>
+            </div>
+
+            <div class="detail-row">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p>No hay horarios disponibles para esta fecha</p>
+              <div>
+                <span class="label">Horario</span>
+                <span class="value">{{ formatTime(confirmedAppointment()!.start_datetime) }} - {{ formatTime(confirmedAppointment()!.end_datetime) }}</span>
+              </div>
             </div>
-          }
-        </div>
-      }
 
-      <!-- Book Button -->
-      @if (selectedSlot()) {
-        <button
-          class="btn-book"
-          (click)="bookAppointment()"
-          [disabled]="loading()"
-        >
-          @if (loading()) {
-            <span class="spinner"></span>
-            Agendando...
-          } @else {
-            Confirmar Cita
-          }
-        </button>
-      }
-    </div>
-
-    <!-- My Appointments Section -->
-    <div class="appointments-section">
-      <h2>Mis Citas</h2>
-
-      @if (userAppointments().length > 0) {
-        <div class="appointments-list">
-          @for (appointment of userAppointments(); track appointment.name) {
-            <div class="appointment-card" [class]="getStatusClass(appointment.status)">
-              <div class="appointment-header">
-                <div class="appointment-date">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>{{ formatDate(appointment.start_datetime) }}</span>
-                </div>
-                <span class="status-badge" [class]="getStatusClass(appointment.status)">
-                  {{ appointment.status }}
-                </span>
-              </div>
-
-              <div class="appointment-time">
+            @if (confirmedAppointment()!.meeting_url) {
+              <div class="detail-row">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
-                <span>{{ formatTime(appointment.start_datetime) }} - {{ formatTime(appointment.end_datetime) }}</span>
-              </div>
-
-              @if (appointment.meeting_url) {
-                <div class="appointment-link">
-                  <a [href]="appointment.meeting_url" target="_blank" rel="noopener noreferrer">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Unirse a la reunión
+                <div>
+                  <span class="label">Link de reunión</span>
+                  <a [href]="confirmedAppointment()!.meeting_url" target="_blank" rel="noopener noreferrer" class="meeting-link">
+                    Unirse a la reunión →
                   </a>
                 </div>
-              }
-
-              @if (appointment.status === 'Confirmed' || appointment.status === 'Draft') {
-                <button class="btn-cancel" (click)="cancelAppointment(appointment)">
-                  Cancelar Cita
-                </button>
-              }
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="no-appointments">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <p>No tienes citas agendadas</p>
+              </div>
+            }
+          </div>
         </div>
       }
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeConfirmModal()">
+          Agendar otra cita
+        </button>
+        <button class="btn-primary" (click)="viewAppointments()">
+          Ver mis citas
+        </button>
+      </div>
     </div>
   </div>
-</div>
+}

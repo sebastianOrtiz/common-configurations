@@ -9,7 +9,6 @@ import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { ServicePortal, ServicePortalTool } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
@@ -25,7 +24,6 @@ export class PortalViewComponent implements OnInit {
   private router = inject(Router);
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
-  private authService = inject(AuthService);
 
   // Component state
   protected portal = signal<ServicePortal | null>(null);
@@ -34,10 +32,6 @@ export class PortalViewComponent implements OnInit {
 
   // Computed tools (sorted and enabled only)
   protected enabledTools = signal<ServicePortalTool[]>([]);
-
-  // User info from state
-  protected currentUser = this.stateService.currentUser;
-  protected userContact = this.stateService.userContact;
 
   ngOnInit(): void {
     // Get portal name from route
@@ -116,45 +110,6 @@ export class PortalViewComponent implements OnInit {
   getToolColor(tool: ServicePortalTool): string {
     const portal = this.portal();
     return tool.button_color || portal?.primary_color || '#667eea';
-  }
-
-  /**
-   * Exit to registration form
-   * Clears user contact data and returns to registration
-   */
-  exitToRegistration(): void {
-    const portal = this.portal();
-    if (!portal) return;
-
-    // Clear user contact from state
-    this.stateService.clearUserContact();
-
-    // Navigate back to registration
-    this.router.navigate(['/portal', portal.portal_name, 'register']);
-  }
-
-  /**
-   * Get display name for user contact
-   */
-  getUserDisplayName(): string {
-    const contact = this.userContact();
-    if (!contact) return '';
-    return contact.full_name || contact.email || 'Usuario';
-  }
-
-  /**
-   * Get initial letter for user avatar
-   */
-  getUserInitial(): string {
-    const displayName = this.getUserDisplayName();
-    return displayName.charAt(0).toUpperCase();
-  }
-
-  /**
-   * Get portal logo URL or fallback
-   */
-  getPortalLogo(portal: ServicePortal): string {
-    return portal.logo || 'assets/default-portal-logo.svg';
   }
 
   /**

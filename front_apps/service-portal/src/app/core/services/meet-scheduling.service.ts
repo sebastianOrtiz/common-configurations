@@ -17,7 +17,7 @@ import {
 } from '../models/appointment.model';
 
 // Base API path for meet_scheduling
-const API_BASE = '/api/method/meet_scheduling.api.appointment_api';
+const API_BASE = 'meet_scheduling.api.appointment_api';
 
 @Injectable({
   providedIn: 'root'
@@ -72,55 +72,43 @@ export class MeetSchedulingService {
   }
 
   /**
-   * Create appointment (Draft)
+   * Create and confirm appointment in one operation
    */
-  createAppointment(data: Partial<Appointment>): Observable<Appointment> {
-    // Ensure it's created as Draft
-    const appointmentData = {
-      ...data,
-      status: 'Draft',
-      docstatus: 0
-    };
-
-    return this.frappeApi.createDoc('Appointment', appointmentData).pipe(
+  createAndConfirmAppointment(
+    calendarResource: string,
+    userContact: string,
+    startDatetime: string,
+    endDatetime: string
+  ): Observable<Appointment> {
+    return this.frappeApi.callMethod(`${API_BASE}.create_and_confirm_appointment`, {
+      calendar_resource: calendarResource,
+      user_contact: userContact,
+      start_datetime: startDatetime,
+      end_datetime: endDatetime
+    }).pipe(
       map(response => {
-        if (!response.success || !response.data) {
+        if (!response.success && !response.message) {
           throw new Error(response.error || 'Failed to create appointment');
         }
-        return response.data as Appointment;
+        return response.message as Appointment;
       })
     );
   }
 
   /**
-   * Submit appointment (confirm)
+   * Cancel or delete appointment (depending on status)
+   * - Draft appointments are deleted
+   * - Submitted appointments are cancelled
    */
-  submitAppointment(appointmentName: string): Observable<Appointment> {
-    // Frappe submit is done via POST to submit action
-    return this.frappeApi.post(`/api/resource/Appointment/${appointmentName}`, {
-      docstatus: 1
-    }, true).pipe(
+  cancelAppointment(appointmentName: string): Observable<any> {
+    return this.frappeApi.callMethod(`${API_BASE}.cancel_or_delete_appointment`, {
+      appointment_name: appointmentName
+    }).pipe(
       map(response => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to submit appointment');
-        }
-        return response.data as Appointment;
-      })
-    );
-  }
-
-  /**
-   * Cancel appointment
-   */
-  cancelAppointment(appointmentName: string): Observable<Appointment> {
-    return this.frappeApi.post(`/api/resource/Appointment/${appointmentName}`, {
-      docstatus: 2
-    }, true).pipe(
-      map(response => {
-        if (!response.success || !response.data) {
+        if (!response.success && !response.message) {
           throw new Error(response.error || 'Failed to cancel appointment');
         }
-        return response.data as Appointment;
+        return response.message;
       })
     );
   }

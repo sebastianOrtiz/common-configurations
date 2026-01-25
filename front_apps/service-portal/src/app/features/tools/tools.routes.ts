@@ -16,9 +16,6 @@ import { ActivatedRoute } from '@angular/router';
 export const toolRoutes: Routes = [
   {
     path: '',
-    loadComponent: () => {
-      console.log('[ToolRoutes] Loading tool router wrapper');
-      return import('./tool-router/tool-router.component').then(m => m.ToolRouterComponent);
-    }
+    loadComponent: () => import('./tool-router/tool-router.component').then(m => m.ToolRouterComponent)
   }
 ];
