@@ -1,0 +1,426 @@
+/**
+ * Frappe API Service
+ *
+ * Base service for all Frappe API calls with:
+ * - Authentication (api-token or csrf-token)
+ * - Request deduplication
+ * - Error handling
+ * - Type safety
+ */
+
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Observable, from, of } from 'rxjs';
+import { map, catchError, shareReplay } from 'rxjs/operators';
+
+// Global configuration (can be overridden via environment)
+interface FrappeConfig {
+  authorizationMode: 'api-token' | 'csrf-token';
+  token?: string;
+}
+
+// Default config (csrf-token mode for web login)
+const DEFAULT_CONFIG: FrappeConfig = {
+  authorizationMode: 'csrf-token'
+};
+
+// Global request deduplication cache
+// Stores pending observables to prevent duplicate simultaneous requests
+const pendingRequests = new Map<string, Observable<any>>();
+
+export interface ApiResponse<T = any> {
+  success?: boolean;
+  data?: T;
+  error?: string;
+  error_code?: string;
+  count?: number;
+  message?: T; // Frappe returns data in 'message' field
+  _server_messages?: string;
+  exc?: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class FrappeApiService {
+  private config: FrappeConfig = DEFAULT_CONFIG;
+
+  constructor(private http: HttpClient) {
+    // Try to load config from environment or localStorage
+    this.loadConfig();
+  }
+
+  /**
+   * Load configuration from environment or localStorage
+   */
+  private loadConfig(): void {
+    // Check if API token is stored (for testing/dev)
+    const storedToken = localStorage.getItem('frappe_api_token');
+    if (storedToken) {
+      this.config.authorizationMode = 'api-token';
+      this.config.token = storedToken;
+    }
+  }
+
+  /**
+   * Get authentication headers based on mode
+   */
+  private getAuthHeaders(): HttpHeaders {
+    let headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    });
+
+    if (this.config.authorizationMode === 'api-token' && this.config.token) {
+      headers = headers.set('Authorization', `Basic ${this.config.token}`);
+    } else {
+      // csrf-token mode
+      let csrfToken = this.getCsrfToken();
+      if (csrfToken) {
+        headers = headers.set('X-Frappe-CSRF-Token', csrfToken);
+      }
+    }
+
+    return headers;
+  }
+
+  /**
+   * Get CSRF token from window or cookies
+   */
+  private getCsrfToken(): string {
+    // Try from window global
+    const windowCsrf = (window as any).csrf_token;
+    if (windowCsrf) return windowCsrf;
+
+    // Try from cookies
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split('=');
+      if (name === 'csrf_token') {
+        return decodeURIComponent(value);
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Generate cache key for deduplication
+   */
+  private getCacheKey(method: string, url: string, body?: any): string {
+    const bodyStr = body ? JSON.stringify(body) : '';
+    return `${method}:${url}:${bodyStr}`;
+  }
+
+  /**
+   * Extract detailed error message from Frappe's _server_messages
+   */
+  private extractServerMessage(result: any): string | undefined {
+    if (!result._server_messages) return undefined;
+
+    try {
+      const serverMessages = JSON.parse(result._server_messages);
+      if (Array.isArray(serverMessages) && serverMessages.length > 0) {
+        const firstMessage = JSON.parse(serverMessages[0]);
+        return firstMessage.message;
+      }
+    } catch {
+      // Failed to parse, return undefined
+    }
+    return undefined;
+  }
+
+  /**
+   * GET request to Frappe API
+   *
+   * @param url Relative or absolute URL
+   * @param params Query parameters
+   * @param skipCache Skip request deduplication
+   */
+  get<T = any>(url: string, params?: Record<string, any>, skipCache = false): Observable<ApiResponse<T>> {
+    let httpParams = new HttpParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== null && params[key] !== undefined) {
+          httpParams = httpParams.set(key, String(params[key]));
+        }
+      });
+    }
+
+    const fullUrl = this.buildUrl(url);
+    const urlWithParams = httpParams.toString() ? `${fullUrl}?${httpParams.toString()}` : fullUrl;
+    const cacheKey = this.getCacheKey('GET', urlWithParams);
+
+    // Check cache
+    if (!skipCache && pendingRequests.has(cacheKey)) {
+      console.log(`[Frappe API] Reusing pending GET request: ${url}`);
+      return pendingRequests.get(cacheKey)!;
+    }
+
+    // Create new request
+    const request$ = this.http.get<any>(fullUrl, {
+      headers: this.getAuthHeaders(),
+      params: httpParams
+    }).pipe(
+      map(response => this.normalizeResponse<T>(response)),
+      catchError(err => this.handleError(err)),
+      shareReplay(1) // Share among subscribers
+    );
+
+    // Store in cache
+    if (!skipCache) {
+      pendingRequests.set(cacheKey, request$);
+
+      // Clean up after completion
+      request$.subscribe({
+        complete: () => pendingRequests.delete(cacheKey),
+        error: () => pendingRequests.delete(cacheKey)
+      });
+    }
+
+    return request$;
+  }
+
+  /**
+   * POST request to Frappe API
+   *
+   * @param url Relative or absolute URL
+   * @param data Request body
+   * @param skipCache Skip request deduplication
+   */
+  post<T = any>(url: string, data?: any, skipCache = false): Observable<ApiResponse<T>> {
+    const fullUrl = this.buildUrl(url);
+    const cacheKey = this.getCacheKey('POST', fullUrl, data);
+
+    // Check cache (optional for POST, usually skipped)
+    if (!skipCache && pendingRequests.has(cacheKey)) {
+      console.log(`[Frappe API] Reusing pending POST request: ${url}`);
+      return pendingRequests.get(cacheKey)!;
+    }
+
+    // Create new request
+    const request$ = this.http.post<any>(fullUrl, data, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map(response => this.normalizeResponse<T>(response)),
+      catchError(err => this.handleError(err)),
+      shareReplay(1)
+    );
+
+    // Store in cache
+    if (!skipCache) {
+      pendingRequests.set(cacheKey, request$);
+
+      request$.subscribe({
+        complete: () => pendingRequests.delete(cacheKey),
+        error: () => pendingRequests.delete(cacheKey)
+      });
+    }
+
+    return request$;
+  }
+
+  /**
+   * PUT request to Frappe API
+   */
+  put<T = any>(url: string, data: any): Observable<ApiResponse<T>> {
+    const fullUrl = this.buildUrl(url);
+
+    return this.http.put<any>(fullUrl, data, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map(response => this.normalizeResponse<T>(response)),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * DELETE request to Frappe API
+   */
+  delete<T = any>(url: string): Observable<ApiResponse<T>> {
+    const fullUrl = this.buildUrl(url);
+
+    return this.http.delete<any>(fullUrl, {
+      headers: this.getAuthHeaders()
+    }).pipe(
+      map(response => this.normalizeResponse<T>(response)),
+      catchError(err => this.handleError(err))
+    );
+  }
+
+  /**
+   * Call Frappe method (RPC style)
+   *
+   * @param methodPath Full method path (e.g., 'meet_scheduling.api.appointment_api.get_available_slots')
+   * @param args Method arguments
+   */
+  callMethod<T = any>(methodPath: string, args?: any): Observable<ApiResponse<T>> {
+    const url = `/api/method/${methodPath}`;
+    return this.post<T>(url, args, true); // Skip cache for method calls
+  }
+
+  /**
+   * Get DocType document
+   */
+  getDoc(doctype: string, name: string): Observable<ApiResponse<any>> {
+    return this.get(`/api/resource/${doctype}/${name}`);
+  }
+
+  /**
+   * Get DocType list
+   */
+  getList(doctype: string, filters?: any, fields?: string[], limitStart = 0, limitPageLength = 20): Observable<ApiResponse<any[]>> {
+    const params: any = {};
+
+    if (filters) {
+      params.filters = JSON.stringify(filters);
+    }
+    if (fields && fields.length) {
+      params.fields = JSON.stringify(fields);
+    }
+    params.limit_start = limitStart;
+    params.limit_page_length = limitPageLength;
+
+    return this.get(`/api/resource/${doctype}`, params);
+  }
+
+  /**
+   * Create DocType document
+   */
+  createDoc(doctype: string, data: any): Observable<ApiResponse<any>> {
+    return this.post(`/api/resource/${doctype}`, data, true);
+  }
+
+  /**
+   * Update DocType document
+   */
+  updateDoc(doctype: string, name: string, data: any): Observable<ApiResponse<any>> {
+    return this.put(`/api/resource/${doctype}/${name}`, data);
+  }
+
+  /**
+   * Delete DocType document
+   */
+  deleteDoc(doctype: string, name: string): Observable<ApiResponse<any>> {
+    return this.delete(`/api/resource/${doctype}/${name}`);
+  }
+
+  /**
+   * Login to Frappe
+   */
+  login(username: string, password: string): Observable<ApiResponse<any>> {
+    return this.post('/api/method/login', {
+      usr: username,
+      pwd: password
+    }, true);
+  }
+
+  /**
+   * Logout from Frappe
+   */
+  logout(): Observable<ApiResponse<any>> {
+    return this.post('/api/method/logout', {}, true);
+  }
+
+  /**
+   * Get current logged in user
+   */
+  getCurrentUser(): Observable<ApiResponse<any>> {
+    return this.get('/api/method/frappe.auth.get_logged_user');
+  }
+
+  /**
+   * Build full URL from relative path
+   */
+  private buildUrl(url: string): string {
+    // If already absolute, return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // If starts with /, use as-is (relative to domain)
+    if (url.startsWith('/')) {
+      return url;
+    }
+
+    // Otherwise, prepend /
+    return `/${url}`;
+  }
+
+  /**
+   * Normalize Frappe response to consistent format
+   */
+  private normalizeResponse<T>(response: any): ApiResponse<T> {
+    // Frappe returns data in 'message' field
+    const normalized: ApiResponse<T> = {
+      success: !response.exc && !response.error,
+      message: response.message,
+      data: response.message || response.data
+    };
+
+    // Extract detailed error message if available
+    if (!normalized.success && response._server_messages) {
+      const detailedMessage = this.extractServerMessage(response);
+      if (detailedMessage) {
+        normalized.error = detailedMessage;
+      }
+    }
+
+    // Include original error info
+    if (response.exc) {
+      normalized.error = response.exc;
+      normalized.exc = response.exc;
+    }
+
+    if (response.error_code) {
+      normalized.error_code = response.error_code;
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Handle HTTP errors
+   */
+  private handleError(error: any): Observable<ApiResponse<any>> {
+    console.error('[Frappe API Error]', error);
+
+    const errorResponse: ApiResponse<any> = {
+      success: false,
+      error: error.error?.message || error.message || 'Unknown error occurred'
+    };
+
+    // Extract Frappe error details
+    if (error.error) {
+      if (error.error._server_messages) {
+        const detailedMessage = this.extractServerMessage(error.error);
+        if (detailedMessage) {
+          errorResponse.error = detailedMessage;
+        }
+      }
+      if (error.error.exc) {
+        errorResponse.exc = error.error.exc;
+      }
+    }
+
+    return of(errorResponse);
+  }
+
+  /**
+   * Set API token for authentication (for testing/dev)
+   */
+  setApiToken(token: string): void {
+    this.config.authorizationMode = 'api-token';
+    this.config.token = token;
+    localStorage.setItem('frappe_api_token', token);
+  }
+
+  /**
+   * Clear API token
+   */
+  clearApiToken(): void {
+    this.config.authorizationMode = 'csrf-token';
+    this.config.token = undefined;
+    localStorage.removeItem('frappe_api_token');
+  }
+}
