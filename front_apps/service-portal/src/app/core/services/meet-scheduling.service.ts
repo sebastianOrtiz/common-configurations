@@ -26,10 +26,11 @@ export class MeetSchedulingService {
   constructor(private frappeApi: FrappeApiService) {}
 
   /**
-   * Get all active calendar resources
+   * Get all active calendar resources (public API)
    */
   getActiveCalendarResources(): Observable<CalendarResource[]> {
-    return this.frappeApi.callMethod(`${API_BASE}.get_active_calendar_resources`).pipe(
+    // Use GET for public read endpoint
+    return this.frappeApi.callMethod(`${API_BASE}.get_active_calendar_resources`, {}, true).pipe(
       map(response => {
         if (!response.success) {
           throw new Error(response.error || 'Failed to load calendar resources');
@@ -40,18 +41,19 @@ export class MeetSchedulingService {
   }
 
   /**
-   * Get available slots for a date range
+   * Get available slots for a date range (public API)
    */
   getAvailableSlots(
     calendarResource: string,
     fromDate: string,
     toDate: string
   ): Observable<AvailableSlot[]> {
+    // Use GET for public read endpoint
     return this.frappeApi.callMethod(`${API_BASE}.get_available_slots`, {
       calendar_resource: calendarResource,
       from_date: fromDate,
       to_date: toDate
-    }).pipe(
+    }, true).pipe(
       map(response => {
         if (!response.success) {
           throw new Error(response.error || 'Failed to load available slots');
@@ -62,7 +64,7 @@ export class MeetSchedulingService {
   }
 
   /**
-   * Validate appointment before creating
+   * Validate appointment before creating (public API)
    */
   validateAppointment(
     calendarResource: string,
@@ -70,12 +72,13 @@ export class MeetSchedulingService {
     endDatetime: string,
     appointmentName?: string
   ): Observable<ValidationResult> {
+    // Use GET for public read endpoint
     return this.frappeApi.callMethod(`${API_BASE}.validate_appointment`, {
       calendar_resource: calendarResource,
       start_datetime: startDatetime,
       end_datetime: endDatetime,
       appointment_name: appointmentName
-    }).pipe(
+    }, true).pipe(
       map(response => {
         if (!response.message) {
           throw new Error(response.error || 'Validation failed');
@@ -86,7 +89,7 @@ export class MeetSchedulingService {
   }
 
   /**
-   * Create and confirm appointment in one operation
+   * Create and confirm appointment in one operation (public API with honeypot)
    */
   createAndConfirmAppointment(
     calendarResource: string,
@@ -100,7 +103,8 @@ export class MeetSchedulingService {
       user_contact: userContact,
       start_datetime: startDatetime,
       end_datetime: endDatetime,
-      appointment_context: appointmentContext
+      appointment_context: appointmentContext,
+      honeypot: ''  // Honeypot field - should always be empty
     }).pipe(
       map(response => {
         if (!response.success && !response.message) {
