@@ -12,7 +12,6 @@
   "description",
   "is_active",
   "configuraci\u00f3n_de_registro_section",
-  "request_contact_user_data",
   "registration_title",
   "registration_description",
   "estilos_section",
@@ -64,13 +63,6 @@
    "fieldname": "configuraci\u00f3n_de_registro_section",
    "fieldtype": "Section Break",
    "label": "Configuraci\u00f3n de Registro"
-  },
-  {
-   "default": "0",
-   "description": "Mostrar formulario de registro",
-   "fieldname": "request_contact_user_data",
-   "fieldtype": "Check",
-   "label": "Request Contact User Data"
   },
   {
    "description": "T\u00edtulo del formulario",
@@ -138,7 +130,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-23 21:35:00.012022",
+ "modified": "2026-01-26 15:57:28.487380",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Service Portal",

@@ -285,13 +285,12 @@ export class ContactRegistrationComponent implements OnInit {
   }
 
   /**
-   * Skip registration (if allowed)
+   * Skip registration - No longer allowed, registration is always mandatory
+   * @deprecated Contact registration is now mandatory for all portals
    */
   skip(): void {
-    const portal = this.selectedPortal();
-    if (portal && !portal.request_contact_user_data) {
-      this.router.navigate(['/portal', portal.portal_name]);
-    }
+    // Contact registration is always required, skip is not allowed
+    // This method is kept for backwards compatibility but does nothing
   }
 
   /**

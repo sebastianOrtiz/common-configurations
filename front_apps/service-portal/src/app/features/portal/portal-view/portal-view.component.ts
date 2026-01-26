@@ -47,10 +47,11 @@ export class PortalViewComponent implements OnInit {
 
   /**
    * Check if contact registration is required and redirect if needed
+   * Contact registration is always mandatory before accessing portal tools
    */
   private checkContactRegistration(portal: ServicePortal): void {
-    if (portal.request_contact_user_data && !this.stateService.userContact()) {
-      // Redirect to registration
+    if (!this.stateService.userContact()) {
+      // Redirect to registration - always required
       this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }

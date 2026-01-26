@@ -49,7 +49,8 @@ export class StateService {
   readonly needsContactRegistration = computed(() => {
     const portal = this.selectedPortalSignal();
     const contact = this.userContactSignal();
-    return portal?.request_contact_user_data && !contact;
+    // Contact registration is always required when a portal is selected
+    return portal !== null && !contact;
   });
 
   // Full state computed signal (for debugging/logging)

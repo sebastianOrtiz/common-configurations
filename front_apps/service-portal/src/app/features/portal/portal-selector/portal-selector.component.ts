@@ -67,8 +67,8 @@ export class PortalSelectorComponent implements OnInit {
     // Save selected portal to state
     this.stateService.setSelectedPortal(portal);
 
-    // Check if portal requires contact registration
-    if (portal.request_contact_user_data && !this.stateService.userContact()) {
+    // Contact registration is always required
+    if (!this.stateService.userContact()) {
       // Navigate to contact registration
       this.router.navigate(['/portal', portal.portal_name, 'register']);
     } else {

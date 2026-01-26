@@ -10,7 +10,6 @@ export interface ServicePortal {
   is_active: boolean;
 
   // Registration
-  request_contact_user_data: boolean;
   registration_title?: string;
   registration_description?: string;
 
