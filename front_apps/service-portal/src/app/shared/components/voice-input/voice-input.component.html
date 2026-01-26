@@ -1,0 +1,73 @@
+<div class="voice-input-container">
+  <!-- Recording button -->
+  <button
+    type="button"
+    class="voice-button"
+    [class.recording]="isRecording()"
+    [class.disabled]="!isSupported()"
+    [disabled]="!isSupported()"
+    (click)="toggleRecording()"
+    [title]="isRecording() ? 'Detener grabación' : buttonLabel"
+  >
+    <!-- Microphone icon -->
+    <svg
+      class="mic-icon"
+      [class.pulse]="isRecording()"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      @if (isRecording()) {
+        <!-- Stop icon when recording -->
+        <rect x="6" y="6" width="12" height="12" stroke-width="2" fill="currentColor"/>
+      } @else {
+        <!-- Microphone icon when not recording -->
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+        />
+      }
+    </svg>
+
+    <!-- Button text -->
+    <span class="button-text">
+      @if (isRecording()) {
+        Detener
+      } @else {
+        {{ buttonLabel }}
+      }
+    </span>
+  </button>
+
+  <!-- Recording indicator -->
+  @if (isRecording()) {
+    <div class="recording-indicator">
+      <span class="recording-dot"></span>
+      <span class="recording-text">Grabando...</span>
+    </div>
+  }
+
+  <!-- Error message -->
+  @if (errorMessage()) {
+    <div class="error-message">
+      <svg class="error-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <!-- Browser not supported message -->
+  @if (!isSupported()) {
+    <div class="info-message">
+      <svg class="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      El reconocimiento de voz no está disponible en este navegador. Usa Chrome, Edge o Safari.
+    </div>
+  }
+</div>

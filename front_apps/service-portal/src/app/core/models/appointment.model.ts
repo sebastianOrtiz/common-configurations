@@ -19,6 +19,7 @@ export interface Appointment {
   service?: string;
   notes?: string;
   source?: 'Web' | 'Admin' | 'API';
+  appointment_context?: string;
 
   // Video call
   video_call_profile?: string;

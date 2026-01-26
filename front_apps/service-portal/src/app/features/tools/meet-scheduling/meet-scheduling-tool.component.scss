@@ -809,8 +809,15 @@
   border-radius: 1rem;
   max-width: 500px;
   width: 100%;
+  max-height: 90dvh;
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease-out;
+
+  &.modal-large {
+    max-width: 900px;
+  }
 }
 
 @keyframes slideUp {
@@ -828,6 +835,7 @@
   text-align: center;
   padding: 2.5rem 2rem 1.5rem;
   border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 
   .modal-icon {
     width: 64px;
@@ -841,6 +849,11 @@
     &.success {
       background: #f0fff4;
       color: #38a169;
+    }
+
+    &.info {
+      background: #ebf4ff;
+      color: #667eea;
     }
 
     svg {
@@ -865,6 +878,91 @@
 
 .modal-body {
   padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+
+  &.modal-body-two-columns {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+    align-items: start;
+  }
+}
+
+.appointment-info-column {
+  .column-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4a5568;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 1rem 0;
+  }
+}
+
+.context-column {
+  // Column styling if needed
+}
+
+// Context Section
+.context-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 0.5rem;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      color: #667eea;
+    }
+  }
+
+  .context-hint {
+    font-size: 0.85rem;
+    color: #718096;
+    margin: 0 0 1rem;
+    line-height: 1.5;
+  }
+
+  .context-textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.5rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: #2d3748;
+    background: white;
+    resize: vertical;
+    transition: all 0.2s;
+    line-height: 1.6;
+
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    &::placeholder {
+      color: #a0aec0;
+    }
+
+    &:disabled {
+      background: #f7fafc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  }
 }
 
 .appointment-details {
@@ -925,6 +1023,7 @@
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+  flex-shrink: 0;
 
   button {
     padding: 0.75rem 1.5rem;
@@ -950,15 +1049,33 @@
   .btn-primary {
     background: #667eea;
     color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background: #5568d3;
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
-    &:active {
+    &:active:not(:disabled) {
       transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
     }
   }
 }
@@ -1003,11 +1120,20 @@
     padding: 1.5rem;
   }
 
+  .modal-body-two-columns {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
   .modal-footer {
     flex-direction: column;
 
     button {
       width: 100%;
     }
+  }
+
+  .modal-content.modal-large {
+    max-width: 95%;
   }
 }

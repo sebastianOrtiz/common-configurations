@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"welcome\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h2\\\">Common Configurations</span>\",\"col\":12}},{\"id\":\"description\",\"type\":\"paragraph\",\"data\":{\"text\":\"Bienvenido al workspace de Common Configurations.<br>\",\"col\":12}},{\"id\":\"RPRTkhjqza\",\"type\":\"card\",\"data\":{\"card_name\":\"Contactos\",\"col\":4}},{\"id\":\"QteycZOdQA\",\"type\":\"card\",\"data\":{\"card_name\":\"Service portal\",\"col\":4}},{\"id\":\"B6u3k4SMuk\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuration\",\"col\":4}}]",
+ "content": "[{\"id\":\"welcome\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h2\\\">Common Configurations</span>\",\"col\":12}},{\"id\":\"description\",\"type\":\"paragraph\",\"data\":{\"text\":\"Bienvenido al workspace de Common Configurations.<br>\",\"col\":12}},{\"id\":\"RPRTkhjqza\",\"type\":\"card\",\"data\":{\"card_name\":\"Contactos\",\"col\":4}},{\"id\":\"QteycZOdQA\",\"type\":\"card\",\"data\":{\"card_name\":\"Service portal\",\"col\":4}},{\"id\":\"B6u3k4SMuk\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuration\",\"col\":4}},{\"id\":\"xebHqz6aPc\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}}]",
  "creation": "2025-11-21 19:48:43.839896",
  "custom_blocks": [],
  "docstatus": 0,
@@ -68,9 +68,78 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Reports",
+   "link_count": 6,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "User Contact Summary",
+   "link_count": 0,
+   "link_to": "User Contact Summary",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "User Contact Registration Trend",
+   "link_count": 0,
+   "link_to": "User Contact Registration Trend",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "User Contact Activity",
+   "link_count": 0,
+   "link_to": "User Contact Activity",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Incomplete Contact Information",
+   "link_count": 0,
+   "link_to": "Incomplete Contact Information",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "User Contact by Document Type",
+   "link_count": 0,
+   "link_to": "User Contact by Document Type",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "User Contact Demographics",
+   "link_count": 0,
+   "link_to": "User Contact Demographics",
+   "link_type": "Report",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-01-25 13:14:06.868861",
+ "modified": "2026-01-26 06:23:23.590285",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",

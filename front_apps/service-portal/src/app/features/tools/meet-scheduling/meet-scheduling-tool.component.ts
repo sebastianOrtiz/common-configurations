@@ -10,6 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
+import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { Appointment, AvailableSlot } from '../../../core/models/appointment.model';
 
 interface DateOption {
@@ -30,7 +31,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-meet-scheduling-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, VoiceInputComponent],
   templateUrl: './meet-scheduling-tool.component.html',
   styleUrls: ['./meet-scheduling-tool.component.scss']
 })
@@ -50,8 +51,10 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected error = signal<string | null>(null);
   protected successMessage = signal<string | null>(null);
   protected activeTab = signal<'book' | 'appointments'>('book');
+  protected showPreConfirmModal = signal<boolean>(false);
   protected showConfirmModal = signal<boolean>(false);
   protected confirmedAppointment = signal<Appointment | null>(null);
+  protected appointmentContext = signal<string>('');
 
   // Scheduling state
   protected selectedDate = signal<string>('');
@@ -375,7 +378,7 @@ export class MeetSchedulingToolComponent implements OnInit {
   }
 
   /**
-   * Book the selected appointment
+   * Show pre-confirmation modal with appointment details
    */
   bookAppointment(): void {
     const slot = this.selectedSlot();
@@ -387,24 +390,47 @@ export class MeetSchedulingToolComponent implements OnInit {
       return;
     }
 
+    // Clear previous context and show pre-confirmation modal
+    this.appointmentContext.set('');
+    this.error.set(null);
+    this.showPreConfirmModal.set(true);
+  }
+
+  /**
+   * Confirm and create the appointment with context
+   */
+  confirmBooking(): void {
+    const slot = this.selectedSlot();
+    const contact = this.userContact();
+    const resource = this.calendarResource();
+    const context = this.appointmentContext();
+
+    if (!slot || !contact || !contact.name || !resource) {
+      this.error.set('Por favor selecciona un horario');
+      return;
+    }
+
     this.loading.set(true);
     this.error.set(null);
     this.successMessage.set(null);
 
-    // Create and confirm appointment in one operation
+    // Create and confirm appointment with context
     this.meetSchedulingService.createAndConfirmAppointment(
       resource,
       contact.name,
       slot.start,
-      slot.end
+      slot.end,
+      context
     ).subscribe({
       next: (appointment) => {
         this.confirmedAppointment.set(appointment);
+        this.showPreConfirmModal.set(false);
         this.showConfirmModal.set(true);
         this.loading.set(false);
         this.selectedSlot.set(null);
         this.selectedDate.set('');
         this.availableSlots.set([]);
+        this.appointmentContext.set('');
         // Reload user appointments
         this.loadUserAppointments();
       },
@@ -414,6 +440,14 @@ export class MeetSchedulingToolComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  /**
+   * Close pre-confirmation modal
+   */
+  closePreConfirmModal(): void {
+    this.showPreConfirmModal.set(false);
+    this.appointmentContext.set('');
   }
 
   /**

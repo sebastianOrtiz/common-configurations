@@ -65,10 +65,16 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.log('[ToolRouter] Loaded meet_scheduling component:', ComponentClass);
           break;
 
-        case 'case_management':
-          const caseManagement = await import('../case-management/case-management-tool.component');
-          ComponentClass = caseManagement.CaseManagementToolComponent;
-          console.log('[ToolRouter] Loaded case_management component:', ComponentClass);
+        case 'my_appointments':
+          const myAppointments = await import('../my-appointments/my-appointments-tool.component');
+          ComponentClass = myAppointments.MyAppointmentsToolComponent;
+          console.log('[ToolRouter] Loaded my_appointments component:', ComponentClass);
+          break;
+
+        case 'my_cases':
+          const myCases = await import('../my-cases/my-cases-tool.component');
+          ComponentClass = myCases.MyCasesToolComponent;
+          console.log('[ToolRouter] Loaded my_cases component:', ComponentClass);
           break;
 
         // Add more tool types here as needed

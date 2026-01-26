@@ -1,0 +1,291 @@
+<div class="appointment-booking-container">
+  <!-- Header -->
+  <div class="booking-header">
+    <button class="back-button" (click)="goBack()" type="button">
+      <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Volver
+    </button>
+    <h1>Agendar Cita</h1>
+  </div>
+
+  <!-- Progress Steps -->
+  <div class="progress-steps">
+    <div class="step" [class.active]="step() >= 1" [class.completed]="step() > 1">
+      <div class="step-number">1</div>
+      <div class="step-label">Seleccionar servicio</div>
+    </div>
+    <div class="step-line" [class.completed]="step() > 1"></div>
+    <div class="step" [class.active]="step() >= 2" [class.completed]="step() > 2">
+      <div class="step-number">2</div>
+      <div class="step-label">Fecha y hora</div>
+    </div>
+    <div class="step-line" [class.completed]="step() > 2"></div>
+    <div class="step" [class.active]="step() >= 3" [class.completed]="step() > 3">
+      <div class="step-number">3</div>
+      <div class="step-label">Detalles</div>
+    </div>
+    <div class="step-line" [class.completed]="step() > 3"></div>
+    <div class="step" [class.active]="step() >= 4">
+      <div class="step-number">4</div>
+      <div class="step-label">Confirmar</div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  @if (error()) {
+    <div class="error-alert">
+      <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Success Message -->
+  @if (successMessage()) {
+    <div class="success-alert">
+      <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      {{ successMessage() }}
+    </div>
+  }
+
+  <!-- Loading State -->
+  @if (loading()) {
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <p>Creando tu cita...</p>
+    </div>
+  }
+
+  <!-- Step 1: Select Resource -->
+  @if (step() === 1) {
+    <div class="step-content">
+      <h2>Selecciona el tipo de servicio</h2>
+      <p class="step-description">Elige el servicio o profesional con quien deseas agendar.</p>
+
+      <div class="resources-grid">
+        @for (resource of calendarResources(); track resource.name) {
+          <div class="resource-card" (click)="selectResource(resource)">
+            <div class="resource-icon">
+              <svg class="icon-48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </div>
+            <h3>{{ resource.resource_name }}</h3>
+            <p>Capacidad: {{ resource.capacity }} personas</p>
+            <button type="button" class="select-button">Seleccionar</button>
+          </div>
+        } @empty {
+          <div class="empty-state">
+            <svg class="icon-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <p>No hay servicios disponibles en este momento.</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Step 2: Select Date/Time -->
+  @if (step() === 2) {
+    <div class="step-content">
+      <h2>Selecciona fecha y hora</h2>
+      <p class="step-description">Elige el día y horario que mejor te convenga.</p>
+
+      <!-- Date Picker -->
+      <div class="date-selector">
+        <label for="date-input">Fecha:</label>
+        <input
+          id="date-input"
+          type="date"
+          [(ngModel)]="selectedDate"
+          (change)="onDateChange()"
+          [min]="getTodayDate()"
+        />
+      </div>
+
+      <!-- Available Slots -->
+      @if (loadingSlots()) {
+        <div class="loading-slots">
+          <div class="spinner-small"></div>
+          <p>Cargando horarios disponibles...</p>
+        </div>
+      } @else if (hasSlots()) {
+        <div class="slots-grid">
+          @for (slot of availableSlots(); track slot.start) {
+            <button
+              type="button"
+              class="slot-card"
+              [class.selected]="selectedSlot() === slot"
+              (click)="selectSlot(slot)"
+            >
+              <div class="slot-date">{{ formatShortDate(slot.start) }}</div>
+              <div class="slot-time">{{ formatTime(slot.start) }}</div>
+              @if (slot.capacity_remaining !== undefined) {
+                <div class="slot-capacity">{{ slot.capacity_remaining }} disponibles</div>
+              }
+            </button>
+          }
+        </div>
+      } @else {
+        <div class="empty-state">
+          <svg class="icon-80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <p>No hay horarios disponibles para esta fecha.</p>
+          <p>Intenta seleccionar otra fecha.</p>
+        </div>
+      }
+
+      <div class="step-actions">
+        <button type="button" class="btn-secondary" (click)="previousStep()">
+          Atrás
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Step 3: Add Context (with Voice Input) -->
+  @if (step() === 3) {
+    <div class="step-content">
+      <h2>Detalles de la cita</h2>
+      <p class="step-description">
+        Cuéntanos brevemente el motivo de tu consulta. Esto ayudará al profesional a prepararse mejor para atenderte.
+      </p>
+
+      <div class="context-input-section">
+        <label for="context-textarea">¿Por qué necesitas esta cita?</label>
+        <p class="input-hint">Puedes escribir o usar el dictado por voz</p>
+
+        <textarea
+          id="context-textarea"
+          [(ngModel)]="appointmentContext"
+          rows="6"
+          placeholder="Ej: Necesito asesoría legal sobre un contrato de arrendamiento que voy a firmar..."
+          [disabled]="isRecordingVoice()"
+        ></textarea>
+
+        <!-- Voice Input Component -->
+        <div class="voice-input-wrapper">
+          <app-voice-input
+            [language]="'es-ES'"
+            [continuous]="true"
+            [interimResults]="true"
+            [buttonLabel]="'Dictar por voz'"
+            (transcriptChange)="onVoiceTranscript($event)"
+            (recordingStateChange)="onVoiceRecordingChange($event)"
+            (error)="onVoiceError($event)"
+          ></app-voice-input>
+
+          @if (isRecordingVoice()) {
+            <p class="recording-hint">
+              <svg class="icon-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Habla claramente y a velocidad normal. Presiona "Detener" cuando termines.
+            </p>
+          }
+        </div>
+
+        <p class="character-count">
+          {{ appointmentContext().length }} caracteres
+          @if (appointmentContext().length === 0) {
+            - Este campo es opcional
+          }
+        </p>
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="btn-secondary" (click)="previousStep()">
+          Atrás
+        </button>
+        <button type="button" class="btn-primary" (click)="nextStep()">
+          Continuar
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Step 4: Confirm -->
+  @if (step() === 4) {
+    <div class="step-content">
+      <h2>Confirmar cita</h2>
+      <p class="step-description">Revisa los detalles antes de confirmar.</p>
+
+      <div class="confirmation-summary">
+        <div class="summary-section">
+          <h3>
+            <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Servicio
+          </h3>
+          <p>{{ selectedResource()?.resource_name }}</p>
+        </div>
+
+        <div class="summary-section">
+          <h3>
+            <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            Fecha y hora
+          </h3>
+          @if (selectedSlot()) {
+            <p>{{ formatDate(selectedSlot()!.start) }}</p>
+            <p class="time-highlight">{{ formatTime(selectedSlot()!.start) }}</p>
+          }
+        </div>
+
+        @if (appointmentContext()) {
+          <div class="summary-section">
+            <h3>
+              <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+              </svg>
+              Motivo de la consulta
+            </h3>
+            <p class="context-preview">{{ appointmentContext() }}</p>
+          </div>
+        }
+      </div>
+
+      <div class="step-actions">
+        <button type="button" class="btn-secondary" (click)="previousStep()">
+          Atrás
+        </button>
+        <button
+          type="button"
+          class="btn-confirm"
+          (click)="confirmBooking()"
+          [disabled]="loading()"
+        >
+          @if (loading()) {
+            <div class="spinner-small"></div>
+            Confirmando...
+          } @else {
+            <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Confirmar Cita
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>

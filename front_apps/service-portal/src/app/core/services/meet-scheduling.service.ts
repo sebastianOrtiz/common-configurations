@@ -26,6 +26,20 @@ export class MeetSchedulingService {
   constructor(private frappeApi: FrappeApiService) {}
 
   /**
+   * Get all active calendar resources
+   */
+  getActiveCalendarResources(): Observable<CalendarResource[]> {
+    return this.frappeApi.callMethod(`${API_BASE}.get_active_calendar_resources`).pipe(
+      map(response => {
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to load calendar resources');
+        }
+        return (response.message || []) as CalendarResource[];
+      })
+    );
+  }
+
+  /**
    * Get available slots for a date range
    */
   getAvailableSlots(
@@ -78,13 +92,15 @@ export class MeetSchedulingService {
     calendarResource: string,
     userContact: string,
     startDatetime: string,
-    endDatetime: string
+    endDatetime: string,
+    appointmentContext?: string
   ): Observable<Appointment> {
     return this.frappeApi.callMethod(`${API_BASE}.create_and_confirm_appointment`, {
       calendar_resource: calendarResource,
       user_contact: userContact,
       start_datetime: startDatetime,
-      end_datetime: endDatetime
+      end_datetime: endDatetime,
+      appointment_context: appointmentContext
     }).pipe(
       map(response => {
         if (!response.success && !response.message) {

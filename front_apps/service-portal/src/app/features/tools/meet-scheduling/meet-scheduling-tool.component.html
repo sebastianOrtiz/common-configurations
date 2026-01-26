@@ -236,10 +236,101 @@
   </div>
 </div>
 
+<!-- Pre-Confirmation Modal -->
+@if (showPreConfirmModal()) {
+  <div class="modal-overlay">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <div class="modal-icon info">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h2>Confirmar Cita</h2>
+        <p>Revisa los detalles de tu cita antes de confirmar</p>
+      </div>
+
+      @if (selectedSlot()) {
+        <div class="modal-body modal-body-two-columns">
+          <div class="appointment-info-column">
+            <h3 class="column-title">Detalles de la Cita</h3>
+            <div class="appointment-details">
+              <div class="detail-row">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <div>
+                  <span class="label">Fecha</span>
+                  <span class="value">{{ formatDate(selectedSlot()!.start) }}</span>
+                </div>
+              </div>
+
+              <div class="detail-row">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <span class="label">Horario</span>
+                  <span class="value">{{ formatTime(selectedSlot()!.start) }} - {{ formatTime(selectedSlot()!.end) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="context-column">
+            <div class="context-section">
+              <label for="appointment-context">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Contexto de la Cita (Opcional)
+              </label>
+              <p class="context-hint">Agrega detalles sobre el motivo de la cita. Puedes escribir o usar el dictado por voz.</p>
+              <textarea
+                id="appointment-context"
+                class="context-textarea"
+                placeholder="Ejemplo: Consulta sobre contratos laborales, necesito asesoría para revisar una cláusula específica..."
+                rows="4"
+                [ngModel]="appointmentContext()"
+                (ngModelChange)="appointmentContext.set($event)"
+                [disabled]="loading()"
+              ></textarea>
+
+              <div style="margin-top: 0.75rem;">
+                <app-voice-input
+                  [language]="'es-ES'"
+                  [continuous]="true"
+                  [interimResults]="true"
+                  [buttonLabel]="'Dictar por voz'"
+                  (transcriptChange)="appointmentContext.set($event)"
+                ></app-voice-input>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closePreConfirmModal()" [disabled]="loading()">
+          Cancelar
+        </button>
+        <button class="btn-primary" (click)="confirmBooking()" [disabled]="loading()">
+          @if (loading()) {
+            <span class="spinner"></span>
+            Confirmando...
+          } @else {
+            Confirmar Cita
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 <!-- Confirmation Modal -->
 @if (showConfirmModal()) {
-  <div class="modal-overlay" (click)="closeConfirmModal()">
-    <div class="modal-content" (click)="$event.stopPropagation()">
+  <div class="modal-overlay">
+    <div class="modal-content">
       <div class="modal-header">
         <div class="modal-icon success">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
