@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Default route - redirect to portals
@@ -9,23 +8,15 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
 
-  // Login route (public)
-  {
-    path: 'login',
-    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent)
-  },
-
-  // Portal selector (protected)
+  // Portal selector (public - no authentication required)
   {
     path: 'portals',
-    canActivate: [authGuard],
     loadComponent: () => import('./features/portal/portal-selector/portal-selector.component').then(m => m.PortalSelectorComponent)
   },
 
-  // Portal view and tools (protected)
+  // Portal view and tools (public - no authentication required)
   {
     path: 'portal/:portalName',
-    canActivate: [authGuard],
     loadComponent: () => import('./features/portal/portal-layout/portal-layout.component').then(m => m.PortalLayoutComponent),
     children: [
       // Portal main view
@@ -34,7 +25,7 @@ export const routes: Routes = [
         loadComponent: () => import('./features/portal/portal-view/portal-view.component').then(m => m.PortalViewComponent)
       },
 
-      // Contact registration (if required by portal)
+      // Contact registration (always required before accessing tools)
       {
         path: 'register',
         loadComponent: () => import('./features/portal/contact-registration/contact-registration.component').then(m => m.ContactRegistrationComponent)
@@ -46,6 +37,13 @@ export const routes: Routes = [
         loadChildren: () => import('./features/tools/tools.routes').then(m => m.toolRoutes)
       }
     ]
+  },
+
+  // Legacy login route - redirect to portals (login no longer required)
+  {
+    path: 'login',
+    redirectTo: '/portals',
+    pathMatch: 'full'
   },
 
   // Catch-all route - redirect to portals

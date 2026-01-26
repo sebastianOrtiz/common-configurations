@@ -1,7 +1,8 @@
 /**
  * Portal Service
  *
- * Handles Service Portal operations via common_configurations API
+ * Handles Service Portal operations via public APIs.
+ * All endpoints are accessible without authentication.
  */
 
 import { Injectable } from '@angular/core';
@@ -19,68 +20,48 @@ export class PortalService {
   constructor(private frappeApi: FrappeApiService) {}
 
   /**
-   * Get Service Portal by name
+   * Get Service Portal by name (public API)
    */
   getPortal(portalName: string): Observable<ServicePortal> {
-    return this.frappeApi.getDoc('Service Portal', portalName).pipe(
-      map(response => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to load portal');
-        }
-        return response.data as ServicePortal;
-      })
-    );
+    return this.callPortalMethodGet<ServicePortal>('get_portal', { portal_name: portalName });
   }
 
   /**
-   * Get list of active Service Portals
+   * Get list of active Service Portals (public API)
    */
   getActivePortals(): Observable<ServicePortal[]> {
-    return this.frappeApi.getList(
-      'Service Portal',
-      [['is_active', '=', 1]],
-      ['name', 'portal_name', 'title', 'description', 'logo', 'primary_color'],
-      0,
-      50
-    ).pipe(
-      map(response => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error || 'Failed to load portals');
-        }
-        return response.data as ServicePortal[];
-      })
-    );
+    return this.callPortalMethodGet<ServicePortal[]>('get_portals');
   }
 
   /**
-   * Create User Contact
+   * Create User Contact (public API with honeypot protection)
    */
   createUserContact(data: Partial<UserContact>): Observable<UserContact> {
-    return this.callPortalMethod<UserContact>('create_user_contact', { data: JSON.stringify(data) });
-  }
-
-  /**
-   * Update User Contact
-   */
-  updateUserContact(name: string, data: Partial<UserContact>): Observable<UserContact> {
-    return this.callPortalMethod<UserContact>('update_user_contact', {
-      name,
-      data: JSON.stringify(data)
+    return this.callPortalMethod<UserContact>('create_user_contact', {
+      data: JSON.stringify(data),
+      honeypot: ''  // Honeypot field - should always be empty
     });
   }
 
   /**
-   * Get User Contact by email
+   * Update User Contact (public API with honeypot protection)
    */
-  getUserContactByEmail(email: string): Observable<UserContact | null> {
-    return this.callPortalMethodGet<UserContact | null>('get_user_contact_by_email', { email });
+  updateUserContact(name: string, data: Partial<UserContact>): Observable<UserContact> {
+    return this.callPortalMethod<UserContact>('update_user_contact', {
+      name,
+      data: JSON.stringify(data),
+      honeypot: ''  // Honeypot field
+    });
   }
 
   /**
-   * Get User Contact by document number
+   * Get User Contact by document number (public API with honeypot protection)
    */
   getUserContactByDocument(document: string): Observable<UserContact | null> {
-    return this.callPortalMethodGet<UserContact | null>('get_user_contact_by_document', { document });
+    return this.callPortalMethodGet<UserContact | null>('get_user_contact_by_document', {
+      document,
+      honeypot: ''  // Honeypot field
+    });
   }
 
   /**
@@ -105,6 +86,7 @@ export class PortalService {
 
   /**
    * Call custom portal API methods using GET (for read-only operations)
+   * These are public endpoints that don't require authentication
    */
   callPortalMethodGet<T = any>(methodName: string, args?: any): Observable<T> {
     return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, true).pipe(
@@ -119,6 +101,7 @@ export class PortalService {
 
   /**
    * Call custom portal API methods using POST (for write operations)
+   * These are public endpoints with rate limiting and honeypot protection
    */
   callPortalMethod<T = any>(methodName: string, args?: any): Observable<T> {
     return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, false).pipe(
@@ -132,7 +115,7 @@ export class PortalService {
   }
 
   /**
-   * Get User Contact DocType fields metadata
+   * Get User Contact DocType fields metadata (public API)
    * Returns only the visible, editable fields that should appear in the registration form
    */
   getUserContactFields(): Observable<DocField[]> {
