@@ -9,14 +9,29 @@ import { Injectable, signal, computed } from '@angular/core';
 import { User } from '../models/user.model';
 import { ServicePortal, UserContact } from '../models/service-portal.model';
 
+// Storage keys
+const STORAGE_KEYS = {
+  currentUser: 'sp_current_user',
+  selectedPortal: 'sp_selected_portal',
+  userContact: 'sp_user_contact',
+  authToken: 'sp_auth_token'
+};
+
+// Header name for auth token
+export const AUTH_TOKEN_HEADER = 'X-User-Contact-Token';
+
 export interface AppState {
-  // Authentication
+  // Frappe Authentication (optional, for admin users)
   currentUser: User | null;
   isAuthenticated: boolean;
 
   // Portal Context
   selectedPortal: ServicePortal | null;
+
+  // User Contact Authentication (for guest users)
   userContact: UserContact | null;
+  authToken: string | null;
+  isUserContactAuthenticated: boolean;
 
   // UI State
   isLoading: boolean;
@@ -32,6 +47,7 @@ export class StateService {
   private isAuthenticatedSignal = signal<boolean>(false);
   private selectedPortalSignal = signal<ServicePortal | null>(null);
   private userContactSignal = signal<UserContact | null>(null);
+  private authTokenSignal = signal<string | null>(null);
   private isLoadingSignal = signal<boolean>(false);
   private globalErrorSignal = signal<string | null>(null);
 
@@ -40,12 +56,16 @@ export class StateService {
   readonly isAuthenticated = this.isAuthenticatedSignal.asReadonly();
   readonly selectedPortal = this.selectedPortalSignal.asReadonly();
   readonly userContact = this.userContactSignal.asReadonly();
+  readonly authToken = this.authTokenSignal.asReadonly();
   readonly isLoading = this.isLoadingSignal.asReadonly();
   readonly globalError = this.globalErrorSignal.asReadonly();
 
   // Computed signals
   readonly isPortalSelected = computed(() => this.selectedPortalSignal() !== null);
   readonly hasUserContact = computed(() => this.userContactSignal() !== null);
+  readonly isUserContactAuthenticated = computed(() =>
+    this.userContactSignal() !== null && this.authTokenSignal() !== null
+  );
   readonly needsContactRegistration = computed(() => {
     const portal = this.selectedPortalSignal();
     const contact = this.userContactSignal();
@@ -59,6 +79,8 @@ export class StateService {
     isAuthenticated: this.isAuthenticatedSignal(),
     selectedPortal: this.selectedPortalSignal(),
     userContact: this.userContactSignal(),
+    authToken: this.authTokenSignal(),
+    isUserContactAuthenticated: this.isUserContactAuthenticated(),
     isLoading: this.isLoadingSignal(),
     globalError: this.globalErrorSignal()
   }));
@@ -81,9 +103,9 @@ export class StateService {
 
     // Persist to localStorage
     if (user) {
-      localStorage.setItem('sp_current_user', JSON.stringify(user));
+      localStorage.setItem(STORAGE_KEYS.currentUser, JSON.stringify(user));
     } else {
-      localStorage.removeItem('sp_current_user');
+      localStorage.removeItem(STORAGE_KEYS.currentUser);
     }
   }
 
@@ -93,7 +115,7 @@ export class StateService {
   clearAuth(): void {
     this.currentUserSignal.set(null);
     this.isAuthenticatedSignal.set(false);
-    localStorage.removeItem('sp_current_user');
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
   }
 
   // ===================
@@ -108,9 +130,9 @@ export class StateService {
 
     // Persist to localStorage
     if (portal) {
-      localStorage.setItem('sp_selected_portal', JSON.stringify(portal));
+      localStorage.setItem(STORAGE_KEYS.selectedPortal, JSON.stringify(portal));
     } else {
-      localStorage.removeItem('sp_selected_portal');
+      localStorage.removeItem(STORAGE_KEYS.selectedPortal);
     }
   }
 
@@ -119,7 +141,7 @@ export class StateService {
    */
   clearPortal(): void {
     this.selectedPortalSignal.set(null);
-    localStorage.removeItem('sp_selected_portal');
+    localStorage.removeItem(STORAGE_KEYS.selectedPortal);
   }
 
   // ===================
@@ -127,25 +149,52 @@ export class StateService {
   // ===================
 
   /**
-   * Set user contact
+   * Set user contact and optionally auth token
    */
-  setUserContact(contact: UserContact | null): void {
+  setUserContact(contact: UserContact | null, authToken?: string): void {
     this.userContactSignal.set(contact);
 
     // Persist to localStorage
     if (contact) {
-      localStorage.setItem('sp_user_contact', JSON.stringify(contact));
+      localStorage.setItem(STORAGE_KEYS.userContact, JSON.stringify(contact));
     } else {
-      localStorage.removeItem('sp_user_contact');
+      localStorage.removeItem(STORAGE_KEYS.userContact);
+    }
+
+    // If auth token is provided, store it
+    if (authToken) {
+      this.setAuthToken(authToken);
     }
   }
 
   /**
-   * Clear user contact
+   * Set authentication token
+   */
+  setAuthToken(token: string | null): void {
+    this.authTokenSignal.set(token);
+
+    if (token) {
+      localStorage.setItem(STORAGE_KEYS.authToken, token);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.authToken);
+    }
+  }
+
+  /**
+   * Get current auth token (for use in API calls)
+   */
+  getAuthToken(): string | null {
+    return this.authTokenSignal();
+  }
+
+  /**
+   * Clear user contact and auth token
    */
   clearUserContact(): void {
     this.userContactSignal.set(null);
-    localStorage.removeItem('sp_user_contact');
+    this.authTokenSignal.set(null);
+    localStorage.removeItem(STORAGE_KEYS.userContact);
+    localStorage.removeItem(STORAGE_KEYS.authToken);
   }
 
   // ===================
@@ -198,7 +247,7 @@ export class StateService {
   private loadPersistedState(): void {
     try {
       // Load user
-      const userJson = localStorage.getItem('sp_current_user');
+      const userJson = localStorage.getItem(STORAGE_KEYS.currentUser);
       if (userJson) {
         const user = JSON.parse(userJson) as User;
         this.currentUserSignal.set(user);
@@ -206,24 +255,28 @@ export class StateService {
       }
 
       // Load portal
-      const portalJson = localStorage.getItem('sp_selected_portal');
+      const portalJson = localStorage.getItem(STORAGE_KEYS.selectedPortal);
       if (portalJson) {
         const portal = JSON.parse(portalJson) as ServicePortal;
         this.selectedPortalSignal.set(portal);
       }
 
       // Load user contact
-      const contactJson = localStorage.getItem('sp_user_contact');
+      const contactJson = localStorage.getItem(STORAGE_KEYS.userContact);
       if (contactJson) {
         const contact = JSON.parse(contactJson) as UserContact;
         this.userContactSignal.set(contact);
       }
+
+      // Load auth token
+      const authToken = localStorage.getItem(STORAGE_KEYS.authToken);
+      if (authToken) {
+        this.authTokenSignal.set(authToken);
+      }
     } catch (error) {
       console.error('Error loading persisted state:', error);
       // Clear corrupted data
-      localStorage.removeItem('sp_current_user');
-      localStorage.removeItem('sp_selected_portal');
-      localStorage.removeItem('sp_user_contact');
+      this.clearPersistedState();
     }
   }
 
@@ -231,8 +284,9 @@ export class StateService {
    * Clear all persisted state
    */
   clearPersistedState(): void {
-    localStorage.removeItem('sp_current_user');
-    localStorage.removeItem('sp_selected_portal');
-    localStorage.removeItem('sp_user_contact');
+    localStorage.removeItem(STORAGE_KEYS.currentUser);
+    localStorage.removeItem(STORAGE_KEYS.selectedPortal);
+    localStorage.removeItem(STORAGE_KEYS.userContact);
+    localStorage.removeItem(STORAGE_KEYS.authToken);
   }
 }

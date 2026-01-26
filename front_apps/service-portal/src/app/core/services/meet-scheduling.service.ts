@@ -243,4 +243,68 @@ export class MeetSchedulingService {
       })
     );
   }
+
+  // ===================
+  // Authenticated User Methods
+  // ===================
+  // These methods require a valid User Contact auth token
+
+  /**
+   * Get appointments for the currently authenticated User Contact.
+   * Requires valid auth token in X-User-Contact-Token header.
+   */
+  getMyAppointments(
+    status?: string,
+    fromDate?: string,
+    toDate?: string
+  ): Observable<Appointment[]> {
+    const args: any = {};
+    if (status) args.status = status;
+    if (fromDate) args.from_date = fromDate;
+    if (toDate) args.to_date = toDate;
+
+    return this.frappeApi.callMethod(`${API_BASE}.get_my_appointments`, args, true).pipe(
+      map(response => {
+        if (!response.success && !response.message) {
+          throw new Error(response.error || 'Failed to load appointments');
+        }
+        return (response.message || []) as Appointment[];
+      })
+    );
+  }
+
+  /**
+   * Get detailed information about a specific appointment.
+   * Requires valid auth token. User can only view their own appointments.
+   */
+  getMyAppointmentDetail(appointmentName: string): Observable<Appointment> {
+    return this.frappeApi.callMethod(`${API_BASE}.get_appointment_detail`, {
+      appointment_name: appointmentName
+    }, true).pipe(
+      map(response => {
+        if (!response.success && !response.message) {
+          throw new Error(response.error || 'Failed to load appointment');
+        }
+        return response.message as Appointment;
+      })
+    );
+  }
+
+  /**
+   * Cancel an appointment owned by the authenticated User Contact.
+   * Requires valid auth token. User can only cancel their own appointments.
+   */
+  cancelMyAppointment(appointmentName: string): Observable<{ success: boolean; action: string; message: string }> {
+    return this.frappeApi.callMethod(`${API_BASE}.cancel_my_appointment`, {
+      appointment_name: appointmentName,
+      honeypot: ''
+    }).pipe(
+      map(response => {
+        if (!response.message) {
+          throw new Error(response.error || 'Failed to cancel appointment');
+        }
+        return response.message as { success: boolean; action: string; message: string };
+      })
+    );
+  }
 }

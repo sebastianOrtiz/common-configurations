@@ -1,15 +1,17 @@
 """
 Security Utilities for Public APIs
 
-Provides rate limiting, honeypot validation, and input sanitization
-for APIs that allow guest access.
+Provides rate limiting, honeypot validation, input sanitization,
+and token-based authentication for guest users (User Contacts).
 """
 
 import re
-import time
+import secrets
+import hashlib
 import frappe
 from frappe import _
-from frappe.utils import cint
+from frappe.utils import cint, now_datetime, get_datetime
+from typing import Optional
 
 
 # ===================
@@ -330,3 +332,225 @@ def validate_user_contact_data(data: dict) -> dict:
             # Skip complex types for security
 
     return validated
+
+
+# ===================
+# Token Authentication
+# ===================
+
+# Token configuration
+TOKEN_LENGTH = 32  # 256 bits of entropy
+TOKEN_EXPIRY_DAYS = 30  # Token valid for 30 days
+AUTH_HEADER = "X-User-Contact-Token"
+
+
+def generate_auth_token() -> str:
+    """
+    Generate a secure random authentication token.
+
+    Returns:
+        str: A secure random token (hex string)
+    """
+    return secrets.token_hex(TOKEN_LENGTH)
+
+
+def hash_token(token: str) -> str:
+    """
+    Hash a token for secure storage.
+
+    Uses SHA-256 for fast verification (tokens are already high-entropy).
+
+    Args:
+        token: The plain token to hash
+
+    Returns:
+        str: The hashed token
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def verify_token(token: str, token_hash: str) -> bool:
+    """
+    Verify a token against its stored hash.
+
+    Args:
+        token: The plain token to verify
+        token_hash: The stored hash to compare against
+
+    Returns:
+        bool: True if the token matches the hash
+    """
+    if not token or not token_hash:
+        return False
+
+    return secrets.compare_digest(hash_token(token), token_hash)
+
+
+def create_user_contact_token(user_contact_name: str) -> str:
+    """
+    Generate and store a new authentication token for a User Contact.
+
+    Args:
+        user_contact_name: The name (ID) of the User Contact
+
+    Returns:
+        str: The plain token (to be sent to the user)
+    """
+    token = generate_auth_token()
+    token_hash = hash_token(token)
+
+    # Update the User Contact with the hashed token
+    frappe.db.set_value(
+        "User contact",
+        user_contact_name,
+        {
+            "auth_token_hash": token_hash,
+            "token_created_at": now_datetime()
+        },
+        update_modified=False
+    )
+
+    return token
+
+
+def get_token_from_request() -> Optional[str]:
+    """
+    Extract the authentication token from the request.
+
+    Looks for the token in:
+    1. X-User-Contact-Token header
+    2. user_contact_token query parameter (for GET requests)
+
+    Returns:
+        str or None: The token if found
+    """
+    # Try header first
+    token = frappe.request.headers.get(AUTH_HEADER)
+    if token:
+        return token.strip()
+
+    # Try query parameter
+    token = frappe.form_dict.get("user_contact_token")
+    if token:
+        return str(token).strip()
+
+    return None
+
+
+def get_current_user_contact() -> Optional[str]:
+    """
+    Get the authenticated User Contact from the current request.
+
+    Validates the token from the request and returns the User Contact name
+    if authentication is valid.
+
+    Returns:
+        str or None: The User Contact name if authenticated, None otherwise
+    """
+    token = get_token_from_request()
+    if not token:
+        return None
+
+    try:
+        # Find User Contact with matching token hash
+        token_hash = hash_token(token)
+
+        user_contact = frappe.db.get_value(
+            "User contact",
+            {"auth_token_hash": token_hash},
+            ["name", "token_created_at"],
+            as_dict=True
+        )
+
+        if not user_contact:
+            return None
+
+        # Check token expiry
+        if user_contact.token_created_at:
+            token_age = get_datetime(now_datetime()) - get_datetime(user_contact.token_created_at)
+            if token_age.days > TOKEN_EXPIRY_DAYS:
+                # Token expired - clear it
+                frappe.db.set_value(
+                    "User contact",
+                    user_contact.name,
+                    {"auth_token_hash": None, "token_created_at": None},
+                    update_modified=False
+                )
+                return None
+
+        return user_contact.name
+
+    except Exception as e:
+        frappe.log_error(f"Error validating user contact token: {str(e)}")
+        return None
+
+
+def require_user_contact(allow_guest: bool = False):
+    """
+    Decorator to require a valid User Contact authentication.
+
+    Usage:
+        @frappe.whitelist(allow_guest=True)
+        @require_user_contact()
+        def my_endpoint():
+            user_contact = frappe.local.user_contact  # Available after validation
+            ...
+
+    Args:
+        allow_guest: If True, allows requests without token (user_contact will be None)
+
+    Raises:
+        frappe.AuthenticationError: If token is invalid and allow_guest is False
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            user_contact = get_current_user_contact()
+
+            if not user_contact and not allow_guest:
+                frappe.throw(
+                    _("Authentication required. Please register or provide a valid token."),
+                    frappe.AuthenticationError
+                )
+
+            # Store user_contact in local for access in the function
+            frappe.local.user_contact = user_contact
+
+            return func(*args, **kwargs)
+
+        wrapper.__name__ = func.__name__
+        wrapper.__doc__ = func.__doc__
+        return wrapper
+
+    return decorator
+
+
+def validate_user_contact_ownership(user_contact: str, resource_type: str, resource_name: str) -> bool:
+    """
+    Validate that a User Contact owns a specific resource.
+
+    Used to ensure users can only access their own data.
+
+    Args:
+        user_contact: The User Contact name
+        resource_type: DocType of the resource (e.g., "Appointment")
+        resource_name: Name of the resource document
+
+    Returns:
+        bool: True if the user contact owns the resource
+
+    Raises:
+        frappe.PermissionError: If the user doesn't own the resource
+    """
+    if not user_contact:
+        return False
+
+    # Get the user_contact field from the resource
+    owner_contact = frappe.db.get_value(resource_type, resource_name, "user_contact")
+
+    if owner_contact != user_contact:
+        frappe.throw(
+            _("You don't have permission to access this resource."),
+            frappe.PermissionError
+        )
+
+    return True

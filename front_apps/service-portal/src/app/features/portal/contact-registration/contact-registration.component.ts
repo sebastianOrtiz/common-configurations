@@ -10,7 +10,7 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
-import { PortalService } from '../../../core/services/portal.service';
+import { PortalService, UserContactWithToken } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
 import { UserContact, DocField } from '../../../core/models/service-portal.model';
 
@@ -38,8 +38,8 @@ export class ContactRegistrationComponent implements OnInit {
   protected searchingContact = signal(false);
   protected contactFound = signal(false);
 
-  // Existing contact (for updates)
-  private existingContact: UserContact | null = null;
+  // Existing contact (for updates) - may include auth token
+  private existingContact: UserContactWithToken | null = null;
 
   // State
   protected currentUser = this.stateService.currentUser;
@@ -133,6 +133,7 @@ export class ContactRegistrationComponent implements OnInit {
 
         if (contact) {
           // Contact found - fill form with existing data
+          // The response includes an auth_token that will be used for authenticated requests
           this.existingContact = contact;
           this.contactFound.set(true);
 
@@ -248,11 +249,11 @@ export class ContactRegistrationComponent implements OnInit {
 
     // Update existing contact or create new one
     if (this.existingContact && this.existingContact.name) {
-      // Update existing contact
+      // Update existing contact - use the auth token from when we found the contact
       this.portalService.updateUserContact(this.existingContact.name, contactData).subscribe({
         next: (contact) => {
-          // Save to state
-          this.stateService.setUserContact(contact);
+          // Save to state with auth token from the existing contact lookup
+          this.stateService.setUserContact(contact, this.existingContact?.auth_token);
           this.loading.set(false);
 
           // Navigate to portal
@@ -268,8 +269,8 @@ export class ContactRegistrationComponent implements OnInit {
       // Create new contact
       this.portalService.createUserContact(contactData).subscribe({
         next: (contact) => {
-          // Save to state
-          this.stateService.setUserContact(contact);
+          // Save to state with auth token from creation response
+          this.stateService.setUserContact(contact, contact.auth_token);
           this.loading.set(false);
 
           // Navigate to portal

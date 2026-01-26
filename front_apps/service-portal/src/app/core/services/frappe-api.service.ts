@@ -13,10 +13,14 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, from, of } from 'rxjs';
 import { map, catchError, shareReplay } from 'rxjs/operators';
 
+// Header name for User Contact authentication
+export const USER_CONTACT_AUTH_HEADER = 'X-User-Contact-Token';
+
 // Global configuration (can be overridden via environment)
 interface FrappeConfig {
   authorizationMode: 'api-token' | 'csrf-token';
   token?: string;
+  userContactToken?: string;  // Token for User Contact authentication
 }
 
 // Default config (csrf-token mode for web login)
@@ -60,6 +64,12 @@ export class FrappeApiService {
       this.config.authorizationMode = 'api-token';
       this.config.token = storedToken;
     }
+
+    // Load User Contact auth token if available
+    const userContactToken = localStorage.getItem('sp_auth_token');
+    if (userContactToken) {
+      this.config.userContactToken = userContactToken;
+    }
   }
 
   /**
@@ -79,6 +89,11 @@ export class FrappeApiService {
       if (csrfToken) {
         headers = headers.set('X-Frappe-CSRF-Token', csrfToken);
       }
+    }
+
+    // Add User Contact auth token if available
+    if (this.config.userContactToken) {
+      headers = headers.set(USER_CONTACT_AUTH_HEADER, this.config.userContactToken);
     }
 
     return headers;
@@ -465,6 +480,30 @@ export class FrappeApiService {
     this.config.authorizationMode = 'csrf-token';
     this.config.token = undefined;
     localStorage.removeItem('frappe_api_token');
+  }
+
+  /**
+   * Set User Contact authentication token
+   * This token is used for guest user authentication via X-User-Contact-Token header
+   */
+  setUserContactToken(token: string): void {
+    this.config.userContactToken = token;
+    localStorage.setItem('sp_auth_token', token);
+  }
+
+  /**
+   * Clear User Contact authentication token
+   */
+  clearUserContactToken(): void {
+    this.config.userContactToken = undefined;
+    localStorage.removeItem('sp_auth_token');
+  }
+
+  /**
+   * Get current User Contact token
+   */
+  getUserContactToken(): string | undefined {
+    return this.config.userContactToken;
   }
 
   /**
