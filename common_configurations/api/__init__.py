@@ -5,7 +5,7 @@ This module provides a modular, layered API structure following SOLID principles
 
 Structure:
     api/
-    ├── __init__.py          # This file - re-exports for backwards compatibility
+    ├── __init__.py          # This file - re-exports for convenience
     ├── contacts/            # User Contact domain
     │   ├── endpoints.py     # HTTP endpoints
     │   ├── service.py       # Business logic
@@ -23,12 +23,9 @@ Structure:
         └── exceptions.py    # Custom exceptions
 
 Usage:
-    # New style (recommended)
     frappe.call("common_configurations.api.contacts.get_user_contact_by_document", ...)
     frappe.call("common_configurations.api.portals.get_portal", ...)
-
-    # Legacy style (still supported via portal_api.py)
-    frappe.call("common_configurations.api.portal_api.get_portal", ...)
+    frappe.call("common_configurations.api.auth.get_csrf_token", ...)
 """
 
 # Re-export domains for convenient access

@@ -16,8 +16,8 @@ import {
   AvailabilityPlan
 } from '../models/appointment.model';
 
-// Base API path for meet_scheduling
-const API_BASE = 'meet_scheduling.api.appointment_api';
+// API path for meet_scheduling appointments domain
+const API_APPOINTMENTS = 'meet_scheduling.api.appointments';
 
 @Injectable({
   providedIn: 'root'
@@ -30,7 +30,7 @@ export class MeetSchedulingService {
    */
   getActiveCalendarResources(): Observable<CalendarResource[]> {
     // Use GET for public read endpoint
-    return this.frappeApi.callMethod(`${API_BASE}.get_active_calendar_resources`, {}, true).pipe(
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.get_active_calendar_resources`, {}, true).pipe(
       map(response => {
         if (!response.success) {
           throw new Error(response.error || 'Failed to load calendar resources');
@@ -49,7 +49,7 @@ export class MeetSchedulingService {
     toDate: string
   ): Observable<AvailableSlot[]> {
     // Use GET for public read endpoint
-    return this.frappeApi.callMethod(`${API_BASE}.get_available_slots`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.get_available_slots`, {
       calendar_resource: calendarResource,
       from_date: fromDate,
       to_date: toDate
@@ -73,7 +73,7 @@ export class MeetSchedulingService {
     appointmentName?: string
   ): Observable<ValidationResult> {
     // Use GET for public read endpoint
-    return this.frappeApi.callMethod(`${API_BASE}.validate_appointment`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.validate_appointment`, {
       calendar_resource: calendarResource,
       start_datetime: startDatetime,
       end_datetime: endDatetime,
@@ -98,7 +98,7 @@ export class MeetSchedulingService {
     endDatetime: string,
     appointmentContext?: string
   ): Observable<Appointment> {
-    return this.frappeApi.callMethod(`${API_BASE}.create_and_confirm_appointment`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.create_and_confirm_appointment`, {
       calendar_resource: calendarResource,
       user_contact: userContact,
       start_datetime: startDatetime,
@@ -121,7 +121,7 @@ export class MeetSchedulingService {
    * - Submitted appointments are cancelled
    */
   cancelAppointment(appointmentName: string): Observable<any> {
-    return this.frappeApi.callMethod(`${API_BASE}.cancel_or_delete_appointment`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.cancel_or_delete_appointment`, {
       appointment_name: appointmentName
     }).pipe(
       map(response => {
@@ -151,7 +151,7 @@ export class MeetSchedulingService {
    * Generate meeting manually (if create_on = manual)
    */
   generateMeeting(appointmentName: string): Observable<MeetingGenerationResult> {
-    return this.frappeApi.callMethod(`${API_BASE}.generate_meeting`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.generate_meeting`, {
       appointment_name: appointmentName
     }).pipe(
       map(response => {
@@ -263,7 +263,7 @@ export class MeetSchedulingService {
     if (fromDate) args.from_date = fromDate;
     if (toDate) args.to_date = toDate;
 
-    return this.frappeApi.callMethod(`${API_BASE}.get_my_appointments`, args, true).pipe(
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.get_my_appointments`, args, true).pipe(
       map(response => {
         if (!response.success && !response.message) {
           throw new Error(response.error || 'Failed to load appointments');
@@ -278,7 +278,7 @@ export class MeetSchedulingService {
    * Requires valid auth token. User can only view their own appointments.
    */
   getMyAppointmentDetail(appointmentName: string): Observable<Appointment> {
-    return this.frappeApi.callMethod(`${API_BASE}.get_appointment_detail`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.get_appointment_detail`, {
       appointment_name: appointmentName
     }, true).pipe(
       map(response => {
@@ -295,7 +295,7 @@ export class MeetSchedulingService {
    * Requires valid auth token. User can only cancel their own appointments.
    */
   cancelMyAppointment(appointmentName: string): Observable<{ success: boolean; action: string; message: string }> {
-    return this.frappeApi.callMethod(`${API_BASE}.cancel_my_appointment`, {
+    return this.frappeApi.callMethod(`${API_APPOINTMENTS}.cancel_my_appointment`, {
       appointment_name: appointmentName,
       honeypot: ''
     }).pipe(

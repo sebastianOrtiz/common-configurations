@@ -11,8 +11,10 @@ import { Observable, map, tap } from 'rxjs';
 import { FrappeApiService } from './frappe-api.service';
 import { ServicePortal, UserContact, ToolType, DocField } from '../models/service-portal.model';
 
-// Base API paths for common_configurations
-const API_BASE = 'common_configurations.api';
+// API paths for common_configurations domains
+const API_CONTACTS = 'common_configurations.api.contacts';
+const API_PORTALS = 'common_configurations.api.portals';
+const API_AUTH = 'common_configurations.api.auth';
 
 // Extended UserContact interface that includes auth token from API response
 export interface UserContactWithToken extends UserContact {
@@ -29,14 +31,14 @@ export class PortalService {
    * Get Service Portal by name (public API)
    */
   getPortal(portalName: string): Observable<ServicePortal> {
-    return this.callPortalMethodGet<ServicePortal>('get_portal', { portal_name: portalName });
+    return this.callApiGet<ServicePortal>(`${API_PORTALS}.get_portal`, { portal_name: portalName });
   }
 
   /**
    * Get list of active Service Portals (public API)
    */
   getActivePortals(): Observable<ServicePortal[]> {
-    return this.callPortalMethodGet<ServicePortal[]>('get_portals');
+    return this.callApiGet<ServicePortal[]>(`${API_PORTALS}.get_portals`);
   }
 
   /**
@@ -44,7 +46,7 @@ export class PortalService {
    * Returns the created contact with an auth token for subsequent authenticated requests.
    */
   createUserContact(data: Partial<UserContact>): Observable<UserContactWithToken> {
-    return this.callPortalMethod<UserContactWithToken>('create_user_contact', {
+    return this.callApiPost<UserContactWithToken>(`${API_CONTACTS}.create_user_contact`, {
       data: JSON.stringify(data),
       honeypot: ''  // Honeypot field - should always be empty
     }).pipe(
@@ -61,7 +63,7 @@ export class PortalService {
    * Update User Contact (public API with honeypot protection)
    */
   updateUserContact(name: string, data: Partial<UserContact>): Observable<UserContact> {
-    return this.callPortalMethod<UserContact>('update_user_contact', {
+    return this.callApiPost<UserContact>(`${API_CONTACTS}.update_user_contact`, {
       name,
       data: JSON.stringify(data),
       honeypot: ''  // Honeypot field
@@ -75,7 +77,7 @@ export class PortalService {
    * Uses GET to avoid CSRF issues for guest users.
    */
   getUserContactByDocument(document: string): Observable<UserContactWithToken | null> {
-    return this.callPortalMethodGet<UserContactWithToken | null>('get_user_contact_by_document', {
+    return this.callApiGet<UserContactWithToken | null>(`${API_CONTACTS}.get_user_contact_by_document`, {
       document
     }).pipe(
       tap(contact => {
@@ -92,14 +94,14 @@ export class PortalService {
    * Returns null if not authenticated or token is invalid/expired.
    */
   getAuthenticatedUserContact(): Observable<UserContact | null> {
-    return this.callPortalMethodGet<UserContact | null>('get_authenticated_user_contact');
+    return this.callApiGet<UserContact | null>(`${API_AUTH}.get_authenticated_user_contact`);
   }
 
   /**
    * Logout current User Contact (invalidates token)
    */
   logoutUserContact(): Observable<{ success: boolean }> {
-    return this.callPortalMethod<{ success: boolean }>('logout_user_contact', {
+    return this.callApiPost<{ success: boolean }>(`${API_AUTH}.logout_user_contact`, {
       honeypot: ''
     }).pipe(
       tap(() => {
@@ -130,11 +132,11 @@ export class PortalService {
   }
 
   /**
-   * Call custom portal API methods using GET (for read-only operations)
+   * Call API method using GET (for read-only operations)
    * These are public endpoints that don't require authentication
    */
-  callPortalMethodGet<T = any>(methodName: string, args?: any): Observable<T> {
-    return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, true).pipe(
+  private callApiGet<T = any>(methodPath: string, args?: any): Observable<T> {
+    return this.frappeApi.callMethod(methodPath, args, true).pipe(
       map(response => {
         if (!response.success && response.message === undefined) {
           throw new Error(response.error || 'API call failed');
@@ -145,11 +147,11 @@ export class PortalService {
   }
 
   /**
-   * Call custom portal API methods using POST (for write operations)
+   * Call API method using POST (for write operations)
    * These are public endpoints with rate limiting and honeypot protection
    */
-  callPortalMethod<T = any>(methodName: string, args?: any): Observable<T> {
-    return this.frappeApi.callMethod(`${API_BASE}.portal_api.${methodName}`, args, false).pipe(
+  private callApiPost<T = any>(methodPath: string, args?: any): Observable<T> {
+    return this.frappeApi.callMethod(methodPath, args, false).pipe(
       map(response => {
         if (!response.success && response.message === undefined) {
           throw new Error(response.error || 'API call failed');
@@ -164,6 +166,6 @@ export class PortalService {
    * Returns only the visible, editable fields that should appear in the registration form
    */
   getUserContactFields(): Observable<DocField[]> {
-    return this.callPortalMethodGet<DocField[]>('get_user_contact_fields');
+    return this.callApiGet<DocField[]>(`${API_CONTACTS}.get_user_contact_fields`);
   }
 }

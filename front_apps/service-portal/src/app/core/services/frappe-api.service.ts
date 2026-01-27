@@ -138,7 +138,7 @@ export class FrappeApiService {
    */
   fetchCsrfToken(): Observable<string> {
     return from(
-      fetch('/api/method/common_configurations.api.portal_api.get_csrf_token', {
+      fetch('/api/method/common_configurations.api.auth.get_csrf_token', {
         method: 'GET',
         credentials: 'same-origin',
         headers: {

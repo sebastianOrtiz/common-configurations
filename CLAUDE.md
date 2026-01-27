@@ -84,7 +84,7 @@ La API sigue principios SOLID y KISS:
 
 ```
 api/
-├── __init__.py              # Re-exports para compatibilidad
+├── __init__.py              # Re-exports para conveniencia
 ├── contacts/                # Dominio: User Contact
 │   ├── __init__.py          # Exporta endpoints públicos
 │   ├── endpoints.py         # @frappe.whitelist() - Solo routing
@@ -98,14 +98,12 @@ api/
 │   ├── __init__.py
 │   ├── endpoints.py
 │   └── service.py
-├── shared/                  # Utilidades compartidas
-│   ├── __init__.py          # Re-exporta todo
-│   ├── security.py          # Auth, tokens, honeypot
-│   ├── rate_limit.py        # Rate limiting por IP
-│   ├── validators.py        # Validadores genéricos
-│   └── exceptions.py        # Excepciones custom
-├── portal_api.py            # Legacy - re-exporta endpoints
-└── security.py              # Legacy - re-exporta utilidades
+└── shared/                  # Utilidades compartidas
+    ├── __init__.py          # Re-exporta todo
+    ├── security.py          # Auth, tokens, honeypot
+    ├── rate_limit.py        # Rate limiting por IP
+    ├── validators.py        # Validadores genéricos
+    └── exceptions.py        # Excepciones custom
 ```
 
 ### Capas de la Arquitectura
@@ -175,21 +173,22 @@ def validate_user_contact_data(data: Dict[str, Any]) -> Dict[str, Any]:
 
 ### Uso de la API
 
-#### Nuevo estilo (recomendado)
 ```javascript
-// Importar desde el dominio
+// Contacts domain
 frappe.call({
     method: "common_configurations.api.contacts.get_user_contact_by_document",
     args: { document: "123456789" }
 });
-```
 
-#### Estilo legacy (compatible)
-```javascript
-// Importar desde portal_api (re-exporta)
+// Portals domain
 frappe.call({
-    method: "common_configurations.api.portal_api.get_user_contact_by_document",
-    args: { document: "123456789" }
+    method: "common_configurations.api.portals.get_portal",
+    args: { portal_name: "main-portal" }
+});
+
+// Auth domain
+frappe.call({
+    method: "common_configurations.api.auth.get_csrf_token"
 });
 ```
 
