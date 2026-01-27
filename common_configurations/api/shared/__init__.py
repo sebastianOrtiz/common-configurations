@@ -1,29 +1,22 @@
 """
-Security Utilities - Legacy Compatibility Layer
+Shared utilities for API layer.
 
-This module maintains backwards compatibility with the original security module.
-All utilities are now implemented in the shared module and re-exported here.
-
-New code should import directly from shared:
-    from common_configurations.api.shared import check_rate_limit, check_honeypot
-    from common_configurations.api.shared.security import require_user_contact
+This module provides common functionality used across all API domains:
+- Security utilities (rate limiting, honeypot)
+- Input validation and sanitization
+- Token authentication for User Contacts
+- Custom exceptions
 """
 
-# Re-export everything from the new modular structure
-from common_configurations.api.shared.rate_limit import (
-    check_rate_limit,
-    get_client_ip,
-)
-
-from common_configurations.api.shared.validators import (
+from .rate_limit import check_rate_limit, get_client_ip
+from .validators import (
     sanitize_string,
     validate_document_number,
     validate_email,
     validate_phone,
     validate_name,
 )
-
-from common_configurations.api.shared.security import (
+from .security import (
     check_honeypot,
     generate_auth_token,
     hash_token,
@@ -34,13 +27,15 @@ from common_configurations.api.shared.security import (
     require_user_contact,
     validate_user_contact_ownership,
     AUTH_HEADER,
-    TOKEN_LENGTH,
     TOKEN_EXPIRY_DAYS,
 )
-
-# Import validate_user_contact_data from contacts domain
-from common_configurations.api.contacts.validators import (
-    validate_user_contact_data,
+from .exceptions import (
+    APIError,
+    ValidationError,
+    NotFoundError,
+    AuthenticationError,
+    PermissionError,
+    RateLimitError,
 )
 
 __all__ = [
@@ -53,7 +48,6 @@ __all__ = [
     "validate_email",
     "validate_phone",
     "validate_name",
-    "validate_user_contact_data",
     # Security
     "check_honeypot",
     "generate_auth_token",
@@ -65,6 +59,12 @@ __all__ = [
     "require_user_contact",
     "validate_user_contact_ownership",
     "AUTH_HEADER",
-    "TOKEN_LENGTH",
     "TOKEN_EXPIRY_DAYS",
+    # Exceptions
+    "APIError",
+    "ValidationError",
+    "NotFoundError",
+    "AuthenticationError",
+    "PermissionError",
+    "RateLimitError",
 ]
