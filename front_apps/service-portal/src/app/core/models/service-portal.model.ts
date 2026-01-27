@@ -128,6 +128,16 @@ export interface OTPVerifyResponse {
 }
 
 /**
+ * Registration OTP Verify Response
+ * Returns full user contact object after creation
+ */
+export interface RegistrationOTPVerifyResponse {
+  success: boolean;
+  auth_token?: string;
+  user_contact?: UserContact;
+}
+
+/**
  * User Contact with OTP requirement flag
  */
 export interface UserContactWithOTP extends UserContact {

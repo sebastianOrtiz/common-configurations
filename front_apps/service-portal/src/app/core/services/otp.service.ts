@@ -8,7 +8,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { FrappeApiService } from './frappe-api.service';
-import { OTPSettings, OTPRequestResponse, OTPVerifyResponse } from '../models/service-portal.model';
+import { OTPSettings, OTPRequestResponse, OTPVerifyResponse, RegistrationOTPVerifyResponse } from '../models/service-portal.model';
 
 // API path for OTP domain
 const API_OTP = 'common_configurations.api.otp';
@@ -60,6 +60,65 @@ export class OtpService {
       document,
       otp_code: otpCode,
       honeypot: ''  // Honeypot field - should always be empty
+    });
+  }
+
+  // ==========================================
+  // Registration OTP Methods
+  // ==========================================
+
+  /**
+   * Request OTP for new user registration
+   * Stores form data in cache until OTP is verified
+   *
+   * @param formData Registration form data (must include phone_number)
+   * @param channel 'sms' or 'whatsapp'
+   */
+  requestRegistrationOtp(formData: Record<string, any>, channel: 'sms' | 'whatsapp' = 'sms'): Observable<OTPRequestResponse> {
+    return this.callApiPost<OTPRequestResponse>(`${API_OTP}.request_registration_otp`, {
+      data: JSON.stringify(formData),
+      channel,
+      honeypot: ''
+    });
+  }
+
+  /**
+   * Verify OTP for pending registration and create user
+   *
+   * @param phoneNumber Phone number used in registration
+   * @param otpCode OTP code entered by user
+   */
+  verifyRegistrationOtp(phoneNumber: string, otpCode: string): Observable<RegistrationOTPVerifyResponse> {
+    return this.callApiPost<RegistrationOTPVerifyResponse>(`${API_OTP}.verify_registration_otp`, {
+      phone_number: phoneNumber,
+      otp_code: otpCode,
+      honeypot: ''
+    });
+  }
+
+  /**
+   * Resend OTP for pending registration
+   *
+   * @param phoneNumber Phone number from registration
+   * @param channel Optional new channel
+   */
+  resendRegistrationOtp(phoneNumber: string, channel?: 'sms' | 'whatsapp'): Observable<OTPRequestResponse> {
+    return this.callApiPost<OTPRequestResponse>(`${API_OTP}.resend_registration_otp`, {
+      phone_number: phoneNumber,
+      channel,
+      honeypot: ''
+    });
+  }
+
+  /**
+   * Cancel pending registration
+   *
+   * @param phoneNumber Phone number from registration
+   */
+  cancelRegistration(phoneNumber: string): Observable<{ success: boolean }> {
+    return this.callApiPost<{ success: boolean }>(`${API_OTP}.cancel_registration`, {
+      phone_number: phoneNumber,
+      honeypot: ''
     });
   }
 

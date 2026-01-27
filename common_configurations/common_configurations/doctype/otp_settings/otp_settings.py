@@ -64,7 +64,17 @@ class OTPSettings(Document):
 		except Exception:
 			return False
 
+	def on_update(self) -> None:
+		"""Clear cache when settings are updated."""
+		self.clear_cache()
+
+	def after_insert(self) -> None:
+		"""Clear cache when settings are first created."""
+		self.clear_cache()
+
 	@staticmethod
 	def clear_cache() -> None:
 		"""Clear the cached OTP settings."""
+		# Clear both the document cache and any keys related to OTP Settings
 		frappe.cache().delete_value("OTP Settings")
+		frappe.clear_document_cache("OTP Settings", "OTP Settings")

@@ -14,8 +14,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService, UserContactWithToken } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
+import { OtpService } from '../../../core/services/otp.service';
 import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
-import { OtpVerificationComponent } from './otp-verification/otp-verification.component';
+import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-verification/otp-verification.component';
 
 // Registration step types - now includes 'otp' for OTP verification
 type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
@@ -32,6 +33,7 @@ export class ContactRegistrationComponent implements OnInit {
   private router = inject(Router);
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
+  private otpService = inject(OtpService);
 
   // Current registration step
   protected currentStep = signal<RegistrationStep>('initial');
@@ -48,6 +50,8 @@ export class ContactRegistrationComponent implements OnInit {
   // OTP state
   protected otpSettings = signal<OTPSettings | null>(null);
   protected otpDocument = signal<string>('');  // Document number for OTP verification
+  protected otpMode = signal<'login' | 'registration'>('login');  // OTP flow mode
+  protected registrationFormData = signal<Record<string, any> | null>(null);  // Form data for registration OTP
 
   // Existing contact (for updates) - may include auth token
   private existingContact: UserContactWithToken | null = null;
@@ -318,6 +322,8 @@ export class ContactRegistrationComponent implements OnInit {
 
   /**
    * Submit contact registration
+   * If OTP is enabled, uses OTP verification flow before creating the user.
+   * Otherwise, creates the user directly.
    */
   onSubmit(): void {
     this.error.set(null);
@@ -359,34 +365,57 @@ export class ContactRegistrationComponent implements OnInit {
         }
       });
     } else {
-      // Create new contact
-      this.portalService.createUserContact(contactData).subscribe({
-        next: (contact) => {
+      // For new contacts, check if OTP is enabled first
+      this.otpService.getOtpSettings().subscribe({
+        next: (otpSettings) => {
           this.loading.set(false);
 
-          // Check if OTP verification is required
-          if (contact.requires_otp && contact.otp_settings) {
-            // Store contact and settings for OTP verification
-            this.pendingOtpContact = contact;
-            this.otpSettings.set(contact.otp_settings);
+          if (otpSettings.enabled) {
+            // OTP is enabled - use registration OTP flow
+            // Store form data and go to OTP verification in registration mode
+            this.registrationFormData.set(contactData);
+            this.otpSettings.set(otpSettings);
             this.otpDocument.set(contactData.document || '');
+            this.otpMode.set('registration');
             this.currentStep.set('otp');
-          } else if (contact.auth_token) {
-            // OTP not required - proceed with auth token
-            this.stateService.setUserContact(contact, contact.auth_token);
-            this.router.navigate(['/portal', portal.portal_name]);
           } else {
-            // No token and no OTP - something is wrong
-            this.error.set('Error de autenticacion. Por favor intenta de nuevo.');
+            // OTP not enabled - create user directly
+            this.createUserDirectly(contactData, portal.portal_name);
           }
         },
         error: (err) => {
-          console.error('Error creating contact:', err);
-          this.error.set(err.message || 'Error al registrar la informacion. Por favor intenta de nuevo.');
-          this.loading.set(false);
+          console.error('Error checking OTP settings:', err);
+          // If we can't check OTP settings, try creating directly
+          this.createUserDirectly(contactData, portal.portal_name);
         }
       });
     }
+  }
+
+  /**
+   * Create user contact directly without OTP verification
+   */
+  private createUserDirectly(contactData: Partial<UserContact>, portalName: string): void {
+    this.loading.set(true);
+
+    this.portalService.createUserContact(contactData).subscribe({
+      next: (contact) => {
+        this.loading.set(false);
+
+        if (contact.auth_token) {
+          // User created successfully
+          this.stateService.setUserContact(contact, contact.auth_token);
+          this.router.navigate(['/portal', portalName]);
+        } else {
+          this.error.set('Error de autenticación. Por favor intenta de nuevo.');
+        }
+      },
+      error: (err) => {
+        console.error('Error creating contact:', err);
+        this.error.set(err.message || 'Error al registrar la información. Por favor intenta de nuevo.');
+        this.loading.set(false);
+      }
+    });
   }
 
   /**
@@ -406,8 +435,8 @@ export class ContactRegistrationComponent implements OnInit {
   }
 
   /**
-   * Handle successful OTP verification
-   * Called by OtpVerificationComponent when OTP is verified
+   * Handle successful OTP verification (login mode)
+   * Called by OtpVerificationComponent when OTP is verified for existing user
    */
   onOtpVerified(authToken: string): void {
     const portal = this.selectedPortal();
@@ -430,6 +459,31 @@ export class ContactRegistrationComponent implements OnInit {
   }
 
   /**
+   * Handle successful registration OTP verification
+   * Called by OtpVerificationComponent when OTP is verified for new user registration
+   */
+  onRegistrationVerified(result: RegistrationVerifiedResult): void {
+    const portal = this.selectedPortal();
+    if (!portal) {
+      this.error.set('Error de sesion. Por favor recarga la pagina.');
+      this.currentStep.set('initial');
+      return;
+    }
+
+    // Set the auth token in the portal service
+    this.portalService.setAuthToken(result.auth_token);
+
+    // Set user contact in state
+    this.stateService.setUserContact(result.user_contact, result.auth_token);
+
+    // Clear registration form data
+    this.registrationFormData.set(null);
+
+    // Navigate to portal
+    this.router.navigate(['/portal', portal.portal_name]);
+  }
+
+  /**
    * Handle OTP verification cancellation
    * Called by OtpVerificationComponent when user cancels
    */
@@ -438,6 +492,8 @@ export class ContactRegistrationComponent implements OnInit {
     this.pendingOtpContact = null;
     this.otpSettings.set(null);
     this.otpDocument.set('');
+    this.otpMode.set('login');
+    this.registrationFormData.set(null);
     this.currentStep.set('initial');
     this.error.set(null);
   }

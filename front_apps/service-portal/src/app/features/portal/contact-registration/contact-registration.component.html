@@ -271,7 +271,10 @@
         <app-otp-verification
           [document]="otpDocument()"
           [otpSettings]="otpSettings()"
+          [mode]="otpMode()"
+          [formData]="registrationFormData()"
           (verified)="onOtpVerified($event)"
+          (registrationVerified)="onRegistrationVerified($event)"
           (cancelled)="onOtpCancelled()"
         />
       </div>

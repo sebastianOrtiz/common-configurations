@@ -28,6 +28,7 @@ class TwilioClient:
 		self.whatsapp_number = settings.twilio_whatsapp_number
 		self.sms_template = settings.sms_message_template or "Tu código de verificación es: {otp}"
 		self.whatsapp_template = settings.whatsapp_message_template or "Tu código de verificación es: {otp}"
+		self.expiry_minutes = settings.otp_expiry_minutes or 5
 
 		if not self.account_sid or not self.auth_token:
 			frappe.throw(_("Twilio credentials are not configured"))
@@ -55,7 +56,7 @@ class TwilioClient:
 		if not self.sms_number:
 			frappe.throw(_("SMS phone number is not configured in OTP Settings"))
 
-		message_body = self.sms_template.format(otp=otp_code)
+		message_body = self.sms_template.format(otp=otp_code, minutes=self.expiry_minutes)
 
 		try:
 			message = self.client.messages.create(
@@ -89,7 +90,7 @@ class TwilioClient:
 		if not self.whatsapp_number:
 			frappe.throw(_("WhatsApp number is not configured in OTP Settings"))
 
-		message_body = self.whatsapp_template.format(otp=otp_code)
+		message_body = self.whatsapp_template.format(otp=otp_code, minutes=self.expiry_minutes)
 
 		# WhatsApp requires "whatsapp:" prefix
 		whatsapp_from = f"whatsapp:{self.whatsapp_number}"
