@@ -32,6 +32,7 @@ Usage:
 from . import contacts
 from . import portals
 from . import auth
+from . import otp
 from . import shared
 
 # Re-export shared utilities at package level
@@ -59,6 +60,7 @@ __all__ = [
     "contacts",
     "portals",
     "auth",
+    "otp",
     "shared",
     # Shared utilities
     "check_rate_limit",

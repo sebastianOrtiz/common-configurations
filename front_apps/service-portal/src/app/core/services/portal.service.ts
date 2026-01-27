@@ -9,17 +9,15 @@
 import { Injectable } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
 import { FrappeApiService } from './frappe-api.service';
-import { ServicePortal, UserContact, ToolType, DocField } from '../models/service-portal.model';
+import { ServicePortal, UserContact, ToolType, DocField, UserContactWithOTP } from '../models/service-portal.model';
 
 // API paths for common_configurations domains
 const API_CONTACTS = 'common_configurations.api.contacts';
 const API_PORTALS = 'common_configurations.api.portals';
 const API_AUTH = 'common_configurations.api.auth';
 
-// Extended UserContact interface that includes auth token from API response
-export interface UserContactWithToken extends UserContact {
-  auth_token?: string;
-}
+// Re-export UserContactWithOTP as UserContactWithToken for backwards compatibility
+export type UserContactWithToken = UserContactWithOTP;
 
 @Injectable({
   providedIn: 'root'
@@ -43,7 +41,9 @@ export class PortalService {
 
   /**
    * Create User Contact (public API with honeypot protection)
-   * Returns the created contact with an auth token for subsequent authenticated requests.
+   * Returns the created contact. If OTP is enabled, returns requires_otp=true
+   * and the caller must complete OTP verification to get the auth token.
+   * If OTP is disabled, returns auth_token directly.
    */
   createUserContact(data: Partial<UserContact>): Observable<UserContactWithToken> {
     return this.callApiPost<UserContactWithToken>(`${API_CONTACTS}.create_user_contact`, {
@@ -51,8 +51,9 @@ export class PortalService {
       honeypot: ''  // Honeypot field - should always be empty
     }).pipe(
       tap(contact => {
-        // Store auth token for future requests if present
-        if (contact?.auth_token) {
+        // Only store auth token if present and OTP is not required
+        // When OTP is required, token will be set after verification
+        if (contact?.auth_token && !contact?.requires_otp) {
           this.frappeApi.setUserContactToken(contact.auth_token);
         }
       })
@@ -72,8 +73,9 @@ export class PortalService {
 
   /**
    * Get User Contact by document number (public API)
-   * Returns the contact with an auth token for subsequent authenticated requests.
-   * This acts as a "login" for returning users.
+   * Returns the contact. If OTP is enabled, returns requires_otp=true
+   * and the caller must complete OTP verification to get the auth token.
+   * If OTP is disabled, returns auth_token directly.
    * Uses GET to avoid CSRF issues for guest users.
    */
   getUserContactByDocument(document: string): Observable<UserContactWithToken | null> {
@@ -81,12 +83,21 @@ export class PortalService {
       document
     }).pipe(
       tap(contact => {
-        // Store auth token for future requests if present
-        if (contact?.auth_token) {
+        // Only store auth token if present and OTP is not required
+        // When OTP is required, token will be set after verification
+        if (contact?.auth_token && !contact?.requires_otp) {
           this.frappeApi.setUserContactToken(contact.auth_token);
         }
       })
     );
+  }
+
+  /**
+   * Set auth token after OTP verification
+   * Called by contact-registration component after successful OTP verification
+   */
+  setAuthToken(token: string): void {
+    this.frappeApi.setUserContactToken(token);
   }
 
   /**

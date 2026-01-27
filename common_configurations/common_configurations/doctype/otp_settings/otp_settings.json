@@ -1,0 +1,175 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-01-27 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enable_otp_verification",
+  "twilio_settings_section",
+  "twilio_account_sid",
+  "twilio_auth_token",
+  "column_break_twilio",
+  "twilio_phone_number",
+  "twilio_whatsapp_number",
+  "otp_configuration_section",
+  "otp_length",
+  "otp_expiry_minutes",
+  "default_channel",
+  "rate_limiting_section",
+  "max_otp_requests_per_hour",
+  "max_verification_attempts",
+  "lockout_duration_minutes",
+  "message_templates_section",
+  "sms_message_template",
+  "whatsapp_message_template"
+ ],
+ "fields": [
+  {
+   "default": "0",
+   "description": "Habilitar o deshabilitar verificaci\u00f3n OTP para autenticaci\u00f3n de User Contact",
+   "fieldname": "enable_otp_verification",
+   "fieldtype": "Check",
+   "label": "Habilitar Verificaci\u00f3n OTP"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "enable_otp_verification",
+   "fieldname": "twilio_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Configuraci\u00f3n Twilio"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "description": "Account SID de tu cuenta Twilio",
+   "fieldname": "twilio_account_sid",
+   "fieldtype": "Data",
+   "label": "Twilio Account SID",
+   "mandatory_depends_on": "enable_otp_verification"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "description": "Auth Token de tu cuenta Twilio",
+   "fieldname": "twilio_auth_token",
+   "fieldtype": "Password",
+   "label": "Twilio Auth Token",
+   "mandatory_depends_on": "enable_otp_verification"
+  },
+  {
+   "fieldname": "column_break_twilio",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "description": "N\u00famero de tel\u00e9fono para enviar SMS (formato: +1234567890)",
+   "fieldname": "twilio_phone_number",
+   "fieldtype": "Data",
+   "label": "N\u00famero SMS Twilio"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "description": "N\u00famero de tel\u00e9fono para WhatsApp (formato: +1234567890)",
+   "fieldname": "twilio_whatsapp_number",
+   "fieldtype": "Data",
+   "label": "N\u00famero WhatsApp Twilio"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "fieldname": "otp_configuration_section",
+   "fieldtype": "Section Break",
+   "label": "Configuraci\u00f3n OTP"
+  },
+  {
+   "default": "6",
+   "description": "N\u00famero de d\u00edgitos del c\u00f3digo OTP",
+   "fieldname": "otp_length",
+   "fieldtype": "Int",
+   "label": "Longitud OTP"
+  },
+  {
+   "default": "5",
+   "description": "Tiempo en minutos que el c\u00f3digo OTP es v\u00e1lido",
+   "fieldname": "otp_expiry_minutes",
+   "fieldtype": "Int",
+   "label": "Expiraci\u00f3n OTP (minutos)"
+  },
+  {
+   "default": "SMS",
+   "description": "Canal predeterminado para enviar OTP",
+   "fieldname": "default_channel",
+   "fieldtype": "Select",
+   "label": "Canal Predeterminado",
+   "options": "SMS\nWhatsApp"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "fieldname": "rate_limiting_section",
+   "fieldtype": "Section Break",
+   "label": "L\u00edmites y Seguridad"
+  },
+  {
+   "default": "3",
+   "description": "M\u00e1ximo n\u00famero de solicitudes de OTP por documento por hora",
+   "fieldname": "max_otp_requests_per_hour",
+   "fieldtype": "Int",
+   "label": "M\u00e1x. Solicitudes OTP por Hora"
+  },
+  {
+   "default": "5",
+   "description": "M\u00e1ximo n\u00famero de intentos incorrectos antes de bloquear",
+   "fieldname": "max_verification_attempts",
+   "fieldtype": "Int",
+   "label": "M\u00e1x. Intentos de Verificaci\u00f3n"
+  },
+  {
+   "default": "30",
+   "description": "Tiempo en minutos que el usuario queda bloqueado despu\u00e9s de exceder intentos",
+   "fieldname": "lockout_duration_minutes",
+   "fieldtype": "Int",
+   "label": "Duraci\u00f3n Bloqueo (minutos)"
+  },
+  {
+   "depends_on": "enable_otp_verification",
+   "fieldname": "message_templates_section",
+   "fieldtype": "Section Break",
+   "label": "Plantillas de Mensaje"
+  },
+  {
+   "default": "Tu c\u00f3digo de verificaci\u00f3n es: {otp}. V\u00e1lido por {minutes} minutos.",
+   "description": "Usa {otp} para el c\u00f3digo y {minutes} para el tiempo de expiraci\u00f3n",
+   "fieldname": "sms_message_template",
+   "fieldtype": "Small Text",
+   "label": "Plantilla SMS"
+  },
+  {
+   "default": "Tu c\u00f3digo de verificaci\u00f3n es: {otp}. V\u00e1lido por {minutes} minutos.",
+   "description": "Usa {otp} para el c\u00f3digo y {minutes} para el tiempo de expiraci\u00f3n",
+   "fieldname": "whatsapp_message_template",
+   "fieldtype": "Small Text",
+   "label": "Plantilla WhatsApp"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-01-27 12:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "OTP Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

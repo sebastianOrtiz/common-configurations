@@ -1,0 +1,157 @@
+<div class="otp-verification">
+  <!-- Channel Selection Step -->
+  @if (currentStep() === 'channel-select') {
+    <div class="otp-step channel-select">
+      <div class="step-header">
+        <span class="material-icons step-icon">security</span>
+        <h3>Verificacion de identidad</h3>
+        <p class="step-description">
+          Para proteger tu cuenta, te enviaremos un codigo de verificacion.
+          Selecciona como deseas recibirlo:
+        </p>
+      </div>
+
+      <div class="channel-options">
+        @if (smsAvailable) {
+          <button
+            type="button"
+            class="channel-btn sms"
+            [class.selected]="selectedChannel() === 'sms'"
+            [disabled]="loading()"
+            (click)="selectChannel('sms')"
+          >
+            <span class="material-icons">sms</span>
+            <span class="channel-label">SMS</span>
+            <span class="channel-desc">Mensaje de texto</span>
+          </button>
+        }
+
+        @if (whatsappAvailable) {
+          <button
+            type="button"
+            class="channel-btn whatsapp"
+            [class.selected]="selectedChannel() === 'whatsapp'"
+            [disabled]="loading()"
+            (click)="selectChannel('whatsapp')"
+          >
+            <span class="material-icons">chat</span>
+            <span class="channel-label">WhatsApp</span>
+            <span class="channel-desc">Mensaje de WhatsApp</span>
+          </button>
+        }
+      </div>
+
+      @if (error()) {
+        <div class="error-message">
+          <span class="material-icons">error</span>
+          {{ error() }}
+        </div>
+      }
+
+      <div class="step-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          [disabled]="loading()"
+          (click)="cancel()"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      @if (loading()) {
+        <div class="loading-overlay">
+          <div class="spinner"></div>
+          <span>Enviando codigo...</span>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- Code Input Step -->
+  @if (currentStep() === 'code-input') {
+    <div class="otp-step code-input">
+      <div class="step-header">
+        <span class="material-icons step-icon">dialpad</span>
+        <h3>Ingresa el codigo</h3>
+        <p class="step-description">
+          Enviamos un codigo de {{ otpSettings?.otp_length || 6 }} digitos a
+          <strong>{{ maskedPhone() }}</strong>
+          @if (selectedChannel() === 'whatsapp') {
+            via WhatsApp
+          } @else {
+            via SMS
+          }
+        </p>
+      </div>
+
+      <div class="otp-input-container">
+        <input
+          type="text"
+          class="otp-input"
+          [value]="otpCode()"
+          (input)="onOtpInput($event)"
+          [attr.maxlength]="otpSettings?.otp_length || 6"
+          placeholder="------"
+          autocomplete="one-time-code"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          [disabled]="loading()"
+        />
+        <p class="expiry-hint">
+          El codigo expira en {{ expiryMinutes() }} minutos
+        </p>
+      </div>
+
+      @if (error()) {
+        <div class="error-message">
+          <span class="material-icons">error</span>
+          {{ error() }}
+        </div>
+      }
+
+      <div class="step-actions">
+        <button
+          type="button"
+          class="btn-secondary"
+          [disabled]="loading()"
+          (click)="goBackToChannelSelect()"
+        >
+          <span class="material-icons">arrow_back</span>
+          Volver
+        </button>
+
+        <button
+          type="button"
+          class="btn-primary"
+          [disabled]="loading() || !otpCode()"
+          (click)="verifyOtp()"
+        >
+          @if (loading()) {
+            <div class="btn-spinner"></div>
+          } @else {
+            Verificar
+          }
+        </button>
+      </div>
+
+      <div class="resend-section">
+        @if (resendCooldown() > 0) {
+          <p class="resend-cooldown">
+            Puedes reenviar el codigo en {{ resendCooldown() }} segundos
+          </p>
+        } @else {
+          <button
+            type="button"
+            class="btn-link resend-btn"
+            [disabled]="loading()"
+            (click)="resendOtp()"
+          >
+            <span class="material-icons">refresh</span>
+            Reenviar codigo
+          </button>
+        }
+      </div>
+    </div>
+  }
+</div>

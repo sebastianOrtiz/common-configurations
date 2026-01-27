@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 
 from ..shared.security import create_user_contact_token
 from ..shared.rate_limit import get_client_ip
+from ..otp.service import OTPService
 
 
 class ContactService:
@@ -85,11 +86,14 @@ class ContactService:
         """
         Create a new User Contact.
 
+        If OTP is enabled, creates the user without auth_token and returns requires_otp=True.
+        If OTP is disabled, creates the user and generates auth_token directly.
+
         Args:
             data: Validated contact data
 
         Returns:
-            dict: Created contact with auth_token
+            dict: Created contact with auth_token or requires_otp
 
         Raises:
             frappe.ValidationError: If document already exists
@@ -113,16 +117,25 @@ class ContactService:
         doc.insert(ignore_permissions=True)
         frappe.db.commit()
 
-        # Generate auth token
-        auth_token = create_user_contact_token(doc.name)
-        frappe.db.commit()
-
         # Log creation
         frappe.logger().info(
             f"User contact created: {doc.name} from IP: {get_client_ip()}"
         )
 
         result = doc.as_dict()
+
+        # Check if OTP verification is enabled
+        if OTPService.is_enabled():
+            # Return indicator that OTP is required
+            otp_settings = OTPService.get_public_settings()
+            result["requires_otp"] = True
+            result["otp_settings"] = otp_settings
+            return result
+
+        # OTP disabled - generate auth token directly
+        auth_token = create_user_contact_token(doc.name)
+        frappe.db.commit()
+
         result["auth_token"] = auth_token
         return result
 
@@ -165,20 +178,31 @@ class ContactService:
         """
         Authenticate a User Contact by document number.
 
-        Finds the contact and generates a new auth token.
+        If OTP is enabled, returns requires_otp=True instead of auth_token.
+        If OTP is disabled, generates a new auth token directly.
 
         Args:
             document: Document number
 
         Returns:
-            dict or None: Contact data with auth_token, or None if not found
+            dict or None: Contact data with auth_token or requires_otp, or None if not found
         """
         contact = cls.get_by_document(document)
 
         if not contact:
             return None
 
-        # Generate new auth token
+        # Check if OTP verification is enabled
+        if OTPService.is_enabled():
+            # Return indicator that OTP is required
+            otp_settings = OTPService.get_public_settings()
+            return {
+                **contact,
+                "requires_otp": True,
+                "otp_settings": otp_settings,
+            }
+
+        # OTP disabled - generate auth token directly
         auth_token = create_user_contact_token(contact["name"])
         frappe.db.commit()
 

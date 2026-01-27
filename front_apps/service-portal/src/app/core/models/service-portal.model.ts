@@ -94,3 +94,44 @@ export interface DocTypeMeta {
   fields: DocField[];
   field_order?: string[];
 }
+
+/**
+ * OTP Settings (public settings from backend)
+ */
+export interface OTPSettings {
+  enabled: boolean;
+  otp_length?: number;
+  otp_expiry_minutes?: number;
+  default_channel?: 'sms' | 'whatsapp';
+  sms_available?: boolean;
+  whatsapp_available?: boolean;
+}
+
+/**
+ * OTP Request Response
+ */
+export interface OTPRequestResponse {
+  success: boolean;
+  message?: string;
+  phone?: string;  // Masked phone number
+  channel?: 'sms' | 'whatsapp';
+  expiry_minutes?: number;
+}
+
+/**
+ * OTP Verify Response
+ */
+export interface OTPVerifyResponse {
+  success: boolean;
+  auth_token?: string;
+  user_contact?: string;
+}
+
+/**
+ * User Contact with OTP requirement flag
+ */
+export interface UserContactWithOTP extends UserContact {
+  auth_token?: string;
+  requires_otp?: boolean;
+  otp_settings?: OTPSettings;
+}

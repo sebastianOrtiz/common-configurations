@@ -15,7 +15,14 @@
   "gender",
   "section_break_auth",
   "auth_token_hash",
-  "token_created_at"
+  "token_created_at",
+  "section_break_otp",
+  "otp_hash",
+  "otp_created_at",
+  "otp_attempts",
+  "otp_locked_until",
+  "otp_requests_count",
+  "otp_requests_reset_at"
  ],
  "fields": [
   {
@@ -86,12 +93,69 @@
    "no_copy": 1,
    "permlevel": 1,
    "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_otp",
+   "fieldtype": "Section Break",
+   "label": "OTP Verification",
+   "permlevel": 1
+  },
+  {
+   "fieldname": "otp_hash",
+   "fieldtype": "Password",
+   "label": "OTP Hash",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "otp_created_at",
+   "fieldtype": "Datetime",
+   "label": "OTP Created At",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "otp_attempts",
+   "fieldtype": "Int",
+   "label": "OTP Attempts",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "otp_locked_until",
+   "fieldtype": "Datetime",
+   "label": "OTP Locked Until",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "otp_requests_count",
+   "fieldtype": "Int",
+   "label": "OTP Requests Count",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "otp_requests_reset_at",
+   "fieldtype": "Datetime",
+   "label": "OTP Requests Reset At",
+   "no_copy": 1,
+   "permlevel": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-26 17:50:21.799257",
+ "modified": "2026-01-27 17:10:00.000000",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "User contact",

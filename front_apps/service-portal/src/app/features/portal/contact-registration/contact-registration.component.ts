@@ -4,6 +4,8 @@
  * Dynamically generates registration form based on User Contact DocType fields
  * Allows system users to register third-party contact information
  * (clients, patients, etc.) who will receive the service
+ *
+ * Now includes MFA via OTP (SMS/WhatsApp) when enabled in OTP Settings.
  */
 
 import { Component, OnInit, signal, inject } from '@angular/core';
@@ -12,15 +14,16 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService, UserContactWithToken } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
-import { UserContact, DocField } from '../../../core/models/service-portal.model';
+import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
+import { OtpVerificationComponent } from './otp-verification/otp-verification.component';
 
-// Registration step types
-type RegistrationStep = 'initial' | 'login' | 'register';
+// Registration step types - now includes 'otp' for OTP verification
+type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
 
 @Component({
   selector: 'app-contact-registration',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, OtpVerificationComponent],
   templateUrl: './contact-registration.component.html',
   styleUrls: ['./contact-registration.component.scss']
 })
@@ -42,8 +45,14 @@ export class ContactRegistrationComponent implements OnInit {
   protected loading = signal(false);
   protected error = signal<string | null>(null);
 
+  // OTP state
+  protected otpSettings = signal<OTPSettings | null>(null);
+  protected otpDocument = signal<string>('');  // Document number for OTP verification
+
   // Existing contact (for updates) - may include auth token
   private existingContact: UserContactWithToken | null = null;
+  // Pending contact for OTP verification (user found but needs OTP)
+  private pendingOtpContact: UserContactWithToken | null = null;
 
   // State
   protected currentUser = this.stateService.currentUser;
@@ -248,7 +257,7 @@ export class ContactRegistrationComponent implements OnInit {
 
     const portal = this.selectedPortal();
     if (!portal) {
-      this.error.set('Error de sesión. Por favor recarga la página.');
+      this.error.set('Error de sesion. Por favor recarga la pagina.');
       return;
     }
 
@@ -261,12 +270,24 @@ export class ContactRegistrationComponent implements OnInit {
         this.loading.set(false);
 
         if (contact) {
-          // Contact found - save to state and navigate to portal
-          this.stateService.setUserContact(contact, contact.auth_token);
-          this.router.navigate(['/portal', portal.portal_name]);
+          // Check if OTP verification is required
+          if (contact.requires_otp && contact.otp_settings) {
+            // Store contact and settings for OTP verification
+            this.pendingOtpContact = contact;
+            this.otpSettings.set(contact.otp_settings);
+            this.otpDocument.set(document);
+            this.currentStep.set('otp');
+          } else if (contact.auth_token) {
+            // OTP not required - proceed with auth token
+            this.stateService.setUserContact(contact, contact.auth_token);
+            this.router.navigate(['/portal', portal.portal_name]);
+          } else {
+            // No token and no OTP - something is wrong
+            this.error.set('Error de autenticacion. Por favor intenta de nuevo.');
+          }
         } else {
           // Contact not found
-          this.error.set('No se encontró un usuario registrado con ese número de documento. Por favor verifica los datos o regístrate como nuevo usuario.');
+          this.error.set('No se encontro un usuario registrado con ese numero de documento. Por favor verifica los datos o registrate como nuevo usuario.');
         }
       },
       error: (err) => {
@@ -341,16 +362,27 @@ export class ContactRegistrationComponent implements OnInit {
       // Create new contact
       this.portalService.createUserContact(contactData).subscribe({
         next: (contact) => {
-          // Save to state with auth token from creation response
-          this.stateService.setUserContact(contact, contact.auth_token);
           this.loading.set(false);
 
-          // Navigate to portal
-          this.router.navigate(['/portal', portal.portal_name]);
+          // Check if OTP verification is required
+          if (contact.requires_otp && contact.otp_settings) {
+            // Store contact and settings for OTP verification
+            this.pendingOtpContact = contact;
+            this.otpSettings.set(contact.otp_settings);
+            this.otpDocument.set(contactData.document || '');
+            this.currentStep.set('otp');
+          } else if (contact.auth_token) {
+            // OTP not required - proceed with auth token
+            this.stateService.setUserContact(contact, contact.auth_token);
+            this.router.navigate(['/portal', portal.portal_name]);
+          } else {
+            // No token and no OTP - something is wrong
+            this.error.set('Error de autenticacion. Por favor intenta de nuevo.');
+          }
         },
         error: (err) => {
           console.error('Error creating contact:', err);
-          this.error.set(err.message || 'Error al registrar la información. Por favor intenta de nuevo.');
+          this.error.set(err.message || 'Error al registrar la informacion. Por favor intenta de nuevo.');
           this.loading.set(false);
         }
       });
@@ -371,5 +403,42 @@ export class ContactRegistrationComponent implements OnInit {
    */
   cancel(): void {
     this.router.navigate(['/portals']);
+  }
+
+  /**
+   * Handle successful OTP verification
+   * Called by OtpVerificationComponent when OTP is verified
+   */
+  onOtpVerified(authToken: string): void {
+    const portal = this.selectedPortal();
+    if (!portal) {
+      this.error.set('Error de sesion. Por favor recarga la pagina.');
+      this.currentStep.set('initial');
+      return;
+    }
+
+    // Set the auth token in the portal service
+    this.portalService.setAuthToken(authToken);
+
+    // Use the pending contact info if available
+    if (this.pendingOtpContact) {
+      this.stateService.setUserContact(this.pendingOtpContact, authToken);
+    }
+
+    // Navigate to portal
+    this.router.navigate(['/portal', portal.portal_name]);
+  }
+
+  /**
+   * Handle OTP verification cancellation
+   * Called by OtpVerificationComponent when user cancels
+   */
+  onOtpCancelled(): void {
+    // Reset OTP state and go back to initial step
+    this.pendingOtpContact = null;
+    this.otpSettings.set(null);
+    this.otpDocument.set('');
+    this.currentStep.set('initial');
+    this.error.set(null);
   }
 }

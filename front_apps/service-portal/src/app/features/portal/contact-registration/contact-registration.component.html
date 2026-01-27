@@ -264,5 +264,17 @@
         </div>
       </form>
     }
+
+    <!-- Step 3: OTP Verification -->
+    @else if (currentStep() === 'otp') {
+      <div class="step-otp">
+        <app-otp-verification
+          [document]="otpDocument()"
+          [otpSettings]="otpSettings()"
+          (verified)="onOtpVerified($event)"
+          (cancelled)="onOtpCancelled()"
+        />
+      </div>
+    }
   </div>
 </div>

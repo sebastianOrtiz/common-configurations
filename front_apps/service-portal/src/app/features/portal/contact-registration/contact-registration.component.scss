@@ -475,3 +475,14 @@
     }
   }
 }
+
+// OTP Verification Step
+.step-otp {
+  // The OTP verification component handles its own styling
+  // This wrapper provides context within the registration card
+  padding: 0.5rem 0;
+
+  // Override primary color for the OTP component to match registration theme
+  --primary-color: #667eea;
+  --primary-color-dark: #5a67d8;
+}
