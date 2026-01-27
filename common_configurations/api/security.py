@@ -313,13 +313,8 @@ def validate_user_contact_data(data: dict) -> dict:
         validated['phone_number'] = validate_phone(data.get('phone_number'))
 
     if 'gender' in data:
-        # Gender should be from a predefined list
-        valid_genders = ['Male', 'Female', 'Other', 'Prefer not to say', '']
-        gender = sanitize_string(data['gender'], 50)
-        if gender and gender not in valid_genders:
-            validated['gender'] = 'Other'
-        else:
-            validated['gender'] = gender
+        # Just sanitize - Frappe will validate against DocType options
+        validated['gender'] = sanitize_string(data['gender'], 50)
 
     # Copy any other fields that might be custom, with sanitization
     known_fields = {'full_name', 'document', 'document_type', 'email', 'phone_number', 'gender'}
@@ -448,7 +443,13 @@ def get_current_user_contact() -> Optional[str]:
         str or None: The User Contact name if authenticated, None otherwise
     """
     token = get_token_from_request()
+
+    # Debug logging
+    frappe.logger().info(f"[Auth Debug] Token from request: {token[:20] if token else 'None'}...")
+    frappe.logger().info(f"[Auth Debug] Headers: {dict(frappe.request.headers)}")
+
     if not token:
+        frappe.logger().info("[Auth Debug] No token found in request")
         return None
 
     try:

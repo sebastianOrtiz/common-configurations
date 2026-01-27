@@ -133,7 +133,7 @@ def get_user_contact_by_document(document: str, honeypot: str = None):
     This endpoint is used to "login" a returning user by their document number.
     On success, it generates a new auth token that must be used for subsequent requests.
 
-    Rate limited: 10 requests per minute per IP.
+    Rate limited: 30 requests per minute per IP.
     Protected by honeypot field.
 
     Args:
@@ -145,7 +145,7 @@ def get_user_contact_by_document(document: str, honeypot: str = None):
     """
     # Security checks
     check_honeypot(honeypot)
-    check_rate_limit("get_contact", limit=10, seconds=60)
+    check_rate_limit("get_contact", limit=30, seconds=60)
 
     # Validate input
     document = validate_document_number(document)
@@ -163,6 +163,7 @@ def get_user_contact_by_document(document: str, honeypot: str = None):
 
             # Generate new auth token for this session
             auth_token = create_user_contact_token(contact['name'])
+            frappe.db.commit()  # Commit the token hash to database
 
             # Log authentication
             frappe.logger().info(
@@ -189,10 +190,10 @@ def create_user_contact(data, honeypot: str = None):
     """
     Create a new User Contact and generate auth token.
 
-    On successful creation (or finding existing contact), an auth token is generated
-    that must be used for subsequent authenticated requests.
+    If a contact with the same document number already exists, an error is thrown
+    indicating the user should use the "login" flow instead.
 
-    Rate limited: 5 requests per minute per IP (stricter for writes).
+    Rate limited: 20 requests per minute per IP.
     Protected by honeypot field.
     All data is validated and sanitized.
 
@@ -201,11 +202,11 @@ def create_user_contact(data, honeypot: str = None):
         honeypot: Honeypot field (should be empty)
 
     Returns:
-        dict: Created/existing User Contact with auth_token
+        dict: Created User Contact with auth_token
     """
     # Security checks
     check_honeypot(honeypot)
-    check_rate_limit("create_contact", limit=5, seconds=60)
+    check_rate_limit("create_contact", limit=20, seconds=60)
 
     try:
         # Parse data if it's a string (from JSON)
@@ -218,18 +219,11 @@ def create_user_contact(data, honeypot: str = None):
         # Check if contact with same document already exists
         existing = frappe.db.exists('User contact', {'document': validated_data.get('document')})
         if existing:
-            # Generate token for existing contact and return
-            auth_token = create_user_contact_token(existing)
-
-            frappe.logger().info(
-                f"Existing user contact authenticated: {existing} from IP: {get_client_ip()}"
+            # Throw error - user should use "Estoy registrado" flow instead
+            frappe.throw(
+                _("Ya existe un usuario registrado con este número de documento. Por favor usa la opción 'Estoy registrado' para conectarte."),
+                frappe.ValidationError
             )
-
-            contact = frappe.get_doc('User contact', existing).as_dict()
-            return {
-                **contact,
-                'auth_token': auth_token
-            }
 
         # Create new document with ignore_permissions for guest users
         doc = frappe.get_doc({
@@ -242,6 +236,7 @@ def create_user_contact(data, honeypot: str = None):
 
         # Generate auth token for new contact
         auth_token = create_user_contact_token(doc.name)
+        frappe.db.commit()  # Commit the token hash to database
 
         # Log creation for audit
         frappe.logger().info(
@@ -266,7 +261,7 @@ def update_user_contact(name: str, data, honeypot: str = None):
     """
     Update an existing User Contact.
 
-    Rate limited: 5 requests per minute per IP.
+    Rate limited: 20 requests per minute per IP.
     Protected by honeypot field.
 
     Args:
@@ -279,7 +274,7 @@ def update_user_contact(name: str, data, honeypot: str = None):
     """
     # Security checks
     check_honeypot(honeypot)
-    check_rate_limit("update_contact", limit=5, seconds=60)
+    check_rate_limit("update_contact", limit=20, seconds=60)
 
     if not name:
         frappe.throw(_("Contact ID is required"), frappe.ValidationError)
@@ -390,7 +385,8 @@ def get_csrf_token():
     """
     check_rate_limit("get_csrf", limit=30, seconds=60)
 
-    return frappe.generate_hash()
+    # Return the actual session CSRF token, not a new hash
+    return frappe.local.session.data.csrf_token
 
 
 @frappe.whitelist(allow_guest=True, methods=['GET'])
@@ -437,7 +433,7 @@ def logout_user_contact(honeypot: str = None):
     """
     Logout current User Contact by invalidating their token.
 
-    Rate limited: 10 requests per minute per IP.
+    Rate limited: 20 requests per minute per IP.
     Protected by honeypot field.
 
     Args:
@@ -447,7 +443,7 @@ def logout_user_contact(honeypot: str = None):
         dict: Success status
     """
     check_honeypot(honeypot)
-    check_rate_limit("logout", limit=10, seconds=60)
+    check_rate_limit("logout", limit=20, seconds=60)
 
     try:
         user_contact_name = get_current_user_contact()

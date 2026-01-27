@@ -4,7 +4,7 @@
  * Wrapper component that provides the header and layout for all portal views
  */
 
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
@@ -25,19 +25,21 @@ export class PortalLayoutComponent {
   protected portal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
 
+  // Signal to track current URL (needed for reactive computed)
+  private currentUrl = signal(this.router.url);
+
   // Track if we should show header (hide on registration page)
   protected showHeader = computed(() => {
     // Hide header on registration route
-    return !this.router.url.includes('/register');
+    return !this.currentUrl().includes('/register');
   });
 
   constructor() {
-    // Update showHeader when route changes
+    // Update currentUrl signal when route changes
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
-    ).subscribe(() => {
-      // Trigger change detection by accessing computed
-      this.showHeader();
+    ).subscribe((event) => {
+      this.currentUrl.set((event as NavigationEnd).urlAfterRedirects);
     });
   }
 

@@ -467,13 +467,14 @@ export class MeetSchedulingToolComponent implements OnInit {
   }
 
   /**
-   * Load user's appointments
+   * Load user's appointments using authenticated endpoint
    */
   private loadUserAppointments(): void {
     const contact = this.userContact();
     if (!contact?.name) return;
 
-    this.meetSchedulingService.getUserAppointments(contact.name).subscribe({
+    // Use getMyAppointments which uses token-based authentication
+    this.meetSchedulingService.getMyAppointments().subscribe({
       next: (appointments) => {
         // Sort by start date, most recent first
         const sorted = appointments.sort((a, b) =>
@@ -488,7 +489,7 @@ export class MeetSchedulingToolComponent implements OnInit {
   }
 
   /**
-   * Cancel an appointment
+   * Cancel an appointment using authenticated endpoint
    */
   cancelAppointment(appointment: Appointment): void {
     if (!appointment.name) return;
@@ -497,7 +498,8 @@ export class MeetSchedulingToolComponent implements OnInit {
       return;
     }
 
-    this.meetSchedulingService.cancelAppointment(appointment.name).subscribe({
+    // Use cancelMyAppointment which validates token and ownership
+    this.meetSchedulingService.cancelMyAppointment(appointment.name).subscribe({
       next: (result) => {
         // Use the message from backend (handles both deleted and cancelled)
         this.successMessage.set(result.message || 'Cita cancelada exitosamente');
@@ -505,7 +507,7 @@ export class MeetSchedulingToolComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error canceling appointment:', err);
-        this.error.set('Error al cancelar la cita');
+        this.error.set(err.message || 'Error al cancelar la cita');
       }
     });
   }

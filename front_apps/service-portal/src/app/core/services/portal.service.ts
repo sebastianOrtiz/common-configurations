@@ -69,14 +69,14 @@ export class PortalService {
   }
 
   /**
-   * Get User Contact by document number (public API with honeypot protection)
+   * Get User Contact by document number (public API)
    * Returns the contact with an auth token for subsequent authenticated requests.
    * This acts as a "login" for returning users.
+   * Uses GET to avoid CSRF issues for guest users.
    */
   getUserContactByDocument(document: string): Observable<UserContactWithToken | null> {
-    return this.callPortalMethod<UserContactWithToken | null>('get_user_contact_by_document', {
-      document,
-      honeypot: ''  // Honeypot field
+    return this.callPortalMethodGet<UserContactWithToken | null>('get_user_contact_by_document', {
+      document
     }).pipe(
       tap(contact => {
         // Store auth token for future requests if present

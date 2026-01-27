@@ -14,6 +14,9 @@ import { PortalService, UserContactWithToken } from '../../../core/services/port
 import { StateService } from '../../../core/services/state.service';
 import { UserContact, DocField } from '../../../core/models/service-portal.model';
 
+// Registration step types
+type RegistrationStep = 'initial' | 'login' | 'register';
+
 @Component({
   selector: 'app-contact-registration',
   standalone: true,
@@ -27,6 +30,9 @@ export class ContactRegistrationComponent implements OnInit {
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
 
+  // Current registration step
+  protected currentStep = signal<RegistrationStep>('initial');
+
   // Dynamic form fields from DocType metadata
   protected fields = signal<DocField[]>([]);
   protected formData = signal<Record<string, any>>({});
@@ -35,8 +41,6 @@ export class ContactRegistrationComponent implements OnInit {
   // UI state
   protected loading = signal(false);
   protected error = signal<string | null>(null);
-  protected searchingContact = signal(false);
-  protected contactFound = signal(false);
 
   // Existing contact (for updates) - may include auth token
   private existingContact: UserContactWithToken | null = null;
@@ -106,59 +110,6 @@ export class ContactRegistrationComponent implements OnInit {
       ...currentData,
       [fieldname]: value
     });
-
-    // If document field changed, search for existing contact
-    if (fieldname === 'document' && value && value.toString().trim()) {
-      this.searchContactByDocument(value.toString().trim());
-    }
-  }
-
-  /**
-   * Search for existing contact by document number
-   */
-  private searchContactByDocument(document: string): void {
-    // Don't search if too short
-    if (document.length < 3) {
-      this.contactFound.set(false);
-      this.existingContact = null;
-      return;
-    }
-
-    this.searchingContact.set(true);
-    this.error.set(null);
-
-    this.portalService.getUserContactByDocument(document).subscribe({
-      next: (contact) => {
-        this.searchingContact.set(false);
-
-        if (contact) {
-          // Contact found - fill form with existing data
-          // The response includes an auth_token that will be used for authenticated requests
-          this.existingContact = contact;
-          this.contactFound.set(true);
-
-          // Fill all fields with existing data
-          const updatedData: Record<string, any> = {};
-          this.fields().forEach(field => {
-            if (contact[field.fieldname] !== undefined) {
-              updatedData[field.fieldname] = contact[field.fieldname];
-            }
-          });
-
-          this.formData.set(updatedData);
-        } else {
-          // Contact not found - clear except document
-          this.existingContact = null;
-          this.contactFound.set(false);
-        }
-      },
-      error: (err) => {
-        console.error('Error searching contact:', err);
-        this.searchingContact.set(false);
-        this.existingContact = null;
-        this.contactFound.set(false);
-      }
-    });
   }
 
   /**
@@ -224,6 +175,127 @@ export class ContactRegistrationComponent implements OnInit {
   }
 
   /**
+   * Navigate to the login step (existing user)
+   */
+  goToLogin(): void {
+    this.currentStep.set('login');
+    this.error.set(null);
+    this.existingContact = null;
+    // Set default document type to Cedula de ciudadania
+    this.formData.set({
+      document_type: 'Cedula de ciudadania'
+    });
+  }
+
+  /**
+   * Navigate to the register step (new user)
+   */
+  goToRegister(): void {
+    this.currentStep.set('register');
+    this.error.set(null);
+    this.existingContact = null;
+    // Reset form with default values
+    const initialData: Record<string, any> = {};
+    this.fields().forEach(field => {
+      if (field.default) {
+        initialData[field.fieldname] = field.default;
+      }
+    });
+    this.formData.set(initialData);
+  }
+
+  /**
+   * Go back to initial step
+   */
+  goToInitial(): void {
+    this.currentStep.set('initial');
+    this.error.set(null);
+    this.existingContact = null;
+    this.formData.set({});
+  }
+
+  /**
+   * Validate login form (document fields only)
+   */
+  private validateLoginForm(): string | null {
+    const data = this.formData();
+
+    // Check document type
+    if (!data['document_type'] || data['document_type'].toString().trim() === '') {
+      return 'Por favor selecciona el tipo de documento';
+    }
+
+    // Check document number
+    if (!data['document'] || data['document'].toString().trim() === '') {
+      return 'Por favor ingresa el número de documento';
+    }
+
+    return null;
+  }
+
+  /**
+   * Connect existing user by document number
+   */
+  onConnect(): void {
+    this.error.set(null);
+
+    // Validate login form
+    const validationError = this.validateLoginForm();
+    if (validationError) {
+      this.error.set(validationError);
+      return;
+    }
+
+    const portal = this.selectedPortal();
+    if (!portal) {
+      this.error.set('Error de sesión. Por favor recarga la página.');
+      return;
+    }
+
+    this.loading.set(true);
+
+    const document = this.formData()['document']?.toString().trim();
+
+    this.portalService.getUserContactByDocument(document).subscribe({
+      next: (contact) => {
+        this.loading.set(false);
+
+        if (contact) {
+          // Contact found - save to state and navigate to portal
+          this.stateService.setUserContact(contact, contact.auth_token);
+          this.router.navigate(['/portal', portal.portal_name]);
+        } else {
+          // Contact not found
+          this.error.set('No se encontró un usuario registrado con ese número de documento. Por favor verifica los datos o regístrate como nuevo usuario.');
+        }
+      },
+      error: (err) => {
+        console.error('Error connecting:', err);
+        this.error.set(err.message || 'Error al buscar el usuario. Por favor intenta de nuevo.');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  /**
+   * Get document type options from fields
+   */
+  getDocumentTypeOptions(): string[] {
+    const field = this.fields().find(f => f.fieldname === 'document_type');
+    if (field && field.options) {
+      return field.options.split('\n').map(opt => opt.trim()).filter(opt => opt);
+    }
+    return [];
+  }
+
+  /**
+   * Get document type field
+   */
+  getDocumentTypeField(): DocField | undefined {
+    return this.fields().find(f => f.fieldname === 'document_type');
+  }
+
+  /**
    * Submit contact registration
    */
   onSubmit(): void {
@@ -261,7 +333,7 @@ export class ContactRegistrationComponent implements OnInit {
         },
         error: (err) => {
           console.error('Error updating contact:', err);
-          this.error.set(err.error || 'Error al actualizar la información. Por favor intenta de nuevo.');
+          this.error.set(err.message || 'Error al actualizar la información. Por favor intenta de nuevo.');
           this.loading.set(false);
         }
       });
@@ -278,7 +350,7 @@ export class ContactRegistrationComponent implements OnInit {
         },
         error: (err) => {
           console.error('Error creating contact:', err);
-          this.error.set(err.error || 'Error al registrar la información. Por favor intenta de nuevo.');
+          this.error.set(err.message || 'Error al registrar la información. Por favor intenta de nuevo.');
           this.loading.set(false);
         }
       });

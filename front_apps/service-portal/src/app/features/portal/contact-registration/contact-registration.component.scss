@@ -114,6 +114,107 @@
   }
 }
 
+// Step Initial - Choice buttons
+.step-initial {
+  .step-description {
+    text-align: center;
+    color: #4a5568;
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .choice-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .btn-choice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: #667eea;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.15);
+    }
+
+    .choice-icon {
+      width: 56px;
+      height: 56px;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      svg {
+        width: 28px;
+        height: 28px;
+        color: white;
+      }
+    }
+
+    .choice-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #2d3748;
+      margin-bottom: 0.25rem;
+    }
+
+    .choice-subtitle {
+      font-size: 0.875rem;
+      color: #718096;
+    }
+  }
+
+  .btn-full {
+    width: 100%;
+  }
+}
+
+// Back button
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: none;
+  color: #667eea;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    color: #764ba2;
+  }
+}
+
+// Step description
+.step-description {
+  color: #4a5568;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
 // Form
 .registration-form {
   .alert {
@@ -345,6 +446,26 @@
   .registration-header {
     h1 {
       font-size: 1.5rem;
+    }
+  }
+
+  .step-initial {
+    .btn-choice {
+      padding: 1.25rem;
+
+      .choice-icon {
+        width: 48px;
+        height: 48px;
+
+        svg {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      .choice-title {
+        font-size: 1rem;
+      }
     }
   }
 

@@ -19,7 +19,7 @@
       </div>
     }
 
-    <!-- Error State -->
+    <!-- Error State (when fields fail to load) -->
     @else if (error() && fields().length === 0) {
       <div class="error-state">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -30,18 +30,127 @@
       </div>
     }
 
-    <!-- Registration Form (Dynamic) -->
-    @else {
-      <form class="registration-form" (ngSubmit)="onSubmit()" #regForm="ngForm">
-        <!-- Contact Found Alert -->
-        @if (contactFound()) {
-          <div class="alert alert-info">
+    <!-- Step 1: Initial - Choose between login or register -->
+    @else if (currentStep() === 'initial') {
+      <div class="step-initial">
+        <p class="step-description">¿Ya te has registrado anteriormente?</p>
+
+        <div class="choice-buttons">
+          <button class="btn-choice btn-login" (click)="goToLogin()">
+            <div class="choice-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+            </div>
+            <span class="choice-title">Estoy registrado</span>
+            <span class="choice-subtitle">Ya tengo mis datos en el sistema</span>
+          </button>
+
+          <button class="btn-choice btn-register" (click)="goToRegister()">
+            <div class="choice-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+            </div>
+            <span class="choice-title">Registrarme</span>
+            <span class="choice-subtitle">Es mi primera vez</span>
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- Step 2a: Login - Find existing user by document -->
+    @else if (currentStep() === 'login') {
+      <form class="registration-form" (ngSubmit)="onConnect()" #loginForm="ngForm">
+        <!-- Back button -->
+        <button type="button" class="btn-back" (click)="goToInitial()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver
+        </button>
+
+        <p class="step-description">Ingresa tu número de documento para conectarte</p>
+
+        <!-- Error Alert -->
+        @if (error()) {
+          <div class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span>Contacto encontrado. Los datos se han cargado automáticamente. Puedes modificarlos si es necesario.</span>
+            <span>{{ error() }}</span>
           </div>
         }
+
+        <!-- Document Type Field -->
+        @if (getDocumentTypeField(); as field) {
+          <div class="form-group">
+            <label [for]="field.fieldname">
+              {{ field.label }}
+              <span class="required">*</span>
+            </label>
+            <select
+              [id]="field.fieldname"
+              [name]="field.fieldname"
+              [ngModel]="getFieldValue(field.fieldname)"
+              (ngModelChange)="setFieldValue(field.fieldname, $event)"
+              [disabled]="loading()"
+              required
+            >
+              <option value="">Seleccionar...</option>
+              @for (option of getDocumentTypeOptions(); track option) {
+                <option [value]="option">{{ option }}</option>
+              }
+            </select>
+          </div>
+        }
+
+        <!-- Document Number Field -->
+        <div class="form-group">
+          <label for="document">
+            Número de documento
+            <span class="required">*</span>
+          </label>
+          <input
+            type="text"
+            id="document"
+            name="document"
+            [ngModel]="getFieldValue('document')"
+            (ngModelChange)="setFieldValue('document', $event)"
+            placeholder="Ingresa tu número de documento"
+            [disabled]="loading()"
+            required
+          />
+        </div>
+
+        <!-- Actions -->
+        <div class="form-actions">
+          <button
+            type="submit"
+            class="btn-primary btn-full"
+            [disabled]="loading()"
+          >
+            @if (loading()) {
+              <span class="spinner"></span>
+              Conectando...
+            } @else {
+              Conectar
+            }
+          </button>
+        </div>
+      </form>
+    }
+
+    <!-- Step 2b: Register - Full registration form -->
+    @else if (currentStep() === 'register') {
+      <form class="registration-form" (ngSubmit)="onSubmit()" #regForm="ngForm">
+        <!-- Back button -->
+        <button type="button" class="btn-back" (click)="goToInitial()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver
+        </button>
 
         <!-- Error Alert -->
         @if (error()) {
@@ -65,23 +174,16 @@
 
             <!-- Text, Number, Email, Phone, Date, etc. -->
             @if (field.fieldtype !== 'Select' && field.fieldtype !== 'Check' && field.fieldtype !== 'Text' && field.fieldtype !== 'Small Text' && field.fieldtype !== 'Long Text') {
-              <div class="input-wrapper">
-                <input
-                  [type]="getInputType(field)"
-                  [id]="field.fieldname"
-                  [name]="field.fieldname"
-                  [ngModel]="getFieldValue(field.fieldname)"
-                  (ngModelChange)="setFieldValue(field.fieldname, $event)"
-                  [placeholder]="field.description || field.label"
-                  [disabled]="loading()"
-                  [required]="field.reqd === 1"
-                />
-                @if (field.fieldname === 'document' && searchingContact()) {
-                  <div class="input-spinner">
-                    <div class="mini-spinner"></div>
-                  </div>
-                }
-              </div>
+              <input
+                [type]="getInputType(field)"
+                [id]="field.fieldname"
+                [name]="field.fieldname"
+                [ngModel]="getFieldValue(field.fieldname)"
+                (ngModelChange)="setFieldValue(field.fieldname, $event)"
+                [placeholder]="field.description || field.label"
+                [disabled]="loading()"
+                [required]="field.reqd === 1"
+              />
             }
 
             <!-- Select Dropdown -->
@@ -142,7 +244,7 @@
           <button
             type="button"
             class="btn-secondary"
-            (click)="cancel()"
+            (click)="goToInitial()"
             [disabled]="loading()"
           >
             Cancelar
