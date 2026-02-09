@@ -80,7 +80,7 @@
   },
   {
    "fieldname": "auth_token_hash",
-   "fieldtype": "Password",
+   "fieldtype": "Data",
    "label": "Token Hash",
    "no_copy": 1,
    "permlevel": 1,

@@ -307,11 +307,18 @@ class OTPService:
 
 		auth_token = create_user_contact_token(doc.name)
 
-		# Clear OTP data
-		doc.otp_hash = None
-		doc.otp_created_at = None
-		doc.otp_attempts = 0
-		doc.save(ignore_permissions=True)
+		# Clear OTP data using set_value to avoid overwriting the auth_token_hash
+		# that was just set by create_user_contact_token
+		frappe.db.set_value(
+			"User contact",
+			doc.name,
+			{
+				"otp_hash": None,
+				"otp_created_at": None,
+				"otp_attempts": 0,
+			},
+			update_modified=False,
+		)
 		frappe.db.commit()
 
 		return {
