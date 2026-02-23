@@ -23,17 +23,9 @@ export interface Appointment {
 
   // Video call
   video_call_profile?: string;
-  call_link_mode?: 'inherit' | 'manual' | 'auto';
-  manual_meeting_url?: string;
-  manual_meeting_notes?: string;
-
-  // Meeting result
   meeting_url?: string;
-  video_provider?: 'google_meet' | 'microsoft_teams';
   meeting_id?: string;
   meeting_status?: 'not_created' | 'created' | 'failed';
-  meeting_error?: string;
-  meeting_created_at?: string;
 
   // Metadata
   docstatus?: number; // 0 = Draft, 1 = Submitted, 2 = Cancelled
@@ -74,9 +66,6 @@ export interface MeetingGenerationResult {
 export interface CalendarResource {
   name: string;
   resource_name: string;
-  resource_type: 'Person' | 'Room' | 'Equipment' | 'Service';
-  reference_doctype?: string;
-  reference_name?: string;
   timezone: string;
   slot_duration_minutes: number;
   capacity: number;

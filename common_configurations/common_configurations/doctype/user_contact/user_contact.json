@@ -33,7 +33,7 @@
    "fieldname": "full_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Nombre completo",
+   "label": "Full Name",
    "length": 500,
    "reqd": 1
   },
@@ -42,7 +42,7 @@
    "fieldname": "document_type",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Tipo de documento",
+   "label": "Document Type",
    "options": "Cedula de ciudadania\nNIT",
    "reqd": 1
   },
@@ -50,32 +50,32 @@
    "fieldname": "document",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Numero de documento",
+   "label": "Document Number",
    "reqd": 1
   },
   {
    "fieldname": "phone_number",
    "fieldtype": "Data",
-   "label": "Numero de telefono"
+   "label": "Phone Number"
   },
   {
    "fieldname": "email",
    "fieldtype": "Data",
-   "label": "Correo electronico",
+   "label": "Email",
    "options": "Email"
   },
   {
    "default": "No especifica",
    "fieldname": "gender",
    "fieldtype": "Select",
-   "label": "Genero",
+   "label": "Gender",
    "options": "No especifica\nFemenino\nMasculino\nOtro"
   },
   {
    "collapsible": 1,
    "fieldname": "section_break_auth",
    "fieldtype": "Section Break",
-   "label": "Autenticación",
+   "label": "Authentication",
    "permlevel": 1
   },
   {

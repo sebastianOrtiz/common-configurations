@@ -62,7 +62,7 @@
   {
    "fieldname": "configuraci\u00f3n_de_registro_section",
    "fieldtype": "Section Break",
-   "label": "Configuraci\u00f3n de Registro"
+   "label": "Registration Settings"
   },
   {
    "description": "T\u00edtulo del formulario",
@@ -79,7 +79,7 @@
   {
    "fieldname": "estilos_section",
    "fieldtype": "Section Break",
-   "label": "Estilos"
+   "label": "Styles"
   },
   {
    "default": "#000000",
@@ -117,7 +117,7 @@
   {
    "fieldname": "herramientas_section",
    "fieldtype": "Section Break",
-   "label": "Herramientas"
+   "label": "Tools"
   },
   {
    "description": "Herramientas del portal",

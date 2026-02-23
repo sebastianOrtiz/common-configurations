@@ -414,9 +414,9 @@ export interface Appointment {
 
   // Video call
   video_call_profile?: string;
-  call_link_mode?: 'inherit' | 'manual' | 'auto';
-  manual_meeting_url?: string;
   meeting_url?: string;
+  meeting_id?: string;
+  meeting_status?: 'not_created' | 'created' | 'failed';
 
   // Opcional
   party_type?: string;

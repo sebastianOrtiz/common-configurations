@@ -148,7 +148,7 @@ export class MeetSchedulingService {
   }
 
   /**
-   * Generate meeting manually (if create_on = manual)
+   * Generate or re-generate a meeting for a confirmed appointment
    */
   generateMeeting(appointmentName: string): Observable<MeetingGenerationResult> {
     return this.frappeApi.callMethod(`${API_APPOINTMENTS}.generate_meeting`, {
