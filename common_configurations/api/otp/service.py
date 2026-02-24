@@ -13,7 +13,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, get_datetime
 
-from .twilio_client import TwilioClient
+from .client_factory import get_sms_client
 
 
 class OTPService:
@@ -49,9 +49,7 @@ class OTPService:
 			"enabled": True,
 			"otp_length": settings.otp_length or 6,
 			"otp_expiry_minutes": settings.otp_expiry_minutes or 5,
-			"default_channel": settings.default_channel or "sms",
-			"sms_available": bool(settings.twilio_phone_number),
-			"whatsapp_available": bool(settings.twilio_whatsapp_number),
+			"sms_provider": settings.sms_provider_link or "",
 		}
 
 	@classmethod
@@ -67,7 +65,7 @@ class OTPService:
 	@classmethod
 	def _format_phone_e164(cls, phone_number: str, country_code: str = "+57") -> str:
 		"""
-		Format phone number to E.164 format for Twilio.
+		Format phone number to E.164 format.
 
 		Args:
 			phone_number: Raw phone number
@@ -150,13 +148,12 @@ class OTPService:
 				user_contact.otp_attempts = 0
 
 	@classmethod
-	def request_otp(cls, document: str, channel: str = "sms") -> dict:
+	def request_otp(cls, document: str) -> dict:
 		"""
-		Generate and send OTP to user.
+		Generate and send OTP to user via SMS.
 
 		Args:
 			document: User's document number
-			channel: "sms" or "whatsapp"
 
 		Returns:
 			dict with success status and masked phone number
@@ -198,10 +195,10 @@ class OTPService:
 			message=f"Document: {document}, OTP: {otp_code}, Phone: {doc.phone_number}"
 		)
 
-		# Format phone number with country code and send OTP via Twilio
+		# Format phone number with country code and send OTP via configured provider
 		formatted_phone = cls._format_phone_e164(doc.phone_number)
-		twilio = TwilioClient()
-		twilio.send_otp(formatted_phone, otp_code, channel)
+		sms_client = get_sms_client()
+		sms_client.send_sms(formatted_phone, otp_code)
 
 		# Store OTP hash and update counters
 		doc.otp_hash = cls._hash_otp(otp_code)
@@ -224,7 +221,6 @@ class OTPService:
 			"success": True,
 			"message": _("OTP sent successfully"),
 			"phone": masked_phone,
-			"channel": channel,
 			"expiry_minutes": settings.otp_expiry_minutes or 5,
 		}
 
@@ -404,13 +400,12 @@ class OTPService:
 		frappe.cache().set_value(rate_key, rate_data, expires_in_sec=3600)
 
 	@classmethod
-	def request_registration_otp(cls, form_data: dict, channel: str = "sms") -> dict:
+	def request_registration_otp(cls, form_data: dict) -> dict:
 		"""
-		Store pending registration and send OTP for phone verification.
+		Store pending registration and send OTP for phone verification via SMS.
 
 		Args:
 			form_data: Registration form data (must include phone_number)
-			channel: "sms" or "whatsapp"
 
 		Returns:
 			dict with success status and masked phone number
@@ -448,8 +443,8 @@ class OTPService:
 
 		# Format phone and send OTP
 		formatted_phone = cls._format_phone_e164(phone_number)
-		twilio = TwilioClient()
-		twilio.send_otp(formatted_phone, otp_code, channel)
+		sms_client = get_sms_client()
+		sms_client.send_sms(formatted_phone, otp_code)
 
 		# Store in cache
 		cache_key = cls._get_pending_key(phone_number)
@@ -457,7 +452,6 @@ class OTPService:
 			"form_data": form_data,
 			"otp_hash": cls._hash_otp(otp_code),
 			"attempts": 0,
-			"channel": channel,
 			"created_at": now_datetime().isoformat(),
 		}
 
@@ -474,7 +468,6 @@ class OTPService:
 			"success": True,
 			"message": _("Verification code sent"),
 			"phone": masked_phone,
-			"channel": channel,
 			"expiry_minutes": expiry_minutes,
 		}
 
@@ -557,13 +550,12 @@ class OTPService:
 		}
 
 	@classmethod
-	def resend_registration_otp(cls, phone_number: str, channel: str = None) -> dict:
+	def resend_registration_otp(cls, phone_number: str) -> dict:
 		"""
-		Resend OTP for pending registration.
+		Resend OTP for pending registration via SMS.
 
 		Args:
 			phone_number: Phone number from registration
-			channel: Optional new channel (sms/whatsapp)
 
 		Returns:
 			dict with success status
@@ -580,10 +572,6 @@ class OTPService:
 		# Check rate limit
 		cls._check_pending_rate_limit(phone_number)
 
-		# Use existing channel if not specified
-		if not channel:
-			channel = pending_data.get("channel", "sms")
-
 		# Generate new OTP
 		settings = cls.get_settings()
 		otp_length = settings.otp_length or 6
@@ -598,13 +586,12 @@ class OTPService:
 
 		# Send OTP
 		formatted_phone = cls._format_phone_e164(phone_number)
-		twilio = TwilioClient()
-		twilio.send_otp(formatted_phone, otp_code, channel)
+		sms_client = get_sms_client()
+		sms_client.send_sms(formatted_phone, otp_code)
 
 		# Update cache with new OTP
 		pending_data["otp_hash"] = cls._hash_otp(otp_code)
 		pending_data["attempts"] = 0
-		pending_data["channel"] = channel
 		pending_data["created_at"] = now_datetime().isoformat()
 
 		frappe.cache().set_value(cache_key, pending_data, expires_in_sec=expiry_minutes * 60)
@@ -619,7 +606,6 @@ class OTPService:
 			"success": True,
 			"message": _("Verification code sent"),
 			"phone": masked_phone,
-			"channel": channel,
 			"expiry_minutes": expiry_minutes,
 		}
 

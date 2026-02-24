@@ -1,7 +1,8 @@
 """
 OTP Settings DocType
 
-Single DocType for configuring OTP verification via Twilio (SMS/WhatsApp).
+Single DocType for configuring OTP verification via SMS.
+Delega las credenciales del proveedor al DocType SMS Provider.
 """
 
 import frappe
@@ -13,20 +14,21 @@ class OTPSettings(Document):
 	def validate(self) -> None:
 		"""Validate OTP settings configuration."""
 		if self.enable_otp_verification:
-			self._validate_twilio_config()
+			self._validate_provider_link()
 			self._validate_otp_config()
 
-	def _validate_twilio_config(self) -> None:
-		"""Validate Twilio configuration when OTP is enabled."""
-		if not self.twilio_account_sid:
-			frappe.throw(_("Twilio Account SID es requerido cuando OTP está habilitado"))
+	def _validate_provider_link(self) -> None:
+		"""Validate that a valid, active SMS Provider is linked."""
+		if not self.sms_provider_link:
+			frappe.throw(_("Se debe seleccionar un SMS Provider cuando OTP está habilitado"))
 
-		if not self.twilio_auth_token:
-			frappe.throw(_("Twilio Auth Token es requerido cuando OTP está habilitado"))
-
-		if not self.twilio_phone_number and not self.twilio_whatsapp_number:
+		provider_is_active = frappe.db.get_value("SMS Provider", self.sms_provider_link, "is_active")
+		if not provider_is_active:
 			frappe.throw(
-				_("Al menos un número de teléfono Twilio (SMS o WhatsApp) es requerido")
+				_("El SMS Provider '{0}' no está activo. "
+				  "Active el proveedor antes de habilitarlo en OTP Settings.").format(
+					self.sms_provider_link
+				)
 			)
 
 	def _validate_otp_config(self) -> None:
@@ -75,6 +77,5 @@ class OTPSettings(Document):
 	@staticmethod
 	def clear_cache() -> None:
 		"""Clear the cached OTP settings."""
-		# Clear both the document cache and any keys related to OTP Settings
 		frappe.cache().delete_value("OTP Settings")
 		frappe.clear_document_cache("OTP Settings", "OTP Settings")

@@ -6,23 +6,16 @@
  "engine": "InnoDB",
  "field_order": [
   "enable_otp_verification",
-  "twilio_settings_section",
-  "twilio_account_sid",
-  "twilio_auth_token",
-  "column_break_twilio",
-  "twilio_phone_number",
-  "twilio_whatsapp_number",
+  "sms_provider_link",
   "otp_configuration_section",
   "otp_length",
   "otp_expiry_minutes",
-  "default_channel",
   "rate_limiting_section",
   "max_otp_requests_per_hour",
   "max_verification_attempts",
   "lockout_duration_minutes",
   "message_templates_section",
-  "sms_message_template",
-  "whatsapp_message_template"
+  "sms_message_template"
  ],
  "fields": [
   {
@@ -33,45 +26,13 @@
    "label": "Enable OTP Verification"
   },
   {
-   "collapsible": 1,
    "depends_on": "enable_otp_verification",
-   "fieldname": "twilio_settings_section",
-   "fieldtype": "Section Break",
-   "label": "Twilio Settings"
-  },
-  {
-   "depends_on": "enable_otp_verification",
-   "description": "Account SID de tu cuenta Twilio",
-   "fieldname": "twilio_account_sid",
-   "fieldtype": "Data",
-   "label": "Twilio Account SID",
-   "mandatory_depends_on": "enable_otp_verification"
-  },
-  {
-   "depends_on": "enable_otp_verification",
-   "description": "Auth Token de tu cuenta Twilio",
-   "fieldname": "twilio_auth_token",
-   "fieldtype": "Password",
-   "label": "Twilio Auth Token",
-   "mandatory_depends_on": "enable_otp_verification"
-  },
-  {
-   "fieldname": "column_break_twilio",
-   "fieldtype": "Column Break"
-  },
-  {
-   "depends_on": "enable_otp_verification",
-   "description": "N\u00famero de tel\u00e9fono para enviar SMS (formato: +1234567890)",
-   "fieldname": "twilio_phone_number",
-   "fieldtype": "Data",
-   "label": "SMS Phone Number"
-  },
-  {
-   "depends_on": "enable_otp_verification",
-   "description": "N\u00famero de tel\u00e9fono para WhatsApp (formato: +1234567890)",
-   "fieldname": "twilio_whatsapp_number",
-   "fieldtype": "Data",
-   "label": "WhatsApp Phone Number"
+   "description": "Proveedor SMS a utilizar para enviar los c\u00f3digos OTP",
+   "fieldname": "sms_provider_link",
+   "fieldtype": "Link",
+   "label": "SMS Provider",
+   "mandatory_depends_on": "enable_otp_verification",
+   "options": "SMS Provider"
   },
   {
    "depends_on": "enable_otp_verification",
@@ -92,14 +53,6 @@
    "fieldname": "otp_expiry_minutes",
    "fieldtype": "Int",
    "label": "OTP Expiry (Minutes)"
-  },
-  {
-   "default": "SMS",
-   "description": "Canal predeterminado para enviar OTP",
-   "fieldname": "default_channel",
-   "fieldtype": "Select",
-   "label": "Default Channel",
-   "options": "SMS\nWhatsApp"
   },
   {
    "depends_on": "enable_otp_verification",
@@ -140,18 +93,11 @@
    "fieldname": "sms_message_template",
    "fieldtype": "Small Text",
    "label": "SMS Message Template"
-  },
-  {
-   "default": "Tu c\u00f3digo de verificaci\u00f3n es: {otp}. V\u00e1lido por {minutes} minutos.",
-   "description": "Usa {otp} para el c\u00f3digo y {minutes} para el tiempo de expiraci\u00f3n",
-   "fieldname": "whatsapp_message_template",
-   "fieldtype": "Small Text",
-   "label": "WhatsApp Message Template"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-01-27 12:00:00.000000",
+ "modified": "2026-02-24 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "OTP Settings",

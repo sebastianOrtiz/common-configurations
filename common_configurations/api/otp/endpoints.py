@@ -24,13 +24,12 @@ def get_otp_settings() -> dict:
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def request_otp(document: str, channel: str = "sms", honeypot: str = None) -> dict:
+def request_otp(document: str, honeypot: str = None) -> dict:
 	"""
-	Request OTP to be sent to user's phone.
+	Request OTP to be sent to user's phone via SMS.
 
 	Args:
 		document: User's document number
-		channel: "sms" or "whatsapp"
 		honeypot: Honeypot field for bot detection
 
 	Returns:
@@ -45,11 +44,7 @@ def request_otp(document: str, channel: str = "sms", honeypot: str = None) -> di
 	if not document:
 		frappe.throw(_("Document number is required"))
 
-	channel = sanitize_string(channel).lower()
-	if channel not in ("sms", "whatsapp"):
-		channel = "sms"
-
-	return OTPService.request_otp(document, channel)
+	return OTPService.request_otp(document)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -101,14 +96,13 @@ def is_otp_enabled() -> dict:
 # ==========================================
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def request_registration_otp(data: str, channel: str = "sms", honeypot: str = None) -> dict:
+def request_registration_otp(data: str, honeypot: str = None) -> dict:
 	"""
-	Request OTP for new user registration.
+	Request OTP for new user registration via SMS.
 	Stores form data in cache until OTP is verified.
 
 	Args:
 		data: JSON string with registration form data
-		channel: "sms" or "whatsapp"
 		honeypot: Honeypot field for bot detection
 
 	Returns:
@@ -133,12 +127,7 @@ def request_registration_otp(data: str, channel: str = "sms", honeypot: str = No
 	if not form_data.get("document"):
 		frappe.throw(_("Document number is required"))
 
-	# Sanitize channel
-	channel = sanitize_string(channel).lower()
-	if channel not in ("sms", "whatsapp"):
-		channel = "sms"
-
-	return OTPService.request_registration_otp(form_data, channel)
+	return OTPService.request_registration_otp(form_data)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -174,13 +163,12 @@ def verify_registration_otp(phone_number: str, otp_code: str, honeypot: str = No
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def resend_registration_otp(phone_number: str, channel: str = None, honeypot: str = None) -> dict:
+def resend_registration_otp(phone_number: str, honeypot: str = None) -> dict:
 	"""
-	Resend OTP for pending registration.
+	Resend OTP for pending registration via SMS.
 
 	Args:
 		phone_number: Phone number from registration
-		channel: Optional new channel (sms/whatsapp)
 		honeypot: Honeypot field for bot detection
 
 	Returns:
@@ -195,12 +183,7 @@ def resend_registration_otp(phone_number: str, channel: str = None, honeypot: st
 	if not phone_number:
 		frappe.throw(_("Phone number is required"))
 
-	if channel:
-		channel = sanitize_string(channel).lower()
-		if channel not in ("sms", "whatsapp"):
-			channel = None
-
-	return OTPService.resend_registration_otp(phone_number, channel)
+	return OTPService.resend_registration_otp(phone_number)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

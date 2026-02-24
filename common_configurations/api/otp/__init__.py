@@ -1,7 +1,7 @@
 """
 OTP Domain API
 
-Endpoints for OTP verification via SMS/WhatsApp.
+Endpoints for OTP verification via SMS.
 """
 
 from .endpoints import (
@@ -15,7 +15,7 @@ from .endpoints import (
 	cancel_registration,
 )
 from .service import OTPService
-from .twilio_client import TwilioClient
+from .client_factory import get_sms_client
 
 __all__ = [
 	# Existing user OTP
@@ -28,7 +28,7 @@ __all__ = [
 	"verify_registration_otp",
 	"resend_registration_otp",
 	"cancel_registration",
-	# Classes
+	# Classes / factories
 	"OTPService",
-	"TwilioClient",
+	"get_sms_client",
 ]
