@@ -79,8 +79,11 @@ export class MeetSchedulingToolComponent implements OnInit {
   protected currentUser = this.stateService.currentUser;
   protected userContact = this.stateService.userContact;
   protected selectedPortal = this.stateService.selectedPortal;
+  protected isAnonymousUser = this.stateService.isAnonymousUser;
 
   ngOnInit(): void {
+    if (this.isAnonymousUser()) return;
+
     // Get calendar resource from portal tool configuration
     const portal = this.selectedPortal();
     const tool = portal?.tools.find(t => t.tool_type === 'meet_scheduling');
@@ -554,6 +557,16 @@ export class MeetSchedulingToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.name]);
+    }
+  }
+
+  /**
+   * Navigate to registration page
+   */
+  goToRegistration(): void {
+    const portal = this.selectedPortal();
+    if (portal) {
+      this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }
 }
