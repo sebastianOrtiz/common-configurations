@@ -64,16 +64,25 @@ export class PortalSelectorComponent implements OnInit {
    * Select a portal and navigate to it
    */
   selectPortal(portal: ServicePortal): void {
-    // Save selected portal to state
     this.stateService.setSelectedPortal(portal);
 
-    // Contact registration is always required
-    if (!this.stateService.userContact()) {
-      // Navigate to contact registration
-      this.router.navigate(['/portal', portal.portal_name, 'register']);
-    } else {
-      // Navigate directly to portal view
+    if (!portal.require_auth) {
+      // Portal sin auth: establecer usuario anónimo si no hay usuario real autenticado
+      const current = this.stateService.userContact();
+      if (!current || this.stateService.isAnonymousUser()) {
+        this.stateService.setAnonymousContact();
+      }
       this.router.navigate(['/portal', portal.portal_name]);
+    } else {
+      // Portal con auth: limpiar usuario anónimo si estaba establecido
+      if (this.stateService.isAnonymousUser()) {
+        this.stateService.setUserContact(null);
+      }
+      if (!this.stateService.userContact()) {
+        this.router.navigate(['/portal', portal.portal_name, 'register']);
+      } else {
+        this.router.navigate(['/portal', portal.portal_name]);
+      }
     }
   }
 

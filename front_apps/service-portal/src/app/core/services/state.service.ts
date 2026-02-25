@@ -7,7 +7,7 @@
 
 import { Injectable, signal, computed } from '@angular/core';
 import { User } from '../models/user.model';
-import { ServicePortal, UserContact } from '../models/service-portal.model';
+import { ServicePortal, UserContact, ANONYMOUS_USER_CONTACT } from '../models/service-portal.model';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -69,9 +69,12 @@ export class StateService {
   readonly needsContactRegistration = computed(() => {
     const portal = this.selectedPortalSignal();
     const contact = this.userContactSignal();
-    // Contact registration is always required when a portal is selected
+    if (portal && !portal.require_auth) return false;
     return portal !== null && !contact;
   });
+  readonly isAnonymousUser = computed(() =>
+    this.userContactSignal()?.name === 'anonymous'
+  );
 
   // Full state computed signal (for debugging/logging)
   readonly state = computed<AppState>(() => ({
@@ -165,6 +168,15 @@ export class StateService {
     if (authToken) {
       this.setAuthToken(authToken);
     }
+  }
+
+  /**
+   * Set anonymous/guest contact for portals that don't require authentication.
+   * Not persisted to localStorage (session-only, no auth token).
+   */
+  setAnonymousContact(): void {
+    this.userContactSignal.set(ANONYMOUS_USER_CONTACT);
+    // Intentionally skipped: no localStorage persistence, no auth token
   }
 
   /**

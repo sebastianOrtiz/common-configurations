@@ -274,8 +274,8 @@ export class ContactRegistrationComponent implements OnInit {
         this.loading.set(false);
 
         if (contact) {
-          // Check if OTP verification is required
-          if (contact.requires_otp && contact.otp_settings) {
+          const portalRequiresMfa = portal?.enable_mfa_otp !== false;
+          if (contact.requires_otp && contact.otp_settings && portalRequiresMfa) {
             // Store contact and settings for OTP verification
             this.pendingOtpContact = contact;
             this.otpSettings.set(contact.otp_settings);
@@ -365,30 +365,32 @@ export class ContactRegistrationComponent implements OnInit {
         }
       });
     } else {
-      // For new contacts, check if OTP is enabled first
-      this.otpService.getOtpSettings().subscribe({
-        next: (otpSettings) => {
-          this.loading.set(false);
+      const portalWantsMfa = portal.require_auth && portal.enable_mfa_otp !== false;
 
-          if (otpSettings.enabled) {
-            // OTP is enabled - use registration OTP flow
-            // Store form data and go to OTP verification in registration mode
-            this.registrationFormData.set(contactData);
-            this.otpSettings.set(otpSettings);
-            this.otpDocument.set(contactData.document || '');
-            this.otpMode.set('registration');
-            this.currentStep.set('otp');
-          } else {
-            // OTP not enabled - create user directly
+      if (portalWantsMfa) {
+        this.otpService.getOtpSettings().subscribe({
+          next: (otpSettings) => {
+            this.loading.set(false);
+
+            if (otpSettings.enabled) {
+              this.registrationFormData.set(contactData);
+              this.otpSettings.set(otpSettings);
+              this.otpDocument.set(contactData.document || '');
+              this.otpMode.set('registration');
+              this.currentStep.set('otp');
+            } else {
+              this.createUserDirectly(contactData, portal.portal_name);
+            }
+          },
+          error: (err) => {
+            console.error('Error checking OTP settings:', err);
             this.createUserDirectly(contactData, portal.portal_name);
           }
-        },
-        error: (err) => {
-          console.error('Error checking OTP settings:', err);
-          // If we can't check OTP settings, try creating directly
-          this.createUserDirectly(contactData, portal.portal_name);
-        }
-      });
+        });
+      } else {
+        this.loading.set(false);
+        this.createUserDirectly(contactData, portal.portal_name);
+      }
     }
   }
 

@@ -13,6 +13,10 @@ export interface ServicePortal {
   registration_title?: string;
   registration_description?: string;
 
+  // Auth
+  require_auth?: boolean;
+  enable_mfa_otp?: boolean;
+
   // Styles
   primary_color?: string;
   secondary_color?: string;
@@ -39,6 +43,9 @@ export interface ServicePortalTool {
   calendar_resource?: string;
   show_calendar_view?: boolean;
   slot_duration_minutes?: number;
+
+  // For portal_redirect:
+  target_portal?: string;
 
   // Additional custom fields can be added here
   [key: string]: any;
@@ -145,3 +152,15 @@ export interface UserContactWithOTP extends UserContact {
   requires_otp?: boolean;
   otp_settings?: OTPSettings;
 }
+
+/**
+ * Guest/anonymous user contact for portals that don't require authentication.
+ * Has no auth token — FrappeApiService won't send X-User-Contact-Token.
+ * Not persisted to localStorage (session-only).
+ */
+export const ANONYMOUS_USER_CONTACT: UserContact = {
+  name: 'anonymous',
+  full_name: 'Invitado',
+  document_type: '',
+  document: 'anonymous',
+};

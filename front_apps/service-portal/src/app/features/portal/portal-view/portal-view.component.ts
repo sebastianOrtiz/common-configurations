@@ -50,8 +50,7 @@ export class PortalViewComponent implements OnInit {
    * Contact registration is always mandatory before accessing portal tools
    */
   private checkContactRegistration(portal: ServicePortal): void {
-    if (!this.stateService.userContact()) {
-      // Redirect to registration - always required
+    if (portal.require_auth && !this.stateService.userContact()) {
       this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }
@@ -67,6 +66,12 @@ export class PortalViewComponent implements OnInit {
       next: (portal) => {
         this.portal.set(portal);
         this.stateService.setSelectedPortal(portal);
+
+        // Fallback para recarga de página (F5): si el portal no requiere auth y no hay
+        // contacto en estado, establecer el usuario anónimo (no persiste en localStorage)
+        if (!portal.require_auth && !this.stateService.userContact()) {
+          this.stateService.setAnonymousContact();
+        }
 
         // Check if contact registration is required
         this.checkContactRegistration(portal);
@@ -93,6 +98,12 @@ export class PortalViewComponent implements OnInit {
   selectTool(tool: ServicePortalTool): void {
     const portal = this.portal();
     if (!portal) return;
+
+    // Portal redirect: navigate directly to the target portal
+    if (tool.tool_type === 'portal_redirect' && tool.target_portal) {
+      this.router.navigate(['/portal', tool.target_portal]);
+      return;
+    }
 
     // Navigate to tool route (will be lazy loaded)
     this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
