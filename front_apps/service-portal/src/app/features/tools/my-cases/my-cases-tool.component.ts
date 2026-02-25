@@ -90,6 +90,7 @@ export class MyCasesToolComponent implements OnInit {
 
   protected selectedPortal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
+  protected isAnonymousUser = this.stateService.isAnonymousUser;
 
   // State signals
   protected loading = signal<boolean>(true);
@@ -110,6 +111,10 @@ export class MyCasesToolComponent implements OnInit {
   async ngOnInit() {
     console.log('=== MY CASES COMPONENT INIT ===');
     console.log('User contact:', this.userContact());
+    if (this.isAnonymousUser()) {
+      this.loading.set(false);
+      return;
+    }
     await this.loadCases();
   }
 
@@ -193,6 +198,13 @@ export class MyCasesToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.name]);
+    }
+  }
+
+  protected goToRegistration() {
+    const portal = this.selectedPortal();
+    if (portal) {
+      this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }
 
