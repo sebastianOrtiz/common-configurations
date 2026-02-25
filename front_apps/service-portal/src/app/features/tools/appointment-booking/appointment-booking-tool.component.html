@@ -11,7 +11,21 @@
     <h1>Agendar Cita</h1>
   </div>
 
+  <!-- Auth Required State -->
+  @if (isAnonymousUser()) {
+    <div class="auth-required-state">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+      <h3>Acceso restringido</h3>
+      <p>Para agendar una cita necesitas iniciar sesión o registrarte.</p>
+      <button class="btn-primary" (click)="goToRegistration()" type="button">Registrarse / Iniciar sesión</button>
+    </div>
+  }
+
   <!-- Progress Steps -->
+  @if (!isAnonymousUser()) {
   <div class="progress-steps">
     <div class="step" [class.active]="step() >= 1" [class.completed]="step() > 1">
       <div class="step-number">1</div>
@@ -288,4 +302,5 @@
       </div>
     </div>
   }
+  } <!-- end !isAnonymousUser() -->
 </div>

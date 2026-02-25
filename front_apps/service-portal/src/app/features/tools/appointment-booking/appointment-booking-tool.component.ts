@@ -30,6 +30,7 @@ export class AppointmentBookingToolComponent implements OnInit {
   protected selectedPortal = this.stateService.selectedPortal();
   protected userContact = this.stateService.userContact();
   protected currentUser = this.stateService.currentUser();
+  protected isAnonymousUser = this.stateService.isAnonymousUser;
 
   // UI State
   protected loading = signal<boolean>(false);
@@ -64,6 +65,7 @@ export class AppointmentBookingToolComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    if (this.isAnonymousUser()) return;
     this.loadCalendarResources();
   }
 
@@ -228,6 +230,12 @@ export class AppointmentBookingToolComponent implements OnInit {
   goBack(): void {
     if (this.selectedPortal) {
       this.router.navigate(['/portal', this.selectedPortal.name]);
+    }
+  }
+
+  goToRegistration(): void {
+    if (this.selectedPortal) {
+      this.router.navigate(['/portal', this.selectedPortal.portal_name, 'register']);
     }
   }
 
