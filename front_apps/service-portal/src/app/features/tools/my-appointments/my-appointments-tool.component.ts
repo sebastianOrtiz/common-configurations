@@ -35,8 +35,10 @@ export class MyAppointmentsToolComponent implements OnInit {
   protected currentUser = this.stateService.currentUser;
   protected userContact = this.stateService.userContact;
   protected selectedPortal = this.stateService.selectedPortal;
+  protected isAnonymousUser = this.stateService.isAnonymousUser;
 
   ngOnInit(): void {
+    if (this.isAnonymousUser()) return;
     this.loadUserAppointments();
   }
 
@@ -143,6 +145,16 @@ export class MyAppointmentsToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.name]);
+    }
+  }
+
+  /**
+   * Navigate to registration page
+   */
+  goToRegistration(): void {
+    const portal = this.selectedPortal();
+    if (portal) {
+      this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }
 }
