@@ -34,6 +34,7 @@ class PortalService:
                 "description",
                 "logo",
                 "primary_color",
+                "require_auth",
             ],
         )
 
@@ -71,11 +72,21 @@ class PortalService:
             "logo": portal.logo,
             "background_image": portal.background_image,
             "custom_css": portal.custom_css,
+            "require_auth": portal.require_auth,
+            "enable_mfa_otp": portal.enable_mfa_otp,
             "tools": [],
         }
 
         # Add tools
         for tool in portal.tools:
+            # Skip portal_redirect tools whose target portal is inactive or not set
+            if tool.tool_type == "portal_redirect":
+                target = getattr(tool, "target_portal", None)
+                if not target:
+                    continue
+                if not frappe.db.get_value("Service Portal", target, "is_active"):
+                    continue
+
             result["tools"].append(
                 {
                     "name": tool.name,
@@ -91,6 +102,7 @@ class PortalService:
                     "slot_duration_minutes": getattr(
                         tool, "slot_duration_minutes", None
                     ),
+                    "target_portal": getattr(tool, "target_portal", None),
                 }
             )
 

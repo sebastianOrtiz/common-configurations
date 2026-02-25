@@ -1,6 +1,25 @@
 // Copyright (c) 2026, Sebastian Ortiz Valencia and contributors
 // For license information, please see license.txt
 
+frappe.ui.form.on('Service Portal', {
+	setup: function(frm) {
+		// Filter target_portal to exclude the current portal (avoid self-referencing cycles)
+		frm.set_query('target_portal', 'tools', function(doc) {
+			return {
+				filters: {
+					name: ['!=', doc.name]
+				}
+			};
+		});
+	},
+	require_auth: function(frm) {
+		// When authentication is disabled, turn off MFA OTP too
+		if (!frm.doc.require_auth) {
+			frm.set_value('enable_mfa_otp', 0);
+		}
+	}
+});
+
 // Child table handler for Service Portal Tool
 frappe.ui.form.on('Service Portal Tool', {
 	tool_type: function(frm, cdt, cdn) {

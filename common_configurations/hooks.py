@@ -12,6 +12,10 @@ fixtures = [
 	{
 		"doctype": "Role",
 		"filters": [["name", "in", ["Common Config Manager", "Portal API User"]]]
+	},
+	{
+		"doctype": "Tool Type",
+		"filters": [["app_name", "=", "common_configurations"]]
 	}
 ]
 

@@ -11,6 +11,9 @@
   "title",
   "description",
   "is_active",
+  "security_section",
+  "require_auth",
+  "enable_mfa_otp",
   "configuraci\u00f3n_de_registro_section",
   "registration_title",
   "registration_description",
@@ -58,6 +61,26 @@
    "fieldname": "is_active",
    "fieldtype": "Check",
    "label": "Is Active"
+  },
+  {
+   "fieldname": "security_section",
+   "fieldtype": "Section Break",
+   "label": "Security"
+  },
+  {
+   "default": "0",
+   "description": "Cuando est\u00e1 activo, los usuarios deben autenticarse para acceder al portal",
+   "fieldname": "require_auth",
+   "fieldtype": "Check",
+   "label": "Require Authentication"
+  },
+  {
+   "default": "1",
+   "depends_on": "require_auth",
+   "description": "Verificaci\u00f3n en dos pasos mediante c\u00f3digo OTP enviado por SMS",
+   "fieldname": "enable_mfa_otp",
+   "fieldtype": "Check",
+   "label": "Enable MFA OTP"
   },
   {
    "fieldname": "configuraci\u00f3n_de_registro_section",
@@ -130,7 +153,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-26 15:57:28.487380",
+ "modified": "2026-02-25 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Service Portal",
