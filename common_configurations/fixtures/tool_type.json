@@ -1,0 +1,12 @@
+[
+    {
+        "doctype": "Tool Type",
+        "name": "portal_redirect",
+        "tool_name": "portal_redirect",
+        "tool_label": "Enlace a Portal",
+        "app_name": "common_configurations",
+        "icon": "ExternalLink",
+        "description": "Redirige al usuario a otro Service Portal",
+        "is_active": 1
+    }
+]
