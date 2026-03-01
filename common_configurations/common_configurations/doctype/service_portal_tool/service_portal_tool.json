@@ -8,6 +8,7 @@
  "field_order": [
   "tool_type",
   "target_portal",
+  "quick_links",
   "label",
   "tool_description",
   "icon",
@@ -34,6 +35,15 @@
    "label": "Portal Destino",
    "mandatory_depends_on": "eval:doc.tool_type=='portal_redirect'",
    "options": "Service Portal"
+  },
+  {
+   "depends_on": "eval:doc.tool_type=='portal_quick_links'",
+   "description": "Grupo de enlaces r\u00e1pidos a mostrar al seleccionar esta herramienta",
+   "fieldname": "quick_links",
+   "fieldtype": "Link",
+   "label": "Quick Links",
+   "mandatory_depends_on": "eval:doc.tool_type=='portal_quick_links'",
+   "options": "Portal Quick Links"
   },
   {
    "description": "Texto del bot\u00f3n",

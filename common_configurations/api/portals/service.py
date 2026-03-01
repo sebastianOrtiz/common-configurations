@@ -87,23 +87,60 @@ class PortalService:
                 if not frappe.db.get_value("Service Portal", target, "is_active"):
                     continue
 
-            result["tools"].append(
-                {
-                    "name": tool.name,
-                    "tool_type": tool.tool_type,
-                    "label": tool.label,
-                    "tool_description": tool.tool_description,
-                    "icon": tool.icon,
-                    "button_color": tool.button_color,
-                    "display_order": tool.display_order,
-                    "is_enabled": tool.is_enabled,
-                    "calendar_resource": getattr(tool, "calendar_resource", None),
-                    "show_calendar_view": getattr(tool, "show_calendar_view", None),
-                    "slot_duration_minutes": getattr(
-                        tool, "slot_duration_minutes", None
-                    ),
-                    "target_portal": getattr(tool, "target_portal", None),
-                }
-            )
+            tool_data = {
+                "name": tool.name,
+                "tool_type": tool.tool_type,
+                "label": tool.label,
+                "tool_description": tool.tool_description,
+                "icon": tool.icon,
+                "button_color": tool.button_color,
+                "display_order": tool.display_order,
+                "is_enabled": tool.is_enabled,
+                "calendar_resource": getattr(tool, "calendar_resource", None),
+                "show_calendar_view": getattr(tool, "show_calendar_view", None),
+                "slot_duration_minutes": getattr(
+                    tool, "slot_duration_minutes", None
+                ),
+                "target_portal": getattr(tool, "target_portal", None),
+                "quick_links": getattr(tool, "quick_links", None),
+            }
+
+            # Inline quick links data so the frontend doesn't need a second API call
+            if tool.tool_type == "portal_quick_links" and tool_data["quick_links"]:
+                tool_data["quick_links_data"] = cls._get_quick_links_data(
+                    tool_data["quick_links"]
+                )
+
+            result["tools"].append(tool_data)
 
         return result
+
+    @classmethod
+    def _get_quick_links_data(cls, quick_links_name: str) -> Optional[Dict[str, Any]]:
+        """Get Portal Quick Links with its items."""
+        if not frappe.db.exists(
+            "Portal Quick Links", {"name": quick_links_name, "is_active": 1}
+        ):
+            return None
+
+        doc = frappe.get_doc("Portal Quick Links", quick_links_name)
+        return {
+            "name": doc.name,
+            "link_group_name": doc.link_group_name,
+            "description": doc.description,
+            "icon": doc.icon,
+            "image": doc.image,
+            "links": [
+                {
+                    "label": item.label,
+                    "icon": item.icon,
+                    "image": item.image,
+                    "url": item.url,
+                    "target": item.target,
+                    "display_order": item.display_order,
+                    "is_enabled": item.is_enabled,
+                }
+                for item in doc.links
+                if item.is_enabled
+            ],
+        }

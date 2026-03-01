@@ -8,5 +8,15 @@
         "icon": "ExternalLink",
         "description": "Redirige al usuario a otro Service Portal",
         "is_active": 1
+    },
+    {
+        "doctype": "Tool Type",
+        "name": "portal_quick_links",
+        "tool_name": "portal_quick_links",
+        "tool_label": "Enlaces Rápidos",
+        "app_name": "common_configurations",
+        "icon": "Link",
+        "description": "Muestra un panel de enlaces rápidos configurables con iconos o imágenes",
+        "is_active": 1
     }
 ]

@@ -1,0 +1,105 @@
+{
+	"actions": [],
+	"allow_rename": 1,
+	"autoname": "field:link_group_name",
+	"creation": "2026-03-01 00:00:00.000000",
+	"doctype": "DocType",
+	"engine": "InnoDB",
+	"field_order": [
+		"link_group_name",
+		"icon",
+		"image",
+		"description",
+		"is_active",
+		"links_section",
+		"links"
+	],
+	"fields": [
+		{
+			"fieldname": "link_group_name",
+			"fieldtype": "Data",
+			"in_list_view": 1,
+			"label": "Name",
+			"reqd": 1,
+			"unique": 1
+		},
+		{
+			"description": "Lucide icon name. Ignored if an image is attached.",
+			"fieldname": "icon",
+			"fieldtype": "Select",
+			"label": "Icon",
+			"options": "\nCalendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox\nExternalLink\nLink\nGlobe"
+		},
+		{
+			"description": "If set, this image is used instead of the icon",
+			"fieldname": "image",
+			"fieldtype": "Attach Image",
+			"label": "Image"
+		},
+		{
+			"fieldname": "description",
+			"fieldtype": "Small Text",
+			"label": "Description"
+		},
+		{
+			"default": "1",
+			"fieldname": "is_active",
+			"fieldtype": "Check",
+			"label": "Is Active"
+		},
+		{
+			"fieldname": "links_section",
+			"fieldtype": "Section Break",
+			"label": "Links"
+		},
+		{
+			"fieldname": "links",
+			"fieldtype": "Table",
+			"label": "Links",
+			"options": "Portal Quick Link Item"
+		}
+	],
+	"index_web_pages_for_search": 1,
+	"links": [],
+	"modified": "2026-03-01 00:00:00.000000",
+	"modified_by": "Administrator",
+	"module": "Common Configurations",
+	"name": "Portal Quick Links",
+	"naming_rule": "By fieldname",
+	"owner": "Administrator",
+	"permissions": [
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "System Manager",
+			"share": 1,
+			"write": 1
+		},
+		{
+			"create": 1,
+			"delete": 1,
+			"email": 1,
+			"export": 1,
+			"print": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Common Config Manager",
+			"share": 1,
+			"write": 1
+		},
+		{
+			"export": 1,
+			"read": 1,
+			"report": 1,
+			"role": "Portal API User"
+		}
+	],
+	"sort_field": "modified",
+	"sort_order": "DESC",
+	"states": []
+}
