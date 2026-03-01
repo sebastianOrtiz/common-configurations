@@ -47,8 +47,31 @@ export interface ServicePortalTool {
   // For portal_redirect:
   target_portal?: string;
 
+  // For portal_quick_links:
+  quick_links?: string;
+  quick_links_data?: PortalQuickLinksData;
+
   // Additional custom fields can be added here
   [key: string]: any;
+}
+
+export interface PortalQuickLinksData {
+  name: string;
+  link_group_name: string;
+  description?: string;
+  icon?: string;
+  image?: string;
+  links: PortalQuickLinkItem[];
+}
+
+export interface PortalQuickLinkItem {
+  label: string;
+  icon?: string;
+  image?: string;
+  url: string;
+  target: '_blank' | '_self';
+  display_order: number;
+  is_enabled: boolean;
 }
 
 export interface ToolType {

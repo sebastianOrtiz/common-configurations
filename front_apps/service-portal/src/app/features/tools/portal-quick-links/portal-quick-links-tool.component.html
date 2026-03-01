@@ -1,0 +1,49 @@
+<div class="quick-links-tool">
+  <!-- Header -->
+  <div class="tool-header">
+    <button class="btn-back" (click)="goBack()">
+      <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+      Volver
+    </button>
+    <h1>{{ quickLinksData()?.link_group_name || 'Enlaces Rápidos' }}</h1>
+  </div>
+
+  <!-- Error State -->
+  @if (error()) {
+    <div class="alert alert-error">
+      <app-icon name="AlertCircle" [size]="20" [strokeWidth]="2"></app-icon>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  <!-- Description -->
+  @if (quickLinksData()?.description) {
+    <p class="description">{{ quickLinksData()!.description }}</p>
+  }
+
+  <!-- Links Grid -->
+  @if (sortedLinks().length > 0) {
+    <div class="links-grid">
+      @for (link of sortedLinks(); track link.label) {
+        <div class="link-card" (click)="openLink(link)">
+          <div class="link-visual">
+            @if (link.image) {
+              <img [src]="link.image" [alt]="link.label" class="link-image" />
+            } @else {
+              <app-icon [name]="link.icon || 'Link'" [size]="32" [strokeWidth]="1.8"></app-icon>
+            }
+          </div>
+          <span class="link-label">{{ link.label }}</span>
+          @if (link.target === '_blank') {
+            <app-icon name="ExternalLink" [size]="14" [strokeWidth]="2" customClass="external-icon"></app-icon>
+          }
+        </div>
+      }
+    </div>
+  } @else if (!error()) {
+    <div class="empty-state">
+      <app-icon name="Link" [size]="64" [strokeWidth]="1.5"></app-icon>
+      <p>No hay enlaces disponibles</p>
+    </div>
+  }
+</div>

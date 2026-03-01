@@ -77,11 +77,11 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.log('[ToolRouter] Loaded my_cases component:', ComponentClass);
           break;
 
-        // Add more tool types here as needed
-        // case 'document_viewer':
-        //   const docViewer = await import('../document-viewer/document-viewer-tool.component');
-        //   ComponentClass = docViewer.DocumentViewerToolComponent;
-        //   break;
+        case 'portal_quick_links':
+          const quickLinks = await import('../portal-quick-links/portal-quick-links-tool.component');
+          ComponentClass = quickLinks.PortalQuickLinksToolComponent;
+          console.log('[ToolRouter] Loaded portal_quick_links component:', ComponentClass);
+          break;
 
         default:
           console.warn('[ToolRouter] Unknown tool type:', toolType);
