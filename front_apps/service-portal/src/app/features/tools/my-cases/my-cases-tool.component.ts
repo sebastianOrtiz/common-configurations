@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { HttpClient } from '@angular/common/http';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 interface CaseLog {
   name: string;
@@ -78,7 +79,7 @@ interface CaseDetail {
 @Component({
   selector: 'app-my-cases-tool',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './my-cases-tool.component.html',
   styleUrls: ['./my-cases-tool.component.scss']
 })

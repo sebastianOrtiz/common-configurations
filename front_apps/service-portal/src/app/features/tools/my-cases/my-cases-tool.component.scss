@@ -31,34 +31,37 @@
 }
 
 // Header
-.my-cases-header {
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
+
+  .btn-back {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    color: #4a5568;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #f7fafc;
+      border-color: #cbd5e0;
+    }
+  }
 
   h1 {
     font-size: 2rem;
     font-weight: 700;
-    color: #111827;
-    margin: 1rem 0;
-  }
-}
-
-.btn-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  color: #6b7280;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: #f9fafb;
-    border-color: #d1d5db;
-    color: #374151;
+    color: #1a202c;
+    margin: 0;
   }
 }
 

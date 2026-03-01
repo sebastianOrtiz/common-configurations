@@ -12,12 +12,13 @@ import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { AvailableSlot, CalendarResource } from '../../../core/models/appointment.model';
 
 @Component({
   selector: 'app-appointment-booking-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent],
+  imports: [CommonModule, FormsModule, VoiceInputComponent, IconComponent],
   templateUrl: './appointment-booking-tool.component.html',
   styleUrls: ['./appointment-booking-tool.component.scss']
 })

@@ -10,11 +10,12 @@ import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
 import { Appointment } from '../../../core/models/appointment.model';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 @Component({
   selector: 'app-my-appointments-tool',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './my-appointments-tool.component.html',
   styleUrls: ['./my-appointments-tool.component.scss']
 })

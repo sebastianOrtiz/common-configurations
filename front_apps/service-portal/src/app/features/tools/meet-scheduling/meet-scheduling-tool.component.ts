@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { Appointment, AvailableSlot } from '../../../core/models/appointment.model';
 
 interface DateOption {
@@ -31,7 +32,7 @@ interface CalendarDay {
 @Component({
   selector: 'app-meet-scheduling-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent],
+  imports: [CommonModule, FormsModule, VoiceInputComponent, IconComponent],
   templateUrl: './meet-scheduling-tool.component.html',
   styleUrls: ['./meet-scheduling-tool.component.scss']
 })
