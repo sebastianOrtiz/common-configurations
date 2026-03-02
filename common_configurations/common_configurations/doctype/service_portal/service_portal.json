@@ -11,6 +11,7 @@
   "title",
   "description",
   "is_active",
+  "is_internal",
   "security_section",
   "require_auth",
   "enable_mfa_otp",
@@ -61,6 +62,13 @@
    "fieldname": "is_active",
    "fieldtype": "Check",
    "label": "Is Active"
+  },
+  {
+   "default": "0",
+   "description": "Portal interno: no se muestra en la lista de portales disponibles, solo accesible por enlaces internos (portal_redirect)",
+   "fieldname": "is_internal",
+   "fieldtype": "Check",
+   "label": "Is Internal"
   },
   {
    "fieldname": "security_section",
