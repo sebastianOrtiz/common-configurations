@@ -34,15 +34,16 @@ export class PortalViewComponent implements OnInit {
   protected enabledTools = signal<ServicePortalTool[]>([]);
 
   ngOnInit(): void {
-    // Get portal name from route
-    const portalName = this.route.snapshot.paramMap.get('portalName');
-
-    if (portalName) {
-      this.loadPortal(portalName);
-    } else {
-      // No portal specified, redirect to selector
-      this.router.navigate(['/portals']);
-    }
+    // Subscribe to route param changes so the component reloads
+    // when navigating between portals (Angular reuses the same instance)
+    this.route.paramMap.subscribe(params => {
+      const portalName = params.get('portalName');
+      if (portalName) {
+        this.loadPortal(portalName);
+      } else {
+        this.router.navigate(['/portals']);
+      }
+    });
   }
 
   /**
@@ -50,7 +51,11 @@ export class PortalViewComponent implements OnInit {
    * Contact registration is always mandatory before accessing portal tools
    */
   private checkContactRegistration(portal: ServicePortal): void {
-    if (portal.require_auth && !this.stateService.userContact()) {
+    if (portal.require_auth && (!this.stateService.userContact() || this.stateService.isAnonymousUser())) {
+      // Clear anonymous contact before redirecting to registration
+      if (this.stateService.isAnonymousUser()) {
+        this.stateService.clearUserContact();
+      }
       this.router.navigate(['/portal', portal.portal_name, 'register']);
     }
   }
