@@ -12,6 +12,7 @@
   "label",
   "tool_description",
   "icon",
+  "tool_image",
   "button_color",
   "display_order",
   "is_enabled"
@@ -66,6 +67,12 @@
    "fieldtype": "Select",
    "label": "Icon",
    "options": "Calendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox"
+  },
+  {
+   "description": "Imagen personalizada para el bot\u00f3n (reemplaza al icono si se configura)",
+   "fieldname": "tool_image",
+   "fieldtype": "Attach Image",
+   "label": "Tool Image"
   },
   {
    "description": "Color del bot\u00f3n",

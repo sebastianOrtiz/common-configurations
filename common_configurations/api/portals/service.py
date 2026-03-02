@@ -26,7 +26,7 @@ class PortalService:
         """
         return frappe.get_all(
             "Service Portal",
-            filters={"is_active": 1},
+            filters={"is_active": 1, "is_internal": 0},
             fields=[
                 "name",
                 "portal_name",
@@ -93,6 +93,7 @@ class PortalService:
                 "label": tool.label,
                 "tool_description": tool.tool_description,
                 "icon": tool.icon,
+                "tool_image": tool.tool_image,
                 "button_color": tool.button_color,
                 "display_order": tool.display_order,
                 "is_enabled": tool.is_enabled,

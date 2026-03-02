@@ -33,8 +33,12 @@
                 (click)="selectTool(tool)"
                 [style.--tool-color]="getToolColor(tool)"
               >
-                <div class="tool-icon">
-                  <app-icon [name]="tool.icon || 'Circle'" [size]="32" [strokeWidth]="2"></app-icon>
+                <div class="tool-icon" [class.has-image]="tool.tool_image">
+                  @if (tool.tool_image) {
+                    <img [src]="tool.tool_image" [alt]="tool.label" />
+                  } @else {
+                    <app-icon [name]="tool.icon || 'Circle'" [size]="32" [strokeWidth]="2"></app-icon>
+                  }
                 </div>
 
                 <div class="tool-content">

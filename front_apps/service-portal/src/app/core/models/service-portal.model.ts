@@ -34,6 +34,7 @@ export interface ServicePortalTool {
   label: string;
   tool_description?: string;
   icon?: string;
+  tool_image?: string;
   button_color?: string;
   display_order: number;
   is_enabled: boolean;
