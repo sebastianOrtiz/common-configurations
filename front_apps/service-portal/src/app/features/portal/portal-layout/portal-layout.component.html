@@ -32,6 +32,12 @@
               </div>
             </div>
           }
+          @if (showBackButton()) {
+            <button class="btn-back-portal" (click)="goBack()" title="Volver al portal anterior">
+              <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+              <span class="btn-back-label">Volver</span>
+            </button>
+          }
           <button class="btn-logout" (click)="exitPortal()" title="Salir">
             <app-icon name="LogOut" [size]="20" [strokeWidth]="2"></app-icon>
           </button>

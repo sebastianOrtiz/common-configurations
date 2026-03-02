@@ -14,7 +14,8 @@ const STORAGE_KEYS = {
   currentUser: 'sp_current_user',
   selectedPortal: 'sp_selected_portal',
   userContact: 'sp_user_contact',
-  authToken: 'sp_auth_token'
+  authToken: 'sp_auth_token',
+  referrerPortal: 'sp_referrer_portal'
 };
 
 // Header name for auth token
@@ -33,6 +34,9 @@ export interface AppState {
   authToken: string | null;
   isUserContactAuthenticated: boolean;
 
+  // Navigation State
+  referrerPortal: string | null;
+
   // UI State
   isLoading: boolean;
   globalError: string | null;
@@ -48,6 +52,7 @@ export class StateService {
   private selectedPortalSignal = signal<ServicePortal | null>(null);
   private userContactSignal = signal<UserContact | null>(null);
   private authTokenSignal = signal<string | null>(null);
+  private referrerPortalSignal = signal<string | null>(null);
   private isLoadingSignal = signal<boolean>(false);
   private globalErrorSignal = signal<string | null>(null);
 
@@ -57,6 +62,7 @@ export class StateService {
   readonly selectedPortal = this.selectedPortalSignal.asReadonly();
   readonly userContact = this.userContactSignal.asReadonly();
   readonly authToken = this.authTokenSignal.asReadonly();
+  readonly referrerPortal = this.referrerPortalSignal.asReadonly();
   readonly isLoading = this.isLoadingSignal.asReadonly();
   readonly globalError = this.globalErrorSignal.asReadonly();
 
@@ -84,6 +90,7 @@ export class StateService {
     userContact: this.userContactSignal(),
     authToken: this.authTokenSignal(),
     isUserContactAuthenticated: this.isUserContactAuthenticated(),
+    referrerPortal: this.referrerPortalSignal(),
     isLoading: this.isLoadingSignal(),
     globalError: this.globalErrorSignal()
   }));
@@ -210,6 +217,30 @@ export class StateService {
   }
 
   // ===================
+  // Referrer Portal State
+  // ===================
+
+  /**
+   * Set the portal that initiated a portal_redirect navigation.
+   */
+  setReferrerPortal(portalName: string | null): void {
+    this.referrerPortalSignal.set(portalName);
+    if (portalName) {
+      localStorage.setItem(STORAGE_KEYS.referrerPortal, portalName);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.referrerPortal);
+    }
+  }
+
+  /**
+   * Clear referrer portal
+   */
+  clearReferrerPortal(): void {
+    this.referrerPortalSignal.set(null);
+    localStorage.removeItem(STORAGE_KEYS.referrerPortal);
+  }
+
+  // ===================
   // UI State
   // ===================
 
@@ -285,6 +316,12 @@ export class StateService {
       if (authToken) {
         this.authTokenSignal.set(authToken);
       }
+
+      // Load referrer portal
+      const referrerPortal = localStorage.getItem(STORAGE_KEYS.referrerPortal);
+      if (referrerPortal) {
+        this.referrerPortalSignal.set(referrerPortal);
+      }
     } catch (error) {
       console.error('Error loading persisted state:', error);
       // Clear corrupted data
@@ -300,5 +337,6 @@ export class StateService {
     localStorage.removeItem(STORAGE_KEYS.selectedPortal);
     localStorage.removeItem(STORAGE_KEYS.userContact);
     localStorage.removeItem(STORAGE_KEYS.authToken);
+    localStorage.removeItem(STORAGE_KEYS.referrerPortal);
   }
 }

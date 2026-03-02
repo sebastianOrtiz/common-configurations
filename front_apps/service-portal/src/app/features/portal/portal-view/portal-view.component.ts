@@ -62,6 +62,12 @@ export class PortalViewComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    // If the portal being loaded IS the referrer, clear it (user navigated back manually)
+    const currentReferrer = this.stateService.referrerPortal();
+    if (currentReferrer && currentReferrer === portalName) {
+      this.stateService.clearReferrerPortal();
+    }
+
     this.portalService.getPortal(portalName).subscribe({
       next: (portal) => {
         this.portal.set(portal);
@@ -99,8 +105,9 @@ export class PortalViewComponent implements OnInit {
     const portal = this.portal();
     if (!portal) return;
 
-    // Portal redirect: navigate directly to the target portal
+    // Portal redirect: save current portal as referrer, then navigate to target
     if (tool.tool_type === 'portal_redirect' && tool.target_portal) {
+      this.stateService.setReferrerPortal(portal.portal_name);
       this.router.navigate(['/portal', tool.target_portal]);
       return;
     }

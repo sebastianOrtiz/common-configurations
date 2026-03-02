@@ -24,15 +24,16 @@ export class PortalLayoutComponent {
 
   protected portal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
+  protected referrerPortal = this.stateService.referrerPortal;
 
   // Signal to track current URL (needed for reactive computed)
   private currentUrl = signal(this.router.url);
 
   // Track if we should show header (hide on registration page)
-  protected showHeader = computed(() => {
-    // Hide header on registration route
-    return !this.currentUrl().includes('/register');
-  });
+  protected showHeader = computed(() => !this.currentUrl().includes('/register'));
+
+  // Show back button when portal was opened from another portal
+  protected showBackButton = computed(() => this.referrerPortal() !== null);
 
   constructor() {
     // Update currentUrl signal when route changes
@@ -54,17 +55,30 @@ export class PortalLayoutComponent {
     return contact.full_name.charAt(0).toUpperCase();
   }
 
+  goBack(): void {
+    const referrer = this.referrerPortal();
+    if (!referrer) return;
+    this.stateService.clearReferrerPortal();
+    this.router.navigate(['/portal', referrer]);
+  }
+
   exitPortal(): void {
     const currentPortal = this.portal();
     if (!currentPortal) return;
 
-    // Clear user contact and navigate back to portal root (will trigger registration if needed)
+    const referrer = this.referrerPortal();
     this.stateService.clearUserContact();
 
-    // Navigate away and back to force component reload
-    this.router.navigate(['/portals']).then(() => {
-      this.router.navigate(['/portal', currentPortal.portal_name]);
-    });
+    if (referrer) {
+      // Redirect to the source portal instead of login cycle
+      this.stateService.clearReferrerPortal();
+      this.router.navigate(['/portal', referrer]);
+    } else {
+      // Default: navigate away and back to force component reload
+      this.router.navigate(['/portals']).then(() => {
+        this.router.navigate(['/portal', currentPortal.portal_name]);
+      });
+    }
   }
 }
 
