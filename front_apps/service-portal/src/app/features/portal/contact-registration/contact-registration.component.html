@@ -1,5 +1,13 @@
 <div class="registration-container">
   <div class="registration-card">
+    <!-- Back to referrer portal -->
+    @if (referrerPortal()) {
+      <button class="btn-back-referrer" (click)="goBackToReferrer()">
+        <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+        <span>Volver al portal anterior</span>
+      </button>
+    }
+
     <!-- Header -->
     <div class="registration-header">
       <div class="icon">

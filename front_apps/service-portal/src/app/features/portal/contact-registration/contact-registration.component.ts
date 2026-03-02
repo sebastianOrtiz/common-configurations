@@ -17,6 +17,7 @@ import { StateService } from '../../../core/services/state.service';
 import { OtpService } from '../../../core/services/otp.service';
 import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
 import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-verification/otp-verification.component';
+import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 // Registration step types - now includes 'otp' for OTP verification
 type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
@@ -24,7 +25,7 @@ type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
 @Component({
   selector: 'app-contact-registration',
   standalone: true,
-  imports: [CommonModule, FormsModule, OtpVerificationComponent],
+  imports: [CommonModule, FormsModule, OtpVerificationComponent, IconComponent],
   templateUrl: './contact-registration.component.html',
   styleUrls: ['./contact-registration.component.scss']
 })
@@ -61,6 +62,7 @@ export class ContactRegistrationComponent implements OnInit {
   // State
   protected currentUser = this.stateService.currentUser;
   protected selectedPortal = this.stateService.selectedPortal;
+  protected referrerPortal = this.stateService.referrerPortal;
 
   ngOnInit(): void {
     // Check if user already has a contact
@@ -434,6 +436,16 @@ export class ContactRegistrationComponent implements OnInit {
    */
   cancel(): void {
     this.router.navigate(['/portals']);
+  }
+
+  /**
+   * Go back to the referrer portal (when navigated via portal_redirect)
+   */
+  goBackToReferrer(): void {
+    const referrer = this.referrerPortal();
+    if (!referrer) return;
+    this.stateService.clearReferrerPortal();
+    this.router.navigate(['/portal', referrer]);
   }
 
   /**

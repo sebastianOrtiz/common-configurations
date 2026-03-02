@@ -28,6 +28,33 @@
   }
 }
 
+// Back to referrer portal button
+.btn-back-referrer {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #475569;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f0f9ff;
+    border-color: #bae6fd;
+    color: #0369a1;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
 // Header
 .registration-header {
   text-align: center;
