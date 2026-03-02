@@ -12,6 +12,15 @@ frappe.ui.form.on('Service Portal', {
 			};
 		});
 	},
+	refresh: function(frm) {
+		// Show "Open Portal" button when the portal is saved and active
+		if (!frm.is_new() && frm.doc.is_active) {
+			frm.add_custom_button(__('Open Portal'), function() {
+				const url = `/service-portal#/portal/${frm.doc.portal_name}`;
+				window.open(url, '_blank');
+			}, null, 'primary');
+		}
+	},
 	require_auth: function(frm) {
 		// When authentication is disabled, turn off MFA OTP too
 		if (!frm.doc.require_auth) {
