@@ -161,6 +161,9 @@
  "name": "User contact",
  "naming_rule": "Expression",
  "owner": "Administrator",
+ "search_fields": "document,full_name,phone_number",
+ "show_title_field_in_link": 1,
+ "title_field": "full_name",
  "permissions": [
   {
    "create": 1,

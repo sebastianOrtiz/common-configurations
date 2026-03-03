@@ -83,6 +83,12 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.log('[ToolRouter] Loaded portal_quick_links component:', ComponentClass);
           break;
 
+        case 'my_logbook':
+          const myLogbook = await import('../my-logbook/my-logbook-tool.component');
+          ComponentClass = myLogbook.MyLogbookToolComponent;
+          console.log('[ToolRouter] Loaded my_logbook component:', ComponentClass);
+          break;
+
         default:
           console.warn('[ToolRouter] Unknown tool type:', toolType);
           this.error = true;
