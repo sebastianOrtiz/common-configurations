@@ -122,8 +122,27 @@
   {
    "hidden": 0,
    "is_query_report": 0,
+   "label": "Tools",
+   "link_count": 1,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Portal Quick Links",
+   "link_count": 0,
+   "link_to": "Portal Quick Links",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
    "label": "Configuraci\u00f3n",
-   "link_count": 2,
+   "link_count": 4,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -141,7 +160,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "OTP Settings",
+   "label": "Configuraci\u00f3n OTP",
    "link_count": 0,
    "link_to": "OTP Settings",
    "link_type": "DocType",
@@ -151,24 +170,25 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tools",
-   "link_count": 1,
+   "label": "Configuraci\u00f3n de IA",
+   "link_count": 0,
+   "link_to": "AI Configuration",
    "link_type": "DocType",
    "onboard": 0,
-   "type": "Card Break"
+   "type": "Link"
   },
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Portal Quick Links",
+   "label": "AI Provider",
    "link_count": 0,
-   "link_to": "Portal Quick Links",
+   "link_to": "AI Provider",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   }
  ],
- "modified": "2026-03-01 07:38:04.122433",
+ "modified": "2026-03-13 16:24:16.255960",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",

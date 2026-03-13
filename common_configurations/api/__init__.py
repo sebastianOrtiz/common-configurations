@@ -33,6 +33,7 @@ from . import contacts
 from . import portals
 from . import auth
 from . import otp
+from . import ai
 from . import shared
 
 # Re-export shared utilities at package level
@@ -61,6 +62,7 @@ __all__ = [
     "portals",
     "auth",
     "otp",
+    "ai",
     "shared",
     # Shared utilities
     "check_rate_limit",

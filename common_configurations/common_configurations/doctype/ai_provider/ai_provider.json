@@ -1,0 +1,92 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:provider_name",
+ "creation": "2026-03-13 14:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "provider_name",
+  "column_break_general",
+  "description",
+  "models_section",
+  "models"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "description": "Nombre del proveedor de IA (ej: OpenAI, Anthropic, Google)",
+   "fieldname": "provider_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Provider Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Descripci\u00f3n del proveedor",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "models_section",
+   "fieldtype": "Section Break",
+   "label": "Available Models"
+  },
+  {
+   "description": "Modelos disponibles para este proveedor con sus par\u00e1metros por defecto",
+   "fieldname": "models",
+   "fieldtype": "Table",
+   "label": "Models",
+   "options": "AI Model",
+   "reqd": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-03-13 14:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "AI Provider",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Common Config Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

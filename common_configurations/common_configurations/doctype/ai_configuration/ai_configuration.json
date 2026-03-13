@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:config_name",
+ "creation": "2026-03-13 12:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "general_section",
+  "config_name",
+  "provider",
+  "is_active",
+  "column_break_general",
+  "model",
+  "description",
+  "credentials_section",
+  "api_key_guide",
+  "api_key",
+  "column_break_credentials",
+  "api_url",
+  "parameters_section",
+  "temperature",
+  "max_tokens",
+  "column_break_params",
+  "default_system_prompt"
+ ],
+ "fields": [
+  {
+   "fieldname": "general_section",
+   "fieldtype": "Section Break",
+   "label": "General"
+  },
+  {
+   "description": "Nombre \u00fanico para identificar esta configuraci\u00f3n (ej: OpenAI Producci\u00f3n)",
+   "fieldname": "config_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Configuration Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Proveedor de IA a utilizar",
+   "fieldname": "provider",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Provider",
+   "options": "AI Provider",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Indica si esta configuraci\u00f3n est\u00e1 activa y disponible para uso",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_general",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Modelo de IA a utilizar",
+   "fieldname": "model",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Model",
+   "reqd": 1
+  },
+  {
+   "description": "Descripci\u00f3n opcional de esta configuraci\u00f3n",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "fieldname": "api_key_guide",
+   "fieldtype": "HTML",
+   "label": "API Key Guide"
+  },
+  {
+   "description": "Clave API del proveedor de IA",
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API Key",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_credentials",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "URL personalizada del API (opcional, se auto-llena del proveedor)",
+   "fieldname": "api_url",
+   "fieldtype": "Data",
+   "label": "API URL"
+  },
+  {
+   "fieldname": "parameters_section",
+   "fieldtype": "Section Break",
+   "label": "Parameters"
+  },
+  {
+   "default": "0.7",
+   "description": "Controla la creatividad de las respuestas (0.0 = determinista, 2.0 = muy creativo)",
+   "fieldname": "temperature",
+   "fieldtype": "Float",
+   "label": "Temperature"
+  },
+  {
+   "default": "4096",
+   "description": "N\u00famero m\u00e1ximo de tokens en la respuesta",
+   "fieldname": "max_tokens",
+   "fieldtype": "Int",
+   "label": "Max Tokens"
+  },
+  {
+   "fieldname": "column_break_params",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Prompt de sistema por defecto. Puede ser sobreescrito en cada llamada.",
+   "fieldname": "default_system_prompt",
+   "fieldtype": "Small Text",
+   "label": "Default System Prompt"
+  }
+ ],
+ "links": [],
+ "modified": "2026-03-13 15:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "AI Configuration",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Common Config Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

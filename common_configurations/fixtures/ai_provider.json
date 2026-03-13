@@ -1,0 +1,96 @@
+[
+ {
+  "doctype": "AI Provider",
+  "name": "OpenAI",
+  "provider_name": "OpenAI",
+  "description": "OpenAI - Creadores de la serie GPT, modelos de lenguaje de alto rendimiento",
+  "models": [
+   {
+    "doctype": "AI Model",
+    "model_name": "gpt-4.1",
+    "is_default": 1,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "gpt-4.1-mini",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "gpt-4.1-nano",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "gpt-4o",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "gpt-4o-mini",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   }
+  ]
+ },
+ {
+  "doctype": "AI Provider",
+  "name": "Anthropic",
+  "provider_name": "Anthropic",
+  "description": "Anthropic - Creadores de Claude, modelos de IA seguros y confiables",
+  "models": [
+   {
+    "doctype": "AI Model",
+    "model_name": "claude-sonnet-4-20250514",
+    "is_default": 1,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "claude-opus-4-20250514",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "claude-haiku-4-5-20251001",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   }
+  ]
+ },
+ {
+  "doctype": "AI Provider",
+  "name": "Google",
+  "provider_name": "Google",
+  "description": "Google AI - Creadores de Gemini, modelos multimodales avanzados",
+  "models": [
+   {
+    "doctype": "AI Model",
+    "model_name": "gemini-2.5-flash",
+    "is_default": 1,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   },
+   {
+    "doctype": "AI Model",
+    "model_name": "gemini-2.5-pro",
+    "is_default": 0,
+    "temperature": 0.7,
+    "max_tokens": 4096
+   }
+  ]
+ }
+]

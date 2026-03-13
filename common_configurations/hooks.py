@@ -16,6 +16,10 @@ fixtures = [
 	{
 		"doctype": "Tool Type",
 		"filters": [["app_name", "=", "common_configurations"]]
+	},
+	{
+		"doctype": "AI Provider",
+		"filters": [["name", "in", ["OpenAI", "Anthropic", "Google"]]]
 	}
 ]
 
