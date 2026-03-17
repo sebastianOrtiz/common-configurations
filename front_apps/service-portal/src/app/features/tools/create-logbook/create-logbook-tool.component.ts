@@ -9,8 +9,8 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClient } from '@angular/common/http';
 import { StateService } from '../../../core/services/state.service';
+import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
@@ -31,7 +31,7 @@ interface CreatedEntry {
   styleUrls: ['./create-logbook-tool.component.scss']
 })
 export class CreateLogbookToolComponent implements OnInit {
-  private http = inject(HttpClient);
+  private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
 
@@ -85,8 +85,8 @@ export class CreateLogbookToolComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    this.http.post<{ message: CreatedEntry }>(
-      '/api/method/logbook.api.entries.create_entry_from_portal',
+    this.frappeApi.callMethod<CreatedEntry>(
+      'logbook.api.entries.create_entry_from_portal',
       {
         user_contact: contact.name,
         user_context: context.trim(),
@@ -122,6 +122,7 @@ export class CreateLogbookToolComponent implements OnInit {
   closeConfirmModal(): void {
     this.showConfirmModal.set(false);
     this.createdEntry.set(null);
+    this.goBack();
   }
 
   goBack(): void {

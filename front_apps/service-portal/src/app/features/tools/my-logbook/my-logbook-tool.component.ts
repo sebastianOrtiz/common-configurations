@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
-import { HttpClient } from '@angular/common/http';
+import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 interface LogbookEntry {
@@ -83,7 +83,7 @@ interface LogbookEntryDetail {
   styleUrls: ['./my-logbook-tool.component.scss']
 })
 export class MyLogbookToolComponent implements OnInit {
-  private http = inject(HttpClient);
+  private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
@@ -131,8 +131,10 @@ export class MyLogbookToolComponent implements OnInit {
       this.loading.set(true);
       this.error.set(null);
 
-      const response = await this.http.get<{ message: LogbookEntry[] }>(
-        '/api/method/logbook.api.entries.get_my_entries',
+      const response = await this.frappeApi.callMethod<LogbookEntry[]>(
+        'logbook.api.entries.get_my_entries',
+        {},
+        true
       ).toPromise();
 
       if (response?.message) {
@@ -154,13 +156,10 @@ export class MyLogbookToolComponent implements OnInit {
       this.loading.set(true);
       this.error.set(null);
 
-      const response = await this.http.get<{ message: LogbookEntryDetail }>(
-        '/api/method/logbook.api.entries.get_entry_detail',
-        {
-          params: {
-            entry_name: entryName,
-          }
-        }
+      const response = await this.frappeApi.callMethod<LogbookEntryDetail>(
+        'logbook.api.entries.get_entry_detail',
+        { entry_name: entryName },
+        true
       ).toPromise();
 
       if (response?.message) {

@@ -104,6 +104,7 @@ class PortalService:
                 ),
                 "target_portal": getattr(tool, "target_portal", None),
                 "quick_links": getattr(tool, "quick_links", None),
+                "logbook_availability": getattr(tool, "logbook_availability", None),
             }
 
             # Inline quick links data so the frontend doesn't need a second API call
