@@ -132,10 +132,7 @@ export class MyLogbookToolComponent implements OnInit {
       this.error.set(null);
 
       const response = await this.http.get<{ message: LogbookEntry[] }>(
-        '/api/method/logbook.api.logbook_api.get_user_entries',
-        {
-          params: { user_contact: contact.name }
-        }
+        '/api/method/logbook.api.entries.get_my_entries',
       ).toPromise();
 
       if (response?.message) {
@@ -158,11 +155,10 @@ export class MyLogbookToolComponent implements OnInit {
       this.error.set(null);
 
       const response = await this.http.get<{ message: LogbookEntryDetail }>(
-        '/api/method/logbook.api.logbook_api.get_entry_detail',
+        '/api/method/logbook.api.entries.get_entry_detail',
         {
           params: {
             entry_name: entryName,
-            user_contact: contact.name
           }
         }
       ).toPromise();

@@ -29,6 +29,10 @@ from .security import (
     AUTH_HEADER,
     TOKEN_EXPIRY_DAYS,
 )
+from .email import (
+    has_outgoing_email,
+    send_email,
+)
 from .exceptions import (
     APIError,
     ValidationError,
@@ -60,6 +64,9 @@ __all__ = [
     "validate_user_contact_ownership",
     "AUTH_HEADER",
     "TOKEN_EXPIRY_DAYS",
+    # Email
+    "has_outgoing_email",
+    "send_email",
     # Exceptions
     "APIError",
     "ValidationError",
