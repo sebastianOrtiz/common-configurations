@@ -95,6 +95,12 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.log('[ToolRouter] Loaded create_logbook component:', ComponentClass);
           break;
 
+        case 'procedures':
+          const procedures = await import('../procedures/procedures-tool.component');
+          ComponentClass = procedures.ProceduresToolComponent;
+          console.log('[ToolRouter] Loaded procedures component:', ComponentClass);
+          break;
+
         default:
           console.warn('[ToolRouter] Unknown tool type:', toolType);
           this.error = true;

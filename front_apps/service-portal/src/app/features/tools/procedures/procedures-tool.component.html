@@ -1,0 +1,240 @@
+<div class="procedures-tool">
+
+  <!-- Header -->
+  <div class="tool-header">
+    @if (view() === 'list') {
+      <button class="btn-back" (click)="goBack()">
+        <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+        Volver
+      </button>
+    } @else if (view() === 'form' || view() === 'external') {
+      <button class="btn-back" (click)="backToList()">
+        <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+        Trámites
+      </button>
+    }
+    <h1>Trámites</h1>
+  </div>
+
+  <!-- Auth Required -->
+  @if (isAnonymousUser()) {
+    <div class="auth-required-state">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      </svg>
+      <h3>Acceso restringido</h3>
+      <p>Para consultar y realizar trámites necesitas iniciar sesión o registrarte.</p>
+      <button class="btn-primary" (click)="goToRegistration()">Registrarse / Iniciar sesión</button>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (!isAnonymousUser() && error()) {
+    <div class="alert alert-error">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>{{ error() }}</span>
+      <button class="close-btn" (click)="error.set(null)">&times;</button>
+    </div>
+  }
+
+  @if (!isAnonymousUser()) {
+
+    <!-- VIEW: List of procedures -->
+    @if (view() === 'list') {
+      @if (loadingProcedures()) {
+        <div class="loading-state">
+          <span class="spinner"></span>
+          <p>Cargando trámites disponibles...</p>
+        </div>
+      } @else if (procedures().length === 0 && !error()) {
+        <div class="empty-state">
+          <app-icon name="ClipboardX" [size]="48" [strokeWidth]="1.5"></app-icon>
+          <h3>Sin trámites disponibles</h3>
+          <p>No hay trámites configurados en este momento.</p>
+        </div>
+      } @else {
+        <div class="procedures-grid">
+          @for (procedure of procedures(); track procedure.name) {
+            <button
+              class="procedure-card"
+              [class.internal]="procedure.procedure_type === 'internal'"
+              [class.external]="procedure.procedure_type === 'external'"
+              (click)="selectProcedure(procedure)"
+            >
+              @if (procedure.icon) {
+                <img [src]="procedure.icon" [alt]="procedure.title" class="procedure-icon-img" />
+              } @else {
+                <div class="procedure-icon-placeholder">
+                  @if (procedure.procedure_type === 'internal') {
+                    <app-icon name="ClipboardCheck" [size]="32" [strokeWidth]="1.5"></app-icon>
+                  } @else {
+                    <app-icon name="ExternalLink" [size]="32" [strokeWidth]="1.5"></app-icon>
+                  }
+                </div>
+              }
+              <div class="procedure-info">
+                <h3>{{ procedure.title }}</h3>
+                @if (procedure.description) {
+                  <p>{{ procedure.description }}</p>
+                }
+              </div>
+              <div class="procedure-badge" [class.external-badge]="procedure.procedure_type === 'external'">
+                @if (procedure.procedure_type === 'external') {
+                  <app-icon name="ExternalLink" [size]="14" [strokeWidth]="2"></app-icon>
+                  Externo
+                } @else {
+                  <app-icon name="ArrowRight" [size]="14" [strokeWidth]="2"></app-icon>
+                  Iniciar
+                }
+              </div>
+            </button>
+          }
+        </div>
+      }
+    }
+
+    <!-- VIEW: Form (internal procedure) -->
+    @if (view() === 'form' && selectedProcedure()) {
+      <div class="form-container">
+        <div class="section-card">
+          <div class="form-intro">
+            @if (selectedProcedure()!.icon) {
+              <img [src]="selectedProcedure()!.icon" [alt]="selectedProcedure()!.title" class="intro-icon-img" />
+            } @else {
+              <app-icon name="ClipboardCheck" [size]="32" [strokeWidth]="1.5"></app-icon>
+            }
+            <div>
+              <h2>{{ selectedProcedure()!.title }}</h2>
+              @if (selectedProcedure()!.description) {
+                <p>{{ selectedProcedure()!.description }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="userContext">Describe tu caso o necesidad</label>
+            <textarea
+              id="userContext"
+              class="context-textarea"
+              placeholder="Escribe aquí los detalles de tu caso, situación o necesidad..."
+              rows="6"
+              [ngModel]="userContext()"
+              (ngModelChange)="userContext.set($event)"
+              [disabled]="loading()"
+            ></textarea>
+            <div style="margin-top: 0.75rem;">
+              <app-voice-input
+                [language]="'es-ES'"
+                [continuous]="true"
+                [interimResults]="true"
+                [buttonLabel]="'Dictar por voz'"
+                (transcriptChange)="userContext.set($event)"
+              ></app-voice-input>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-secondary" (click)="backToList()" [disabled]="loading()">
+              Cancelar
+            </button>
+            <button
+              class="btn-primary btn-submit"
+              (click)="submitEntry()"
+              [disabled]="loading() || !userContext().trim()"
+            >
+              @if (loading()) {
+                <span class="spinner"></span>
+                Registrando...
+              } @else {
+                <app-icon name="Send" [size]="18" [strokeWidth]="2"></app-icon>
+                Radicar Trámite
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+  }
+
+</div>
+
+<!-- Modal: Confirmation (internal procedure created) -->
+@if (view() === 'confirm' && createdEntry()) {
+  <div class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-icon success">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h2>Trámite Radicado</h2>
+        <p>Tu trámite ha sido registrado exitosamente</p>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">Número</span>
+          <span class="detail-value highlight">{{ createdEntry()!.name }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Trámite</span>
+          <span class="detail-value">{{ selectedProcedure()?.title }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Estado</span>
+          <span class="detail-value">{{ createdEntry()!.status }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Fecha</span>
+          <span class="detail-value">{{ createdEntry()!.start_date }}</span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="closeAndGoHome()">
+          Entendido
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Modal: External procedure info -->
+@if (view() === 'external' && selectedProcedure()) {
+  <div class="modal-overlay">
+    <div class="modal-content modal-content--wide">
+      <div class="modal-header">
+        <div class="modal-icon info">
+          <app-icon name="Info" [size]="28" [strokeWidth]="1.5"></app-icon>
+        </div>
+        <h2>{{ selectedProcedure()!.title }}</h2>
+        <p>Información sobre cómo realizar este trámite</p>
+      </div>
+
+      <div class="modal-body">
+        @if (selectedProcedure()!.external_info) {
+          <div class="external-info-content" [innerHTML]="selectedProcedure()!.external_info"></div>
+        }
+        @if (selectedProcedure()!.external_url) {
+          <div class="external-link-row">
+            <a [href]="selectedProcedure()!.external_url" target="_blank" rel="noopener noreferrer" class="btn-link">
+              <app-icon name="ExternalLink" [size]="16" [strokeWidth]="2"></app-icon>
+              Ir al portal externo
+            </a>
+          </div>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="backToList()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+}
