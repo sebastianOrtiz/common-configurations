@@ -1,0 +1,124 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:APIS-{YYYY}-{#####}",
+ "creation": "2026-04-22 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_basic_info",
+  "title",
+  "is_active",
+  "column_break_basic",
+  "description",
+  "section_auth",
+  "api_keys",
+  "column_break_auth",
+  "rate_limit",
+  "section_endpoints",
+  "enable_lookup_contact",
+  "enable_register_contact"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_basic_info",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "description": "Descriptive name for this API service (e.g. WhatsApp Chatbot, Mobile App)",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Only active API services will accept requests",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Description of this API service and its purpose",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_auth",
+   "fieldtype": "Section Break",
+   "label": "Authentication"
+  },
+  {
+   "description": "API keys authorized to use this service",
+   "fieldname": "api_keys",
+   "fieldtype": "Table",
+   "label": "API Keys",
+   "options": "API Service Key"
+  },
+  {
+   "fieldname": "column_break_auth",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "60",
+   "description": "Maximum requests per minute for this service",
+   "fieldname": "rate_limit",
+   "fieldtype": "Int",
+   "label": "Rate Limit (req/min)"
+  },
+  {
+   "fieldname": "section_endpoints",
+   "fieldtype": "Section Break",
+   "label": "Enabled Endpoints"
+  },
+  {
+   "default": "0",
+   "description": "Allow looking up contacts by document number",
+   "fieldname": "enable_lookup_contact",
+   "fieldtype": "Check",
+   "label": "Enable Lookup Contact"
+  },
+  {
+   "default": "0",
+   "description": "Allow registering new contacts",
+   "fieldname": "enable_register_contact",
+   "fieldtype": "Check",
+   "label": "Enable Register Contact"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-04-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "API Service",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

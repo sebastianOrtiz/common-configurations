@@ -41,6 +41,13 @@ from .exceptions import (
     PermissionError,
     RateLimitError,
 )
+from .api_key import (
+    get_api_key_from_request,
+    get_api_service_from_key,
+    authenticate_api_key,
+    require_api_key,
+    API_KEY_HEADER,
+)
 
 __all__ = [
     # Rate limiting
@@ -74,4 +81,10 @@ __all__ = [
     "AuthenticationError",
     "PermissionError",
     "RateLimitError",
+    # API Key
+    "get_api_key_from_request",
+    "get_api_service_from_key",
+    "authenticate_api_key",
+    "require_api_key",
+    "API_KEY_HEADER",
 ]

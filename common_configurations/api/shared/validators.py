@@ -6,6 +6,7 @@ All validators either return sanitized data or raise frappe.ValidationError.
 """
 
 import re
+import unicodedata
 import frappe
 from frappe import _
 from typing import Optional
@@ -15,7 +16,8 @@ def sanitize_string(value: str, max_length: int = 500) -> Optional[str]:
     """
     General string sanitization.
 
-    Removes control characters and truncates to max length.
+    Normalizes Unicode to NFC form, removes control characters,
+    and truncates to max length.
 
     Args:
         value: String to sanitize
@@ -28,6 +30,10 @@ def sanitize_string(value: str, max_length: int = 500) -> Optional[str]:
         return None
 
     value = str(value).strip()
+
+    # Normalize Unicode to NFC (precomposed form) to avoid
+    # mismatches with accented characters (e.g. é as e+combining accent)
+    value = unicodedata.normalize("NFC", value)
 
     # Truncate if too long
     if len(value) > max_length:
