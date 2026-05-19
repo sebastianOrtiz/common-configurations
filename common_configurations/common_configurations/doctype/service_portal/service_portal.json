@@ -25,7 +25,13 @@
   "background_image",
   "custom_css",
   "herramientas_section",
-  "tools"
+  "tools",
+  "announcements_section",
+  "announcement_set_left",
+  "announcement_set_bottom",
+  "announcement_set_right",
+  "column_break_announcements",
+  "announcement_rotation_seconds"
  ],
  "fields": [
   {
@@ -156,6 +162,43 @@
    "fieldtype": "Table",
    "label": "Tools",
    "options": "Service Portal Tool"
+  },
+  {
+   "fieldname": "announcements_section",
+   "fieldtype": "Section Break",
+   "label": "Announcements"
+  },
+  {
+   "description": "Announcement set rendered on the LEFT side of the portal",
+   "fieldname": "announcement_set_left",
+   "fieldtype": "Link",
+   "label": "Left Announcements",
+   "options": "Announcement Set"
+  },
+  {
+   "description": "Announcement set rendered BELOW the tools grid",
+   "fieldname": "announcement_set_bottom",
+   "fieldtype": "Link",
+   "label": "Bottom Announcements",
+   "options": "Announcement Set"
+  },
+  {
+   "description": "Announcement set rendered on the RIGHT side of the portal",
+   "fieldname": "announcement_set_right",
+   "fieldtype": "Link",
+   "label": "Right Announcements",
+   "options": "Announcement Set"
+  },
+  {
+   "fieldname": "column_break_announcements",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Seconds between announcement rotation. 0 = show all stacked (no rotation)",
+   "fieldname": "announcement_rotation_seconds",
+   "fieldtype": "Int",
+   "label": "Rotation Interval (seconds)"
   }
  ],
  "grid_page_length": 50,

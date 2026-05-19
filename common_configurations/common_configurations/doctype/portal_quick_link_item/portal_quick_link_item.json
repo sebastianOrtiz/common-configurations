@@ -6,57 +6,25 @@
 	"editable_grid": 1,
 	"engine": "InnoDB",
 	"field_order": [
-		"label",
-		"icon",
-		"image",
-		"url",
-		"target",
+		"external_link",
 		"display_order",
 		"is_enabled"
 	],
 	"fields": [
 		{
-			"fieldname": "label",
-			"fieldtype": "Data",
+			"description": "External link to show in this quick links group",
+			"fieldname": "external_link",
+			"fieldtype": "Link",
 			"in_list_view": 1,
-			"label": "Label",
-			"reqd": 1
-		},
-		{
-			"description": "Lucide icon name. Ignored if an image is attached.",
-			"fieldname": "icon",
-			"fieldtype": "Select",
-			"in_list_view": 1,
-			"label": "Icon",
-			"options": "\nCalendar\nCalendarCheck\nCalendarClock\nCalendarDays\nClock\nClipboardList\nClipboardCheck\nFileText\nFile\nFolder\nMail\nMessageSquare\nPhone\nUser\nUsers\nUserCheck\nUserPlus\nBriefcase\nClipboard\nSettings\nWrench\nCheckSquare\nListTodo\nMapPin\nBarChart\nPieChart\nTrendingUp\nDollarSign\nCreditCard\nShoppingCart\nPackage\nTruck\nHome\nBuilding\nStore\nHeart\nStar\nBell\nBookOpen\nGraduationCap\nVideo\nMic\nCamera\nImage\nFileCheck\nFilePlus\nDownload\nUpload\nSearch\nFilter\nCircle\nChevronRight\nLogOut\nAlertCircle\nInbox\nExternalLink\nLink\nGlobe"
-		},
-		{
-			"description": "If set, this image is used instead of the icon",
-			"fieldname": "image",
-			"fieldtype": "Attach Image",
-			"label": "Image"
-		},
-		{
-			"fieldname": "url",
-			"fieldtype": "Data",
-			"in_list_view": 1,
-			"label": "URL",
-			"options": "URL",
-			"reqd": 1
-		},
-		{
-			"default": "_blank",
-			"fieldname": "target",
-			"fieldtype": "Select",
-			"in_list_view": 1,
-			"label": "Target",
-			"options": "_blank\n_self",
+			"label": "External Link",
+			"options": "External Link",
 			"reqd": 1
 		},
 		{
 			"default": "0",
 			"fieldname": "display_order",
 			"fieldtype": "Int",
+			"in_list_view": 1,
 			"label": "Display Order"
 		},
 		{
@@ -70,7 +38,7 @@
 	"index_web_pages_for_search": 1,
 	"istable": 1,
 	"links": [],
-	"modified": "2026-03-01 00:00:00.000000",
+	"modified": "2026-05-18 00:00:00.000000",
 	"modified_by": "Administrator",
 	"module": "Common Configurations",
 	"name": "Portal Quick Link Item",

@@ -27,14 +27,17 @@ Documentación exhaustiva de los DocTypes definidos por la app. Cada archivo des
 | DocType | Tipo | Documento |
 |---------|------|-----------|
 | `User contact` | Standard | [doctypes/USER_CONTACT.md](doctypes/USER_CONTACT.md) |
+| `Service Portal` | Standard | [doctypes/SERVICE_PORTAL.md](doctypes/SERVICE_PORTAL.md) |
 | `Service Portal Tool` | Child | [doctypes/SERVICE_PORTAL_TOOL.md](doctypes/SERVICE_PORTAL_TOOL.md) |
 | `Tool Type` | Standard | [doctypes/TOOL_TYPE.md](doctypes/TOOL_TYPE.md) |
+| `External Link` | Standard | [doctypes/EXTERNAL_LINK.md](doctypes/EXTERNAL_LINK.md) |
+| `Portal Quick Links` + `Portal Quick Link Item` | Standard + Child | [doctypes/PORTAL_QUICK_LINKS.md](doctypes/PORTAL_QUICK_LINKS.md) |
+| `Announcement` + `Announcement Set` + `Announcement Set Item` | Standard + Standard + Child | [doctypes/ANNOUNCEMENT.md](doctypes/ANNOUNCEMENT.md) |
 | `API Service` + `API Service Key` | Standard + Child | [doctypes/API_SERVICE.md](doctypes/API_SERVICE.md) |
 | `AI Provider` + `AI Model` + `AI Configuration` | Standard + Child + Standard | [doctypes/AI_CONFIGURATION.md](doctypes/AI_CONFIGURATION.md) |
 | `OTP Settings` + `SMS Provider` | Single + Standard | [doctypes/OTP_SETTINGS.md](doctypes/OTP_SETTINGS.md) |
-| `Portal Quick Links` + `Portal Quick Link Item` | Standard + Child | [doctypes/PORTAL_QUICK_LINKS.md](doctypes/PORTAL_QUICK_LINKS.md) |
 
-> El DocType `Service Portal` se documenta en [SERVICE_PORTAL.md](SERVICE_PORTAL.md).
+> El DocType `Service Portal` también tiene una especificación funcional histórica en [SERVICE_PORTAL.md](SERVICE_PORTAL.md) (raíz de `docs/`).
 
 ---
 
@@ -63,6 +66,8 @@ Documentación de los sistemas transversales que combinan varios módulos.
 | Autenticación de User Contact por token | [features/USER_CONTACT_AUTH.md](features/USER_CONTACT_AUTH.md) |
 | Sistema de API Key para integraciones externas | [features/API_KEY_SYSTEM.md](features/API_KEY_SYSTEM.md) |
 | Frontend Angular del Service Portal | [features/SERVICE_PORTAL_FRONTEND.md](features/SERVICE_PORTAL_FRONTEND.md) |
+| Tool `quick_link` (Enlace Directo) | [features/QUICK_LINK_TOOL.md](features/QUICK_LINK_TOOL.md) |
+| Módulo de Anuncios (Announcements) | [features/ANNOUNCEMENTS.md](features/ANNOUNCEMENTS.md) |
 
 ---
 

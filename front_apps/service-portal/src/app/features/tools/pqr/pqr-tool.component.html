@@ -1,0 +1,234 @@
+<div class="pqr-tool">
+  <!-- Header -->
+  <div class="tool-header">
+    @if (view() === 'list') {
+      <button class="btn-back" (click)="goBack()">
+        <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+        Volver
+      </button>
+    } @else if (view() === 'form') {
+      <button class="btn-back" (click)="backToList()">
+        <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+        Cambiar tipo
+      </button>
+    }
+    <h1>PQRs</h1>
+  </div>
+
+  <!-- Error alert -->
+  @if (error()) {
+    <div class="alert alert-error">
+      <span>{{ error() }}</span>
+      <button class="close-btn" (click)="error.set(null)">&times;</button>
+    </div>
+  }
+
+  <!-- VIEW: List of PQR types -->
+  @if (view() === 'list') {
+    @if (loadingTypes()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando opciones...</p>
+      </div>
+    } @else if (types().length === 0 && !error()) {
+      <div class="empty-state">
+        <app-icon name="Inbox" [size]="48" [strokeWidth]="1.5"></app-icon>
+        <h3>No hay tipos de PQR disponibles</h3>
+        <p>Esta herramienta no tiene tipos de PQR configurados. Contacta al administrador.</p>
+      </div>
+    } @else {
+      <p class="tool-intro">
+        Selecciona el tipo de PQR que quieres enviar. Tu solicitud será recibida y procesada por la entidad.
+      </p>
+
+      <div class="pqr-types-grid">
+        @for (type of types(); track type.name) {
+          <button
+            class="pqr-type-card"
+            [style.--accent]="type.color || '#2563eb'"
+            (click)="selectType(type)"
+          >
+            <div class="pqr-type-icon">
+              @if (type.icon) {
+                <app-icon [name]="type.icon" [size]="32" [strokeWidth]="2"></app-icon>
+              } @else {
+                <app-icon name="MessageSquare" [size]="32" [strokeWidth]="2"></app-icon>
+              }
+            </div>
+            <h3 class="pqr-type-label">{{ type.label }}</h3>
+            @if (type.description) {
+              <p class="pqr-type-desc">{{ type.description }}</p>
+            }
+          </button>
+        }
+      </div>
+    }
+  }
+
+  <!-- VIEW: Form -->
+  @if (view() === 'form' && selectedType()) {
+    <div class="pqr-form-container">
+      <div class="pqr-form-header" [style.--accent]="selectedType()!.color || '#2563eb'">
+        <div class="pqr-form-icon">
+          @if (selectedType()!.icon) {
+            <app-icon [name]="selectedType()!.icon" [size]="28" [strokeWidth]="2"></app-icon>
+          } @else {
+            <app-icon name="MessageSquare" [size]="28" [strokeWidth]="2"></app-icon>
+          }
+        </div>
+        <div>
+          <h2>{{ selectedType()!.label }}</h2>
+          @if (selectedType()!.description) {
+            <p>{{ selectedType()!.description }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="pqrSubject">
+          Asunto
+          <span class="required">*</span>
+        </label>
+        <input
+          id="pqrSubject"
+          type="text"
+          class="form-input"
+          placeholder="Ej: Solicitud de información sobre trámite X"
+          maxlength="200"
+          [ngModel]="subject()"
+          (ngModelChange)="subject.set($event)"
+          [disabled]="loading()"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="pqrDescription">
+          Descripción
+          <span class="required">*</span>
+        </label>
+        <textarea
+          id="pqrDescription"
+          class="form-textarea"
+          placeholder="Cuéntanos los detalles..."
+          rows="8"
+          maxlength="10000"
+          [ngModel]="description()"
+          (ngModelChange)="description.set($event)"
+          [disabled]="loading()"
+        ></textarea>
+        <div style="margin-top: 0.75rem;">
+          <app-voice-input
+            [language]="'es-ES'"
+            [continuous]="true"
+            [interimResults]="true"
+            [buttonLabel]="'Dictar por voz'"
+            (transcriptChange)="description.set($event)"
+          ></app-voice-input>
+        </div>
+      </div>
+
+      <!-- Anonymous toggle: only shown if user is logged in AND tool allows anonymous -->
+      @if (!isAnonymousUser() && allowAnonymous()) {
+        <div class="form-group anonymous-toggle">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              [checked]="sendAsAnonymous()"
+              (change)="sendAsAnonymous.set($any($event.target).checked)"
+              [disabled]="loading()"
+            />
+            <span>Enviar de forma anónima</span>
+          </label>
+          <p class="hint">
+            Si marcas esta opción, tu identidad no quedará asociada a la PQR. No podrás
+            consultar el estado después.
+          </p>
+        </div>
+      }
+
+      <!-- Anonymous notice when user is not logged in -->
+      @if (isAnonymousUser()) {
+        <div class="anonymous-notice">
+          <app-icon name="Info" [size]="20" [strokeWidth]="2"></app-icon>
+          <div>
+            <strong>Estás enviando como anónimo</strong>
+            <p>
+              No has iniciado sesión, por lo que tu PQR se enviará sin asociar a tu cuenta.
+              <button class="link-btn" (click)="goToRegistration()">Inicia sesión</button>
+              si quieres hacer seguimiento.
+            </p>
+          </div>
+        </div>
+      }
+
+      <div class="form-actions">
+        <button
+          class="btn-secondary"
+          (click)="backToList()"
+          [disabled]="loading()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn-primary"
+          (click)="submitPQR()"
+          [disabled]="!canSubmit()"
+        >
+          @if (loading()) {
+            <span class="spinner-inline"></span>
+            Enviando...
+          } @else {
+            Enviar PQR
+          }
+        </button>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Modal: Confirmation -->
+@if (view() === 'confirm' && createdPQR()) {
+  <div class="modal-overlay" (click)="closeConfirmAndReturn()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="success-icon">
+          <app-icon name="CheckCircle" [size]="48" [strokeWidth]="2"></app-icon>
+        </div>
+        <h2>¡PQR enviada con éxito!</h2>
+      </div>
+      <div class="modal-body">
+        <p>Tu solicitud ha sido recibida y será procesada por la entidad.</p>
+        <div class="pqr-summary">
+          <div class="pqr-summary-row">
+            <span class="label">Número:</span>
+            <strong>{{ createdPQR()!.name }}</strong>
+          </div>
+          <div class="pqr-summary-row">
+            <span class="label">Asunto:</span>
+            <span>{{ createdPQR()!.subject }}</span>
+          </div>
+          <div class="pqr-summary-row">
+            <span class="label">Estado:</span>
+            <span class="status-badge">{{ createdPQR()!.status }}</span>
+          </div>
+          @if (createdPQR()!.is_anonymous) {
+            <div class="pqr-summary-row">
+              <span class="label">Tipo:</span>
+              <span>Enviada de forma anónima</span>
+            </div>
+          }
+        </div>
+        @if (!createdPQR()!.is_anonymous) {
+          <p class="info-text">
+            Puedes consultar el estado de esta PQR en cualquier momento desde la sección <strong>"Mis PQRs"</strong>.
+          </p>
+        }
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="closeConfirmAndReturn()">
+          Volver al inicio
+        </button>
+      </div>
+    </div>
+  </div>
+}

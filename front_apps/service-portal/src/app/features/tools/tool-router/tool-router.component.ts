@@ -101,6 +101,18 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           console.log('[ToolRouter] Loaded procedures component:', ComponentClass);
           break;
 
+        case 'pqr':
+          const pqr = await import('../pqr/pqr-tool.component');
+          ComponentClass = pqr.PqrToolComponent;
+          console.log('[ToolRouter] Loaded pqr component:', ComponentClass);
+          break;
+
+        case 'my_pqr':
+          const myPqr = await import('../my-pqr/my-pqr-tool.component');
+          ComponentClass = myPqr.MyPqrToolComponent;
+          console.log('[ToolRouter] Loaded my_pqr component:', ComponentClass);
+          break;
+
         default:
           console.warn('[ToolRouter] Unknown tool type:', toolType);
           this.error = true;

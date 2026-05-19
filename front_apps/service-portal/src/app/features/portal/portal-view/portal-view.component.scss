@@ -7,6 +7,56 @@
   width: 100%;
 }
 
+// 3-zone layout: left aside | main | right aside
+.portal-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: start;
+  width: 100%;
+}
+
+.portal-main {
+  min-width: 0;
+}
+
+.announcements-aside {
+  width: 260px;
+  position: sticky;
+  top: 1.5rem;
+}
+
+.announcements-bottom {
+  margin-top: 2rem;
+}
+
+// Tablet/mobile: announcements collapse BELOW the grid, stacked
+@media (max-width: 1024px) {
+  .portal-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .portal-main {
+    order: 1;
+  }
+
+  .announcements-aside {
+    width: 100%;
+    position: static;
+    margin-top: 2rem;
+  }
+
+  .announcements-left {
+    order: 2;
+  }
+
+  .announcements-right {
+    order: 3;
+  }
+}
+
 // Loading State
 .loading-container {
   display: flex;

@@ -26,6 +26,30 @@ export interface ServicePortal {
 
   // Tools
   tools: ServicePortalTool[];
+
+  // Announcements
+  announcement_rotation_seconds?: number;
+  announcements_left?: AnnouncementSetData | null;
+  announcements_bottom?: AnnouncementSetData | null;
+  announcements_right?: AnnouncementSetData | null;
+}
+
+export interface AnnouncementData {
+  name: string;
+  content_type: 'image' | 'text' | 'html';
+  announcement_type: 'info' | 'promo' | 'alert' | 'event';
+  image?: string;
+  heading?: string;
+  body?: string;
+  html_content?: string;
+  cta_url?: string;
+  cta_target?: '_blank' | '_self';
+}
+
+export interface AnnouncementSetData {
+  name: string;
+  title: string;
+  announcements: AnnouncementData[];
 }
 
 export interface ServicePortalTool {
@@ -52,8 +76,24 @@ export interface ServicePortalTool {
   quick_links?: string;
   quick_links_data?: PortalQuickLinksData;
 
+  // For quick_link (direct external link):
+  quick_link_external?: string;
+  quick_link_external_data?: ExternalLinkData;
+
   // Additional custom fields can be added here
   [key: string]: any;
+}
+
+export interface ExternalLinkData {
+  name: string;
+  title: string;
+  label: string;
+  url: string;
+  target: '_blank' | '_self';
+  icon?: string;
+  image?: string;
+  color?: string;
+  description?: string;
 }
 
 export interface PortalQuickLinksData {
@@ -65,12 +105,8 @@ export interface PortalQuickLinksData {
   links: PortalQuickLinkItem[];
 }
 
-export interface PortalQuickLinkItem {
-  label: string;
-  icon?: string;
-  image?: string;
-  url: string;
-  target: '_blank' | '_self';
+// Resolved quick link item: External Link data + item-level overrides
+export interface PortalQuickLinkItem extends ExternalLinkData {
   display_order: number;
   is_enabled: boolean;
 }

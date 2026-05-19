@@ -1,0 +1,165 @@
+<div class="my-pqr-tool">
+  <div class="tool-header">
+    <button class="btn-back" (click)="goBack()">
+      <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+      Volver
+    </button>
+    <h1>Mis PQRs</h1>
+  </div>
+
+  @if (isAnonymousUser()) {
+    <div class="auth-required-state">
+      <app-icon name="Lock" [size]="48" [strokeWidth]="1.5"></app-icon>
+      <h3>Acceso restringido</h3>
+      <p>Para ver tus PQRs necesitas iniciar sesión.</p>
+      <button class="btn-primary" (click)="goToRegistration()">
+        Registrarse / Iniciar sesión
+      </button>
+    </div>
+  } @else {
+    @if (error()) {
+      <div class="alert alert-error">
+        <span>{{ error() }}</span>
+        <button class="close-btn" (click)="error.set(null)">&times;</button>
+      </div>
+    }
+
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Cargando tus PQRs...</p>
+      </div>
+    } @else if (pqrs().length === 0) {
+      <div class="empty-state">
+        <app-icon name="Inbox" [size]="48" [strokeWidth]="1.5"></app-icon>
+        <h3>Aún no has enviado PQRs</h3>
+        <p>Cuando envíes una PQR, podrás consultar su estado aquí.</p>
+      </div>
+    } @else {
+      <div class="filters">
+        <button
+          class="filter-btn"
+          [class.active]="filterStatus() === 'all'"
+          (click)="filterStatus.set('all')"
+        >
+          Todas ({{ pqrs().length }})
+        </button>
+        <button
+          class="filter-btn"
+          [class.active]="filterStatus() === 'open'"
+          (click)="filterStatus.set('open')"
+        >
+          Abiertas
+        </button>
+        <button
+          class="filter-btn"
+          [class.active]="filterStatus() === 'closed'"
+          (click)="filterStatus.set('closed')"
+        >
+          Cerradas
+        </button>
+      </div>
+
+      <div class="pqr-list">
+        @for (pqr of filteredPqrs(); track pqr.name) {
+          <button class="pqr-list-item" (click)="viewDetail(pqr)">
+            <div class="pqr-list-icon" [style.--accent]="pqr.pqr_type_color || '#2563eb'">
+              @if (pqr.pqr_type_icon) {
+                <app-icon [name]="pqr.pqr_type_icon" [size]="24" [strokeWidth]="2"></app-icon>
+              } @else {
+                <app-icon name="MessageSquare" [size]="24" [strokeWidth]="2"></app-icon>
+              }
+            </div>
+
+            <div class="pqr-list-content">
+              <div class="pqr-list-top">
+                <span class="pqr-type-name">{{ pqr.pqr_type_label }}</span>
+                <span class="status-badge" [class]="getStatusClass(pqr.status)">
+                  {{ translateStatus(pqr.status) }}
+                </span>
+              </div>
+              <h3 class="pqr-list-subject">{{ pqr.subject }}</h3>
+              <div class="pqr-list-meta">
+                <span>
+                  <app-icon name="Calendar" [size]="14" [strokeWidth]="2"></app-icon>
+                  {{ formatDate(pqr.received_at) }}
+                </span>
+                <span class="pqr-list-name">{{ pqr.name }}</span>
+              </div>
+            </div>
+
+            <div class="pqr-list-chevron">
+              <app-icon name="ChevronRight" [size]="20" [strokeWidth]="2"></app-icon>
+            </div>
+          </button>
+        }
+      </div>
+    }
+  }
+</div>
+
+<!-- Modal: PQR Detail -->
+@if (selectedPQR()) {
+  <div class="modal-overlay" (click)="closeDetail()">
+    <div class="modal-content modal-content--wide" (click)="$event.stopPropagation()">
+      <div class="modal-header" [style.--accent]="selectedPQR()!.pqr_type_color || '#2563eb'">
+        <div class="modal-header-icon">
+          @if (selectedPQR()!.pqr_type_icon) {
+            <app-icon [name]="selectedPQR()!.pqr_type_icon" [size]="28" [strokeWidth]="2"></app-icon>
+          } @else {
+            <app-icon name="MessageSquare" [size]="28" [strokeWidth]="2"></app-icon>
+          }
+        </div>
+        <div class="modal-header-text">
+          <span class="pqr-type-name">{{ selectedPQR()!.pqr_type_label }}</span>
+          <h2>{{ selectedPQR()!.subject }}</h2>
+        </div>
+        <button class="modal-close" (click)="closeDetail()" aria-label="Cerrar">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-meta">
+          <div class="meta-item">
+            <span class="meta-label">Número</span>
+            <strong>{{ selectedPQR()!.name }}</strong>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Estado</span>
+            <span class="status-badge" [class]="getStatusClass(selectedPQR()!.status)">
+              {{ translateStatus(selectedPQR()!.status) }}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Recibida</span>
+            <strong>{{ formatDate(selectedPQR()!.received_at) }}</strong>
+          </div>
+          @if (selectedPQR()!.resolved_at) {
+            <div class="meta-item">
+              <span class="meta-label">Resuelta</span>
+              <strong>{{ formatDate(selectedPQR()!.resolved_at) }}</strong>
+            </div>
+          }
+        </div>
+
+        <div class="detail-section">
+          <h4>Descripción</h4>
+          <p class="detail-text">{{ selectedPQR()!.description }}</p>
+        </div>
+
+        @if (selectedPQR()!.resolution) {
+          <div class="detail-section detail-resolution">
+            <h4>
+              <app-icon name="CheckCircle" [size]="20" [strokeWidth]="2"></app-icon>
+              Respuesta de la entidad
+            </h4>
+            <div class="detail-text" [innerHTML]="selectedPQR()!.resolution"></div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" (click)="closeDetail()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}

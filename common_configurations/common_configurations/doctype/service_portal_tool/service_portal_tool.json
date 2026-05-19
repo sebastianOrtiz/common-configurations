@@ -9,6 +9,7 @@
   "tool_type",
   "target_portal",
   "quick_links",
+  "quick_link_external",
   "label",
   "tool_description",
   "icon",
@@ -45,6 +46,15 @@
    "label": "Quick Links",
    "mandatory_depends_on": "eval:doc.tool_type=='portal_quick_links'",
    "options": "Portal Quick Links"
+  },
+  {
+   "depends_on": "eval:doc.tool_type=='quick_link'",
+   "description": "External link to redirect to when this tool is selected. Create one in External Link first.",
+   "fieldname": "quick_link_external",
+   "fieldtype": "Link",
+   "label": "External Link",
+   "mandatory_depends_on": "eval:doc.tool_type=='quick_link'",
+   "options": "External Link"
   },
   {
    "description": "Texto del bot\u00f3n",

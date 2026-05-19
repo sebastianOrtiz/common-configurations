@@ -1,0 +1,181 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:title",
+ "creation": "2026-05-18 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_basic",
+  "title",
+  "content_type",
+  "is_active",
+  "column_break_basic",
+  "announcement_type",
+  "valid_from",
+  "valid_to",
+  "section_content",
+  "image",
+  "heading",
+  "body",
+  "html_content",
+  "section_action",
+  "cta_url",
+  "cta_target"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_basic",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "description": "Unique internal identifier (e.g. 'Promo Vacunación 2026')",
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "image",
+   "description": "What kind of content this announcement renders",
+   "fieldname": "content_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Content Type",
+   "options": "image\ntext\nhtml",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Only active announcements are shown (global switch)",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "info",
+   "description": "Visual style for text announcements",
+   "fieldname": "announcement_type",
+   "fieldtype": "Select",
+   "label": "Style",
+   "options": "info\npromo\nalert\nevent"
+  },
+  {
+   "description": "Show from this date (optional)",
+   "fieldname": "valid_from",
+   "fieldtype": "Date",
+   "label": "Valid From"
+  },
+  {
+   "description": "Hide after this date (optional)",
+   "fieldname": "valid_to",
+   "fieldtype": "Date",
+   "label": "Valid To"
+  },
+  {
+   "fieldname": "section_content",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='image'",
+   "description": "Banner image for the announcement",
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image",
+   "mandatory_depends_on": "eval:doc.content_type=='image'"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='text'",
+   "description": "Title shown on the card",
+   "fieldname": "heading",
+   "fieldtype": "Data",
+   "label": "Heading"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='text'",
+   "description": "Text body of the announcement",
+   "fieldname": "body",
+   "fieldtype": "Small Text",
+   "label": "Body",
+   "mandatory_depends_on": "eval:doc.content_type=='text'"
+  },
+  {
+   "depends_on": "eval:doc.content_type=='html'",
+   "description": "Custom HTML content (rendered sanitized)",
+   "fieldname": "html_content",
+   "fieldtype": "HTML Editor",
+   "label": "HTML Content",
+   "mandatory_depends_on": "eval:doc.content_type=='html'"
+  },
+  {
+   "fieldname": "section_action",
+   "fieldtype": "Section Break",
+   "label": "Action"
+  },
+  {
+   "description": "If set, the whole card is clickable and opens this URL",
+   "fieldname": "cta_url",
+   "fieldtype": "Data",
+   "label": "Link URL",
+   "options": "URL"
+  },
+  {
+   "default": "_blank",
+   "depends_on": "eval:doc.cta_url",
+   "description": "_blank opens in a new tab, _self redirects in the same",
+   "fieldname": "cta_target",
+   "fieldtype": "Select",
+   "label": "Link Target",
+   "options": "_blank\n_self"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-05-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Announcement",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Common Config Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

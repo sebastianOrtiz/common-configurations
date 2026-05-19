@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"welcome\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h2\\\">Configuraciones comunes</span>\",\"col\":12}},{\"id\":\"description\",\"type\":\"paragraph\",\"data\":{\"text\":\"Bienvenido al workspace de Common Configurations.<br>\",\"col\":12}},{\"id\":\"RPRTkhjqza\",\"type\":\"card\",\"data\":{\"card_name\":\"Contactos\",\"col\":4}},{\"id\":\"QteycZOdQA\",\"type\":\"card\",\"data\":{\"card_name\":\"Services\",\"col\":4}},{\"id\":\"B6u3k4SMuk\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuraci\u00f3n\",\"col\":4}},{\"id\":\"xebHqz6aPc\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"J0MByYbu09\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}}]",
+ "content": "[{\"id\":\"welcome\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h2\\\">Configuraciones comunes</span>\",\"col\":12}},{\"id\":\"description\",\"type\":\"paragraph\",\"data\":{\"text\":\"Bienvenido al workspace de Common Configurations.<br>\",\"col\":12}},{\"id\":\"RPRTkhjqza\",\"type\":\"card\",\"data\":{\"card_name\":\"Contactos\",\"col\":4}},{\"id\":\"QteycZOdQA\",\"type\":\"card\",\"data\":{\"card_name\":\"Services\",\"col\":4}},{\"id\":\"B6u3k4SMuk\",\"type\":\"card\",\"data\":{\"card_name\":\"Configuraci\u00f3n\",\"col\":4}},{\"id\":\"xebHqz6aPc\",\"type\":\"card\",\"data\":{\"card_name\":\"Reports\",\"col\":4}},{\"id\":\"J0MByYbu09\",\"type\":\"card\",\"data\":{\"card_name\":\"Tools\",\"col\":4}},{\"id\":\"0xt1iupSTj\",\"type\":\"card\",\"data\":{\"card_name\":\"Advertising\",\"col\":4}}]",
  "creation": "2025-11-21 19:48:43.839896",
  "custom_blocks": [],
  "docstatus": 0,
@@ -196,9 +196,38 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Advertising",
+   "link_count": 2,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Announcement",
+   "link_count": 0,
+   "link_to": "Announcement",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Announcement Set",
+   "link_count": 0,
+   "link_to": "Announcement Set",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-04-22 09:24:28.980080",
+ "modified": "2026-05-19 10:15:44.208217",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",

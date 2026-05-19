@@ -20,8 +20,21 @@
       </div>
     }
 
-    <!-- Tools Grid -->
+    <!-- Portal layout: left aside | main | right aside -->
     @if (!loading() && !error() && portal()) {
+      <div class="portal-layout">
+
+        @if (portal()!.announcements_left?.announcements?.length) {
+          <aside class="announcements-aside announcements-left">
+            <app-announcement-zone
+              [data]="portal()!.announcements_left"
+              [rotationSeconds]="portal()!.announcement_rotation_seconds || 0"
+              orientation="side"
+            ></app-announcement-zone>
+          </aside>
+        }
+
+        <div class="portal-main">
       <div class="tools-section">
         <h2 class="tools-title">Servicios Disponibles</h2>
 
@@ -33,16 +46,16 @@
                 (click)="selectTool(tool)"
                 [style.--tool-color]="getToolColor(tool)"
               >
-                <div class="tool-icon" [class.has-image]="tool.tool_image">
-                  @if (tool.tool_image) {
-                    <img [src]="tool.tool_image" [alt]="tool.label" />
+                <div class="tool-icon" [class.has-image]="getToolImage(tool)">
+                  @if (getToolImage(tool); as toolImage) {
+                    <img [src]="toolImage" [alt]="getToolLabel(tool)" />
                   } @else {
-                    <app-icon [name]="tool.icon || 'Circle'" [size]="32" [strokeWidth]="2"></app-icon>
+                    <app-icon [name]="getToolIcon(tool) || 'Circle'" [size]="32" [strokeWidth]="2"></app-icon>
                   }
                 </div>
 
                 <div class="tool-content">
-                  <h3>{{ tool.label }}</h3>
+                  <h3>{{ getToolLabel(tool) }}</h3>
                 </div>
 
                 <div class="tool-arrow">
@@ -57,6 +70,29 @@
             <p>No hay herramientas disponibles en este portal</p>
           </div>
         }
+      </div>
+
+          @if (portal()!.announcements_bottom?.announcements?.length) {
+            <div class="announcements-bottom">
+              <app-announcement-zone
+                [data]="portal()!.announcements_bottom"
+                [rotationSeconds]="portal()!.announcement_rotation_seconds || 0"
+                orientation="bottom"
+              ></app-announcement-zone>
+            </div>
+          }
+        </div>
+
+        @if (portal()!.announcements_right?.announcements?.length) {
+          <aside class="announcements-aside announcements-right">
+            <app-announcement-zone
+              [data]="portal()!.announcements_right"
+              [rotationSeconds]="portal()!.announcement_rotation_seconds || 0"
+              orientation="side"
+            ></app-announcement-zone>
+          </aside>
+        }
+
       </div>
     }
   </div>

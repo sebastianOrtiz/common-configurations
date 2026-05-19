@@ -18,5 +18,15 @@
         "icon": "Link",
         "description": "Muestra un panel de enlaces rápidos configurables con iconos o imágenes",
         "is_active": 1
+    },
+    {
+        "doctype": "Tool Type",
+        "name": "quick_link",
+        "tool_name": "quick_link",
+        "tool_label": "Enlace Directo",
+        "app_name": "common_configurations",
+        "icon": "ExternalLink",
+        "description": "Enlace directo a una URL externa. Al hacer click redirige sin abrir vista del portal",
+        "is_active": 1
     }
 ]

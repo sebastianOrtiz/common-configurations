@@ -114,6 +114,26 @@ def get_portal(portal_name: str):
   "custom_css": ".portal-container { ... }",
   "require_auth": 1,
   "enable_mfa_otp": 1,
+  "announcement_rotation_seconds": 8,
+  "announcements_left": {
+    "name": "Banners Portal Ciudadano",
+    "title": "Banners Portal Ciudadano",
+    "announcements": [
+      {
+        "name": "Promo Vacunación 2026",
+        "content_type": "image",
+        "announcement_type": "promo",
+        "image": "/files/banner-vacunas.jpg",
+        "heading": null,
+        "body": null,
+        "html_content": null,
+        "cta_url": "https://salud.gov.co/vacunas",
+        "cta_target": "_blank"
+      }
+    ]
+  },
+  "announcements_bottom": null,
+  "announcements_right": null,
   "tools": [
     {
       "name": "abc123",
@@ -130,14 +150,17 @@ def get_portal(portal_name: str):
       "slot_duration_minutes": null,
       "target_portal": null,
       "quick_links": null,
+      "quick_link_external": null,
       "logbook_availability": null,
-      "logbook_procedures_config": null
+      "logbook_procedures_config": null,
+      "pqr_type_set": null,
+      "pqr_allow_anonymous": null
     },
     {
       "name": "def456",
       "tool_type": "portal_quick_links",
       "label": "Enlaces Útiles",
-      ...
+      "...": "...",
       "quick_links": "Trámites Ciudadanos",
       "quick_links_data": {
         "name": "Trámites Ciudadanos",
@@ -147,20 +170,48 @@ def get_portal(portal_name: str):
         "image": null,
         "links": [
           {
+            "name": "RUT DIAN",
+            "title": "RUT DIAN",
             "label": "RUT",
-            "icon": "ExternalLink",
-            "image": null,
             "url": "https://muisca.dian.gov.co",
             "target": "_blank",
+            "icon": "ExternalLink",
+            "image": null,
+            "color": null,
+            "description": null,
             "display_order": 1,
             "is_enabled": 1
           }
         ]
       }
+    },
+    {
+      "name": "ghi789",
+      "tool_type": "quick_link",
+      "label": "Pagos",
+      "...": "...",
+      "quick_link_external": "Pagos Impuestos",
+      "quick_link_external_data": {
+        "name": "Pagos Impuestos",
+        "title": "Pagos Impuestos",
+        "label": "Pagar impuestos en línea",
+        "url": "https://pagos.municipio.gov.co",
+        "target": "_blank",
+        "icon": "CreditCard",
+        "image": null,
+        "color": "#0a7d2e",
+        "description": null
+      }
     }
   ]
 }
 ```
+
+> **Cambios recientes en el response:**
+> - `announcement_rotation_seconds`, `announcements_left`, `announcements_bottom`, `announcements_right` (nivel raíz). Cada zona es `null` si no hay set o ningún anuncio visible. Resueltos por `_get_announcement_set_data` aplicando la regla de visibilidad de 3 capas + vigencia.
+> - En cada tool: `quick_link_external`, `pqr_type_set`, `pqr_allow_anonymous`.
+> - `quick_links_data.links[]` ahora trae el **External Link resuelto** (`name`, `title`, `label`, `url`, `target`, `icon`, `image`, `color`, `description`) + `display_order`/`is_enabled` del item (antes traía `label`/`icon`/`image`/`url`/`target` propios del item).
+> - Para tools `quick_link`: `quick_link_external_data` con el External Link resuelto.
 
 ### Particularidades del armado de tools
 
@@ -171,11 +222,17 @@ def get_portal(portal_name: str):
 2. **Custom fields de apps externas** se leen con `getattr(tool, field, None)`:
    - `calendar_resource` (meet_scheduling)
    - `logbook_availability`, `logbook_procedures_config` (logbook)
-   - `target_portal` (interno common_configurations)
-   - `quick_links` (interno common_configurations)
+   - `pqr_type_set`, `pqr_allow_anonymous` (pqr)
+   - `target_portal` (interno common_configurations — `portal_redirect`)
+   - `quick_links` (interno common_configurations — `portal_quick_links`)
+   - `quick_link_external` (interno common_configurations — `quick_link`)
    - `show_calendar_view`, `slot_duration_minutes` (reservados para futuras tools)
 
-3. **Quick Links inline**: si `tool_type == 'portal_quick_links'` y `quick_links` no está vacío, se llama a `_get_quick_links_data()` que devuelve el grupo de enlaces completo (filtrando items con `is_enabled=1`). Esto evita un segundo round-trip desde el frontend.
+3. **Quick Links inline**: si `tool_type == 'portal_quick_links'` y `quick_links` no está vacío, se llama a `_get_quick_links_data()`, que ahora **resuelve cada `external_link`** del item a través de `_get_external_link_data` (filtra `is_active=1` en grupo, `is_enabled=1` en item, `is_active=1` en cada External Link) y ordena por `display_order`. Evita un segundo round-trip.
+
+4. **Quick Link directo inline**: si `tool_type == 'quick_link'` y `quick_link_external` no está vacío, se llama a `_get_external_link_data()` y el resultado se inyecta como `quick_link_external_data`. Ver [../features/QUICK_LINK_TOOL.md](../features/QUICK_LINK_TOOL.md).
+
+5. **Anuncios inline**: a nivel raíz, `announcements_left/bottom/right` se resuelven con `_get_announcement_set_data()`, que aplica la regla de visibilidad: `Announcement Set.is_active` AND `Announcement Set Item.is_enabled` AND `Announcement.is_active` AND vigencia `valid_from`/`valid_to` contra `frappe.utils.nowdate()`. Si no queda ningún anuncio visible, la zona devuelve `null`. Ver [../features/ANNOUNCEMENTS.md](../features/ANNOUNCEMENTS.md).
 
 ### Ejemplo curl
 
@@ -261,6 +318,10 @@ tool_data["dispatcher_zone"] = getattr(tool, "dispatcher_zone", None)
 
 - [../doctypes/SERVICE_PORTAL_TOOL.md](../doctypes/SERVICE_PORTAL_TOOL.md) — Estructura de la child table.
 - [../doctypes/TOOL_TYPE.md](../doctypes/TOOL_TYPE.md) — Catálogo extensible.
-- [../doctypes/PORTAL_QUICK_LINKS.md](../doctypes/PORTAL_QUICK_LINKS.md) — Grupos de enlaces inline.
-- [../SERVICE_PORTAL.md](../SERVICE_PORTAL.md) — DocType `Service Portal`.
+- [../doctypes/PORTAL_QUICK_LINKS.md](../doctypes/PORTAL_QUICK_LINKS.md) — Grupos de enlaces inline (ahora vía External Link).
+- [../doctypes/EXTERNAL_LINK.md](../doctypes/EXTERNAL_LINK.md) — DocType reutilizable de enlace externo.
+- [../doctypes/ANNOUNCEMENT.md](../doctypes/ANNOUNCEMENT.md) — Announcement / Set / Set Item.
+- [../doctypes/SERVICE_PORTAL.md](../doctypes/SERVICE_PORTAL.md) — DocType `Service Portal` (sección Announcements).
+- [../features/QUICK_LINK_TOOL.md](../features/QUICK_LINK_TOOL.md) — Tool `quick_link`.
+- [../features/ANNOUNCEMENTS.md](../features/ANNOUNCEMENTS.md) — Módulo de anuncios.
 - [../HOW_TO_CREATE_A_PORTAL_TOOL.md](../HOW_TO_CREATE_A_PORTAL_TOOL.md) — Guía paso a paso.

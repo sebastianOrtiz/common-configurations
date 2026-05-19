@@ -11,11 +11,12 @@ import { PortalService } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
 import { ServicePortal, ServicePortalTool } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { AnnouncementZoneComponent } from '../../../shared/components/announcement-zone/announcement-zone.component';
 
 @Component({
   selector: 'app-portal-view',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [CommonModule, IconComponent, AnnouncementZoneComponent],
   templateUrl: './portal-view.component.html',
   styleUrls: ['./portal-view.component.scss']
 })
@@ -117,23 +118,65 @@ export class PortalViewComponent implements OnInit {
       return;
     }
 
+    // Quick link: open external URL directly without entering a tool view
+    if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.url) {
+      const link = tool.quick_link_external_data;
+      const target = link.target || '_blank';
+      if (target === '_self') {
+        window.location.href = link.url;
+      } else {
+        window.open(link.url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+
     // Navigate to tool route (will be lazy loaded)
     this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
   }
 
   /**
-   * Get tool icon or fallback
+   * Get tool icon or fallback.
+   * For quick_link tools, prefer the External Link's icon.
    */
   getToolIcon(tool: ServicePortalTool): string {
+    if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.icon) {
+      return tool.quick_link_external_data.icon;
+    }
     return tool.icon || 'default';
   }
 
   /**
-   * Get tool button color or use portal's primary color
+   * Get tool button color or use portal's primary color.
+   * For quick_link tools, prefer the External Link's color.
    */
   getToolColor(tool: ServicePortalTool): string {
     const portal = this.portal();
+    if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.color) {
+      return tool.quick_link_external_data.color;
+    }
     return tool.button_color || portal?.primary_color || '#667eea';
+  }
+
+  /**
+   * Get the label displayed on the card.
+   * For quick_link tools, prefer the External Link's label.
+   */
+  getToolLabel(tool: ServicePortalTool): string {
+    if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.label) {
+      return tool.quick_link_external_data.label;
+    }
+    return tool.label;
+  }
+
+  /**
+   * Get the image displayed on the card (preferred over icon when present).
+   * For quick_link tools, prefer the External Link's image.
+   */
+  getToolImage(tool: ServicePortalTool): string | undefined {
+    if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.image) {
+      return tool.quick_link_external_data.image;
+    }
+    return tool.tool_image;
   }
 
   /**

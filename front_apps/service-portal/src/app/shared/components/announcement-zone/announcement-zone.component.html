@@ -1,0 +1,54 @@
+@if (hasAnnouncements()) {
+  <div
+    class="announcement-zone"
+    [class.zone-bottom]="orientation === 'bottom'"
+    [class.zone-side]="orientation === 'side'"
+    [class.is-rotating]="isRotating()"
+  >
+    @for (a of visibleAnnouncements(); track a.name) {
+      <div
+        class="announcement-card"
+        [class]="'type-' + a.announcement_type"
+        [class.clickable]="isClickable(a)"
+        (click)="onClick(a)"
+        [attr.role]="isClickable(a) ? 'link' : null"
+        [attr.tabindex]="isClickable(a) ? 0 : null"
+        (keydown.enter)="onClick(a)"
+      >
+        @switch (a.content_type) {
+          @case ('image') {
+            @if (a.image) {
+              <img [src]="a.image" [alt]="a.heading || 'Anuncio'" class="announcement-image" />
+            }
+          }
+          @case ('text') {
+            <div class="announcement-text">
+              @if (a.heading) {
+                <h4 class="announcement-heading">{{ a.heading }}</h4>
+              }
+              @if (a.body) {
+                <p class="announcement-body">{{ a.body }}</p>
+              }
+            </div>
+          }
+          @case ('html') {
+            <div class="announcement-html" [innerHTML]="safeHtml(a.html_content)"></div>
+          }
+        }
+      </div>
+    }
+
+    @if (isRotating()) {
+      <div class="announcement-dots">
+        @for (a of announcements(); track a.name; let i = $index) {
+          <button
+            class="dot"
+            [class.active]="i === currentIndex()"
+            (click)="goTo(i)"
+            [attr.aria-label]="'Ir al anuncio ' + (i + 1)"
+          ></button>
+        }
+      </div>
+    }
+  </div>
+}
