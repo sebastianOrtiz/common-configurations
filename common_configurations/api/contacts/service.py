@@ -281,11 +281,13 @@ class ContactService:
                     {
                         "fieldname": field.fieldname,
                         "fieldtype": field.fieldtype,
-                        "label": field.label,
+                        "label": _(field.label) if field.label else field.label,
                         "reqd": field.reqd,
                         "options": field.options,
                         "default": field.default,
-                        "description": field.description,
+                        "description": (
+                            _(field.description) if field.description else field.description
+                        ),
                         "read_only": field.read_only,
                         "hidden": field.hidden,
                         "length": field.length,
