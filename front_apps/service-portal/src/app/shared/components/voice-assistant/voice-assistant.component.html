@@ -1,0 +1,113 @@
+@if (featureAvailable() && open()) {
+  <div class="va-overlay" (click)="cancel()"></div>
+
+  <aside class="va-panel" role="dialog" aria-label="Asistente de voz">
+    <header class="va-header">
+      <div class="va-avatar">
+        <app-icon name="MessageSquare" [size]="22" [strokeWidth]="2"></app-icon>
+      </div>
+      <div class="va-title">
+        <strong>{{ assistantName() }}</strong>
+        <span class="va-subtitle">
+          @switch (state()) {
+            @case ('greeting') { Saludando... }
+            @case ('asking') { Hablando... }
+            @case ('listening') { Escuchando... }
+            @case ('confirming') { Confirmando... }
+            @case ('summary') { Finalizando... }
+            @case ('done') { Listo }
+            @case ('error') { Error }
+            @default { En espera }
+          }
+        </span>
+      </div>
+      <button class="va-close" (click)="cancel()" aria-label="Cerrar asistente">
+        <app-icon name="LogOut" [size]="20" [strokeWidth]="2"></app-icon>
+      </button>
+    </header>
+
+    @if (prompts().length > 0) {
+      <div class="va-progress">
+        <div class="va-progress-bar" [style.width.%]="progress()"></div>
+        <span class="va-progress-text">
+          Pregunta {{ currentIndex() + 1 > prompts().length ? prompts().length : currentIndex() + 1 }}
+          de {{ prompts().length }}
+        </span>
+      </div>
+    }
+
+    <div class="va-body">
+      @if (currentPrompt(); as p) {
+        <p class="va-question">
+          {{ p.question }}
+          @if (p.optional) {
+            <span class="va-optional-tag">opcional</span>
+          }
+        </p>
+        @if (p.optional) {
+          <p class="va-skip-hint">Puedes decir "no tengo" o "saltar" para omitir esta pregunta.</p>
+        }
+      }
+
+      @if (state() === 'listening') {
+        <div class="va-listening">
+          <div class="va-mic-pulse">
+            <app-icon name="Mic" [size]="32" [strokeWidth]="2"></app-icon>
+          </div>
+          @if (interimText()) {
+            <p class="va-interim">{{ interimText() }}</p>
+          } @else {
+            <p class="va-hint">Habla ahora...</p>
+          }
+          @if (currentPrompt()?.optional) {
+            <button class="va-btn va-btn-secondary va-btn-skip" (click)="skipCurrent()">
+              Saltar pregunta
+            </button>
+          }
+        </div>
+      }
+
+      @if (state() === 'confirming' && capturedValue()) {
+        <div class="va-captured">
+          <span class="va-label">Tu respuesta:</span>
+          <strong>{{ capturedValue() }}</strong>
+        </div>
+
+        <!-- Mini listening indicator while waiting for yes/no -->
+        <div class="va-confirm-listen">
+          <div class="va-mic-mini">
+            <app-icon name="Mic" [size]="16" [strokeWidth]="2"></app-icon>
+          </div>
+          @if (interimText()) {
+            <span class="va-interim-mini">{{ interimText() }}</span>
+          } @else {
+            <span class="va-hint">Escuchando... di "sí" o "no"</span>
+          }
+        </div>
+
+        <div class="va-actions">
+          <button class="va-btn va-btn-secondary" (click)="repeatCurrent()">Repetir</button>
+          <button class="va-btn va-btn-primary" (click)="acceptCurrent()">Aceptar</button>
+        </div>
+      }
+
+      @if (state() === 'error' && errorMessage()) {
+        <div class="va-error">
+          <app-icon name="AlertCircle" [size]="20" [strokeWidth]="2"></app-icon>
+          <span>{{ errorMessage() }}</span>
+        </div>
+        <div class="va-actions">
+          <button class="va-btn va-btn-secondary" (click)="cancel()">Cancelar</button>
+          <button class="va-btn va-btn-primary" (click)="repeatCurrent()">Reintentar</button>
+        </div>
+      }
+
+      @if (state() === 'done') {
+        <div class="va-done">
+          <app-icon name="CheckSquare" [size]="32" [strokeWidth]="2"></app-icon>
+          <p>¡Listo! Llenamos el formulario con tus respuestas.</p>
+        </div>
+      }
+    </div>
+  </aside>
+}
