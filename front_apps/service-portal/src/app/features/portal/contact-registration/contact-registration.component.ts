@@ -18,6 +18,9 @@ import { OtpService } from '../../../core/services/otp.service';
 import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
 import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-verification/otp-verification.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { VoiceAssistantComponent, VoicePrompt } from '../../../shared/components/voice-assistant/voice-assistant.component';
+import { SettingsService } from '../../../core/services/settings.service';
+import { ViewChild } from '@angular/core';
 
 // Registration step types - now includes 'otp' for OTP verification
 type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
@@ -25,7 +28,7 @@ type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
 @Component({
   selector: 'app-contact-registration',
   standalone: true,
-  imports: [CommonModule, FormsModule, OtpVerificationComponent, IconComponent],
+  imports: [CommonModule, FormsModule, OtpVerificationComponent, IconComponent, VoiceAssistantComponent],
   templateUrl: './contact-registration.component.html',
   styleUrls: ['./contact-registration.component.scss']
 })
@@ -35,6 +38,9 @@ export class ContactRegistrationComponent implements OnInit {
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
   private otpService = inject(OtpService);
+  protected settingsService = inject(SettingsService);
+
+  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
   // Current registration step
   protected currentStep = signal<RegistrationStep>('initial');
@@ -511,4 +517,229 @@ export class ContactRegistrationComponent implements OnInit {
     this.currentStep.set('initial');
     this.error.set(null);
   }
+
+  // ============================================================
+  // Voice Assistant integration (MVP, no AI)
+  // ============================================================
+
+  /** Convenience getter for the template */
+  get isVoiceAssistantAvailable(): boolean {
+    return this.settingsService.isVoiceAssistantEnabled();
+  }
+
+  /**
+   * Build prompts from the dynamic fields and run the voice assistant.
+   * The user dictates each field; on completion the form is auto-filled.
+   */
+  async startVoiceAssistant(): Promise<void> {
+    if (!this.voiceAssistant) return;
+
+    const visibleFields = this.fields().filter(
+      (f) => !f.hidden && !f.read_only && f.fieldtype !== 'Check'
+    );
+
+    const prompts: VoicePrompt[] = visibleFields.map((f) => {
+      const label = f.label || f.fieldname;
+      const isOptional = !f.reqd;
+      let question = `¿Cuál es tu ${label.toLowerCase()}?`;
+      let sanitize: ((v: string) => string | null) | undefined;
+
+      // Customize question + sanitizer per fieldtype
+      if (f.fieldtype === 'Select' && f.options) {
+        const options = (f.options as string).split('\n').filter((o) => o.trim());
+        question = `Selecciona tu ${label.toLowerCase()}. Las opciones son: ${options.join(', ')}.`;
+        // Normalize: lowercase + strip diacritics (tildes) so "cédula" matches "Cedula"
+        const norm = (s: string) =>
+          s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+        sanitize = (v: string) => {
+          const target = norm(v);
+          if (!target) return null;
+          const exact = options.find((o) => norm(o) === target);
+          if (exact) return exact;
+          const partial = options.find((o) => {
+            const oNorm = norm(o);
+            return oNorm.includes(target) || target.includes(oNorm);
+          });
+          return partial || null;
+        };
+      } else if (f.fieldname === 'document' || (f.label || '').toLowerCase().includes('documento')) {
+        question = `¿Cuál es tu número de ${label.toLowerCase()}? Por favor díctalo dígito por dígito.`;
+        sanitize = (v: string) => sanitizeDigits(v);
+      } else if (f.fieldtype === 'Data' && (f.options === 'Email' || (f.label || '').toLowerCase().includes('correo'))) {
+        question = `¿Cuál es tu correo electrónico? Puedes decir arroba, punto y guion para los símbolos.`;
+        sanitize = (v: string) => sanitizeEmail(v);
+      } else if ((f.label || '').toLowerCase().includes('teléfono') || (f.label || '').toLowerCase().includes('telefono')) {
+        question = `¿Cuál es tu número de teléfono?`;
+        sanitize = (v: string) => sanitizeDigits(v, true);
+      }
+
+      return {
+        key: f.fieldname,
+        question,
+        sanitize,
+        optional: isOptional,
+        confirmTemplate: (val) => `Entendí ${val} para ${label.toLowerCase()}. ¿Es correcto? Di sí o no.`,
+      };
+    });
+
+    try {
+      const answers = await this.voiceAssistant.startSurvey(prompts);
+      // Merge answers into formData
+      this.formData.update((current) => ({ ...current, ...answers }));
+    } catch (err) {
+      // User cancelled — silent, no error to show
+    }
+  }
+
+  /**
+   * Voice assistant for the login step: asks only for the document number
+   * and triggers the same `onConnect()` flow used by the form.
+   */
+  async startVoiceLoginAssistant(): Promise<void> {
+    if (!this.voiceAssistant) return;
+
+    const prompts: VoicePrompt[] = [
+      {
+        key: 'document',
+        question:
+          '¿Cuál es tu número de documento para iniciar sesión? Por favor díctalo dígito por dígito.',
+        sanitize: (v: string) => sanitizeDigits(v),
+        confirmTemplate: (val) =>
+          `Entendí ${val}. ¿Es correcto tu número de documento? Di sí o no.`,
+      },
+    ];
+
+    try {
+      const answers = await this.voiceAssistant.startSurvey(prompts);
+      if (answers['document']) {
+        // Merge into formData (login form uses formData()['document'])
+        this.formData.update((current) => ({ ...current, document: answers['document'] }));
+        // Slight delay so the user sees the field filled before submit
+        setTimeout(() => this.onConnect(), 200);
+      }
+    } catch (err) {
+      // User cancelled
+    }
+  }
+}
+
+// ============================================================
+// Voice sanitizer helpers (Spanish)
+// ============================================================
+
+/**
+ * Convert Spanish number words to digits and strip everything non-digit.
+ * Handles: cero..nueve, diez..diecinueve, veinte..veintinueve, treinta..noventa.
+ * Useful for cédula/document numbers dictated by voice.
+ *
+ * @param allowPlus if true, keep '+' (for phone numbers with country code)
+ */
+function sanitizeDigits(input: string, allowPlus: boolean = false): string | null {
+  if (!input) return null;
+
+  let text = input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim();
+
+  // Words → digits (order matters: longest first)
+  const replacements: Array<[RegExp, string]> = [
+    // 16-19
+    [/\bdiecis[eé]is\b/g, '16'],
+    [/\bdiecisiete\b/g, '17'],
+    [/\bdieciocho\b/g, '18'],
+    [/\bdiecinueve\b/g, '19'],
+    // 21-29
+    [/\bveintiun[oa]?\b/g, '21'],
+    [/\bveintid[oó]s\b/g, '22'],
+    [/\bveintitr[eé]s\b/g, '23'],
+    [/\bveinticuatro\b/g, '24'],
+    [/\bveinticinco\b/g, '25'],
+    [/\bveintis[eé]is\b/g, '26'],
+    [/\bveintisiete\b/g, '27'],
+    [/\bveintiocho\b/g, '28'],
+    [/\bveintinueve\b/g, '29'],
+    // Tens 20-90
+    [/\bveinte\b/g, '20'],
+    [/\btreinta\b/g, '30'],
+    [/\bcuarenta\b/g, '40'],
+    [/\bcincuenta\b/g, '50'],
+    [/\bsesenta\b/g, '60'],
+    [/\bsetenta\b/g, '70'],
+    [/\bochenta\b/g, '80'],
+    [/\bnoventa\b/g, '90'],
+    // 10-15
+    [/\bdiez\b/g, '10'],
+    [/\bonce\b/g, '11'],
+    [/\bdoce\b/g, '12'],
+    [/\btrece\b/g, '13'],
+    [/\bcatorce\b/g, '14'],
+    [/\bquince\b/g, '15'],
+    // 0-9
+    [/\bcero\b/g, '0'],
+    [/\bun[oa]?\b/g, '1'],
+    [/\bdos\b/g, '2'],
+    [/\btres\b/g, '3'],
+    [/\bcuatro\b/g, '4'],
+    [/\bcinco\b/g, '5'],
+    [/\bseis\b/g, '6'],
+    [/\bsiete\b/g, '7'],
+    [/\bocho\b/g, '8'],
+    [/\bnueve\b/g, '9'],
+    // Connectors
+    [/\b(y|guion|guion bajo|menos)\b/g, ''],
+    [/\bm[aá]s\b/g, '+'],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    text = text.replace(pattern, replacement);
+  }
+
+  // Strip everything except digits (and optionally +)
+  const cleaned = allowPlus
+    ? text.replace(/[^0-9+]/g, '')
+    : text.replace(/[^0-9]/g, '');
+
+  return cleaned || null;
+}
+
+/**
+ * Sanitize a dictated email:
+ * - Lowercase
+ * - Strip diacritics ("andrés" → "andres")
+ * - Convert spoken symbols: arroba/at → @, punto/dot → ., guion/guion bajo → -/_
+ * - Remove all whitespace
+ */
+function sanitizeEmail(input: string): string | null {
+  if (!input) return null;
+
+  let text = input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+
+  // Spoken symbols → characters
+  const symbols: Array<[RegExp, string]> = [
+    [/\barroba\b/g, '@'],
+    [/\b(at|en)\b/g, '@'],
+    [/\bpunto\b/g, '.'],
+    [/\bdot\b/g, '.'],
+    [/\bguion bajo\b/g, '_'],
+    [/\bguion abajo\b/g, '_'],
+    [/\bunderscore\b/g, '_'],
+    [/\bguion\b/g, '-'],
+    [/\bmenos\b/g, '-'],
+    [/\bm[aá]s\b/g, '+'],
+    [/\bmas\b/g, '+'],
+  ];
+
+  for (const [pattern, replacement] of symbols) {
+    text = text.replace(pattern, replacement);
+  }
+
+  // Remove all whitespace
+  text = text.replace(/\s+/g, '');
+
+  return text || null;
 }

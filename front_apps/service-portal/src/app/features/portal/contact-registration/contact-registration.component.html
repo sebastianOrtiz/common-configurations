@@ -80,6 +80,14 @@
 
         <p class="step-description">Ingresa tu número de documento para conectarte</p>
 
+        <!-- Voice assistant for login (feature flagged) -->
+        @if (isVoiceAssistantAvailable) {
+          <button type="button" class="btn-voice-assistant" (click)="startVoiceLoginAssistant()">
+            <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
+            Iniciar sesión con voz
+          </button>
+        }
+
         <!-- Error Alert -->
         @if (error()) {
           <div class="alert alert-error">
@@ -159,6 +167,14 @@
           </svg>
           Volver
         </button>
+
+        <!-- Voice assistant: llena el formulario por voz (feature flagged) -->
+        @if (isVoiceAssistantAvailable) {
+          <button type="button" class="btn-voice-assistant" (click)="startVoiceAssistant()">
+            <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
+            Llenar con asistente de voz
+          </button>
+        }
 
         <!-- Error Alert -->
         @if (error()) {
@@ -289,3 +305,6 @@
     }
   </div>
 </div>
+
+<!-- Voice assistant overlay (feature flagged via SettingsService) -->
+<app-voice-assistant></app-voice-assistant>
