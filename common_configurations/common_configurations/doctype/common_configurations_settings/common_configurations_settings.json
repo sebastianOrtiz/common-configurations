@@ -7,6 +7,7 @@
   "section_voice_assistant",
   "enable_voice_assistant",
   "voice_assistant_name",
+  "voice_assistant_gender",
   "column_break_voice",
   "voice_assistant_language",
   "section_voice_assistant_ai",
@@ -36,6 +37,15 @@
    "fieldname": "voice_assistant_name",
    "fieldtype": "Data",
    "label": "Nombre del Asistente"
+  },
+  {
+   "default": "female",
+   "depends_on": "eval:doc.enable_voice_assistant",
+   "description": "Género preferido de la voz. El sistema elige la mejor voz disponible que coincida con el género y el idioma.",
+   "fieldname": "voice_assistant_gender",
+   "fieldtype": "Select",
+   "label": "Género de la Voz",
+   "options": "female\nmale"
   },
   {
    "fieldname": "column_break_voice",

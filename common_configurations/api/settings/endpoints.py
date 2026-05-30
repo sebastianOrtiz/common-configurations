@@ -50,6 +50,7 @@ def get_public_settings() -> Dict[str, Any]:
 			"ai_enabled": ai_enabled,
 			"name": settings.voice_assistant_name or "Asistente",
 			"language": settings.voice_assistant_language or "es-ES",
+			"gender": settings.voice_assistant_gender or "female",
 		}
 	}
 

@@ -14,6 +14,7 @@ export interface VoiceAssistantSettings {
   ai_enabled: boolean;
   name: string;
   language: string;
+  gender: 'female' | 'male';
 }
 
 export interface PublicSettings {
@@ -26,6 +27,7 @@ const DEFAULT_SETTINGS: PublicSettings = {
     ai_enabled: false,
     name: 'Asistente',
     language: 'es-ES',
+    gender: 'female',
   },
 };
 
