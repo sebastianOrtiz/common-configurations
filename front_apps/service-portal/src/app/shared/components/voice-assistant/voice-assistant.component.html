@@ -14,6 +14,7 @@
             @case ('asking') { Hablando... }
             @case ('listening') { Escuchando... }
             @case ('confirming') { Confirmando... }
+            @case ('reviewing') { Revisando... }
             @case ('summary') { Finalizando... }
             @case ('done') { Listo }
             @case ('error') { Error }
@@ -102,10 +103,58 @@
         </div>
       }
 
+      @if (state() === 'reviewing') {
+        <div class="va-review">
+          <p class="va-review-title">Revisemos tus respuestas:</p>
+          <ul class="va-review-list">
+            @for (entry of reviewEntries(); track entry.key) {
+              <li class="va-review-item">
+                <div class="va-review-text">
+                  <span class="va-review-label">{{ entry.label }}</span>
+                  <strong>{{ entry.value }}</strong>
+                </div>
+                <button
+                  class="va-control-btn"
+                  (click)="editField(entry.key)"
+                  title="Editar esta respuesta"
+                >
+                  Editar
+                </button>
+              </li>
+            }
+          </ul>
+          <div class="va-actions">
+            <button class="va-btn va-btn-secondary" (click)="cancel()">Cancelar</button>
+            <button class="va-btn va-btn-primary" (click)="confirmReview()">
+              Confirmar y llenar
+            </button>
+          </div>
+        </div>
+      }
+
       @if (state() === 'done') {
         <div class="va-done">
           <app-icon name="CheckSquare" [size]="32" [strokeWidth]="2"></app-icon>
           <p>¡Listo! Llenamos el formulario con tus respuestas.</p>
+        </div>
+      }
+
+      <!-- Persistent control bar: back / repeat (only during active questioning) -->
+      @if (currentPrompt() && (state() === 'listening' || state() === 'confirming' || state() === 'asking')) {
+        <div class="va-controls">
+          @if (currentIndex() > 0) {
+            <button class="va-control-btn" (click)="goToPrevious()" title='Di "atrás" o haz click'>
+              <app-icon name="ChevronRight" [size]="14" [strokeWidth]="2.5"></app-icon>
+              <span>Atrás</span>
+            </button>
+          }
+          <button class="va-control-btn" (click)="repeatCurrent()" title='Di "repetir" o haz click'>
+            <app-icon name="MessageSquare" [size]="14" [strokeWidth]="2.5"></app-icon>
+            <span>Repetir</span>
+          </button>
+          <span class="va-controls-hint">
+            También puedes decir "atrás", "repetir" o "cancelar"
+          </span>
         </div>
       }
     </div>

@@ -32,6 +32,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { TtsService } from '../../../core/services/voice/tts.service';
 import { SttService } from '../../../core/services/voice/stt.service';
+import { SoundService } from '../../../core/services/voice/sound.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { IconComponent } from '../icon/icon.component';
 
@@ -50,6 +51,10 @@ export interface VoicePrompt {
    * The skip pattern is checked BEFORE the sanitizer runs.
    */
   optional?: boolean;
+  /** Minimum length the sanitized value must have to be accepted (e.g. 6 for cédula) */
+  minLength?: number;
+  /** Maximum length (truncates or rejects) */
+  maxLength?: number;
 }
 
 type AssistantState =
@@ -58,6 +63,7 @@ type AssistantState =
   | 'asking'
   | 'listening'
   | 'confirming'
+  | 'reviewing'
   | 'summary'
   | 'done'
   | 'error';
@@ -72,6 +78,7 @@ type AssistantState =
 export class VoiceAssistantComponent implements OnDestroy {
   private tts = inject(TtsService);
   private stt = inject(SttService);
+  private sound = inject(SoundService);
   private settings = inject(SettingsService);
 
   @Output() surveyComplete = new EventEmitter<Record<string, string>>();
@@ -97,11 +104,19 @@ export class VoiceAssistantComponent implements OnDestroy {
   private _prompts = signal<VoicePrompt[]>([]);
   protected prompts = this._prompts.asReadonly();
   private answers: Record<string, string> = {};
+  /** Set to true when the user cancels; every async step checks this and bails out. */
+  private aborted = false;
   private resolveSurvey: ((value: Record<string, string>) => void) | null = null;
   private rejectSurvey: ((reason?: any) => void) | null = null;
 
   protected language = computed(() => this.settings.settings().voice_assistant.language);
   protected assistantName = computed(() => this.settings.settings().voice_assistant.name);
+  protected gender = computed(() => this.settings.settings().voice_assistant.gender);
+
+  /** Helper so every TTS call uses both language AND configured gender */
+  private async say(text: string): Promise<void> {
+    return this.tts.speak(text, this.language(), this.gender());
+  }
 
   protected currentPrompt = computed(() => {
     const i = this.currentIndex();
@@ -127,6 +142,7 @@ export class VoiceAssistantComponent implements OnDestroy {
     this.answers = {};
     this.currentIndex.set(0);
     this.errorMessage.set(null);
+    this.aborted = false;
     this.open.set(true);
 
     return new Promise((resolve, reject) => {
@@ -137,16 +153,18 @@ export class VoiceAssistantComponent implements OnDestroy {
   }
 
   private async runGreeting(): Promise<void> {
+    if (this.aborted) return;
     this.state.set('greeting');
-    await this.tts.speak(
+    await this.say(
       `Hola, soy ${this.assistantName()}. Te voy a hacer algunas preguntas para llenar tus datos. ` +
-        `Puedes responder con voz y te confirmaré cada respuesta.`,
-      this.language()
+        `Puedes responder con voz y te confirmaré cada respuesta.`
     );
+    if (this.aborted) return;
     await this.askCurrent();
   }
 
   private async askCurrent(): Promise<void> {
+    if (this.aborted) return;
     const prompt = this.currentPrompt();
     if (!prompt) {
       await this.finish();
@@ -158,23 +176,43 @@ export class VoiceAssistantComponent implements OnDestroy {
     this.interimText.set('');
     this.errorMessage.set(null);
 
-    await this.tts.speak(prompt.question, this.language());
+    await this.say(prompt.question);
+    if (this.aborted) return;
 
     // Auto-start listening right after the question
     await this.startListening();
   }
 
   protected async startListening(): Promise<void> {
+    if (this.aborted) return;
     this.state.set('listening');
     this.interimText.set('');
+    this.sound.beepStart();
 
     try {
       const text = await this.stt.listenOnce(this.language(), (t) => this.interimText.set(t));
+      if (this.aborted) return;
+      this.sound.beepEnd();
       const prompt = this.currentPrompt();
+
+      // Control commands take precedence
+      const command = this.detectControlCommand(text);
+      if (command === 'back') {
+        await this.goToPrevious();
+        return;
+      }
+      if (command === 'cancel') {
+        this.cancel();
+        return;
+      }
+      if (command === 'repeat') {
+        await this.askCurrent();
+        return;
+      }
 
       // Skip optional fields when the user says "no tengo", "saltar", etc.
       if (prompt && prompt.optional && this.isSkipPhrase(text)) {
-        await this.tts.speak('De acuerdo, saltamos esta pregunta.', this.language());
+        await this.say('De acuerdo, saltamos esta pregunta.');
         await this.skipCurrent();
         return;
       }
@@ -188,18 +226,27 @@ export class VoiceAssistantComponent implements OnDestroy {
         const confirmText =
           prompt.confirmTemplate?.(sanitized) ||
           `Entendí: ${sanitized}. ¿Es correcto? Di sí para continuar o no para repetir.`;
-        await this.tts.speak(confirmText, this.language());
+        await this.say(confirmText);
+        if (this.aborted) return;
         await this.captureConfirmation();
       } else {
         // No valid match → don't enter "confirming" state, ask again
         this.capturedValue.set('');
-        const message = text
-          ? `No reconocí "${text}" como una respuesta válida. Repetimos la pregunta.`
-          : 'No te escuché. Repetimos la pregunta.';
-        await this.tts.speak(message, this.language());
+        let message: string;
+        if (this._lastValidationError) {
+          message = this._lastValidationError;
+          this._lastValidationError = null;
+        } else if (text) {
+          message = `No reconocí "${text}" como una respuesta válida. Repetimos la pregunta.`;
+        } else {
+          message = 'No te escuché. Repetimos la pregunta.';
+        }
+        await this.say(message);
+        if (this.aborted) return;
         await this.askCurrent();
       }
     } catch (err: any) {
+      if (this.aborted) return;
       this.errorMessage.set(err?.message || 'Error de reconocimiento de voz');
       this.state.set('error');
     }
@@ -210,9 +257,23 @@ export class VoiceAssistantComponent implements OnDestroy {
     if (!prompt) return null;
     const cleaned = text.trim();
     if (!cleaned) return null;
-    if (prompt.sanitize) return prompt.sanitize(cleaned);
-    return cleaned;
+
+    const sanitized = prompt.sanitize ? prompt.sanitize(cleaned) : cleaned;
+    if (!sanitized) return null;
+
+    // Length validation
+    if (prompt.minLength && sanitized.length < prompt.minLength) {
+      this._lastValidationError = `Esa respuesta es muy corta. Necesito al menos ${prompt.minLength} caracteres.`;
+      return null;
+    }
+    if (prompt.maxLength && sanitized.length > prompt.maxLength) {
+      // Truncate instead of rejecting
+      return sanitized.substring(0, prompt.maxLength);
+    }
+    return sanitized;
   }
+
+  private _lastValidationError: string | null = null;
 
   /** Normalize text removing diacritics for robust matching. */
   private normalizeText(s: string): string {
@@ -230,15 +291,31 @@ export class VoiceAssistantComponent implements OnDestroy {
    * confirmation (not the whole question), up to 2 retries.
    */
   private async captureConfirmation(retries: number = 0): Promise<void> {
+    if (this.aborted) return;
     try {
       // tts.speak already resolves on onend; no additional delay needed
       // (a tiny yield gives the event loop time to release the mic)
       await this.wait(0);
+      if (this.aborted) return;
 
       // Reset interim text so the user gets fresh visual feedback
       this.interimText.set('');
+      this.sound.beepStart();
       const raw = await this.stt.listenOnce(this.language(), (t) => this.interimText.set(t));
+      if (this.aborted) return;
+      this.sound.beepEnd();
       const text = this.normalizeText(raw || '');
+
+      // Control commands also work during confirmation
+      const command = this.detectControlCommand(raw || '');
+      if (command === 'back') {
+        await this.goToPrevious();
+        return;
+      }
+      if (command === 'cancel') {
+        this.cancel();
+        return;
+      }
 
       // Broader yes/no vocabulary (Spanish + a few English words)
       const yesPattern = /\b(si|sii+|sip|claro|correcto|confirmo|afirmativo|ok|okay|vale|de acuerdo|yes|yep|acepto)\b/;
@@ -250,7 +327,7 @@ export class VoiceAssistantComponent implements OnDestroy {
       }
 
       if (noPattern.test(text)) {
-        await this.tts.speak('De acuerdo, repetimos.', this.language());
+        await this.say('De acuerdo, repetimos.');
         await this.askCurrent();
         return;
       }
@@ -260,11 +337,11 @@ export class VoiceAssistantComponent implements OnDestroy {
         const hint = text
           ? 'No entendí si dijiste sí o no. Por favor responde sí para aceptar o no para repetir.'
           : 'No te escuché. Por favor di sí para aceptar o no para repetir.';
-        await this.tts.speak(hint, this.language());
+        await this.say(hint);
         await this.captureConfirmation(retries + 1);
       } else {
         // Too many retries → fall back to re-asking the field
-        await this.tts.speak('Vamos a repetir la pregunta.', this.language());
+        await this.say('Vamos a repetir la pregunta.');
         await this.askCurrent();
       }
     } catch (err: any) {
@@ -310,6 +387,51 @@ export class VoiceAssistantComponent implements OnDestroy {
   }
 
   /**
+   * Detect control commands the user can use at any point in the survey.
+   * Returns null if not a control command (so the text is treated as an answer).
+   *
+   * - back: "atrás", "volver", "anterior", "regresa"
+   * - cancel: "cancelar", "salir", "terminar"
+   * - repeat: "repetir", "repite", "otra vez", "no entendí" (cuando el asistente preguntó)
+   */
+  private detectControlCommand(text: string): 'back' | 'cancel' | 'repeat' | null {
+    const norm = this.normalizeText(text || '');
+    if (!norm) return null;
+
+    // Order matters: more specific patterns first
+    if (/\b(cancelar|cancela|salir|sal del asistente|terminar|abortar|adios)\b/.test(norm)) {
+      return 'cancel';
+    }
+    if (/\b(atras|volver|anterior|regresa|regresar|previa|pregunta anterior|vuelve)\b/.test(norm)) {
+      return 'back';
+    }
+    if (/^(repetir|repite|repeti|otra vez|de nuevo|no entendi|no escuche)$/.test(norm)) {
+      return 'repeat';
+    }
+    return null;
+  }
+
+  /**
+   * Go back to the previous prompt. Clears the answer of the previous field
+   * so the user can re-record it.
+   */
+  protected async goToPrevious(): Promise<void> {
+    const idx = this.currentIndex();
+    if (idx === 0) {
+      await this.say('Estás en la primera pregunta. No hay una pregunta anterior.');
+      await this.askCurrent();
+      return;
+    }
+    this.currentIndex.update((i) => i - 1);
+    const prev = this.currentPrompt();
+    if (prev) {
+      delete this.answers[prev.key];
+    }
+    await this.say('De acuerdo, volvemos a la pregunta anterior.');
+    await this.askCurrent();
+  }
+
+  /**
    * Detect skip phrases (only honored when the current prompt is optional).
    * Examples: "no tengo", "saltar", "siguiente", "no aplica", "ninguno",
    * "paso", "omitir", "no quiero responder", "sin correo".
@@ -322,11 +444,58 @@ export class VoiceAssistantComponent implements OnDestroy {
     );
   }
 
+  /**
+   * Returns the captured answers as an ordered list with their prompt metadata.
+   * Used by the review screen to display the summary.
+   */
+  protected reviewEntries(): Array<{ key: string; label: string; value: string }> {
+    return this._prompts()
+      .filter((p) => this.answers[p.key])
+      .map((p) => {
+        // Try to extract a clean label from the question (everything before the first ?)
+        const labelMatch = p.question.match(/^¿.*?\b(\w[\w\s]+?)\?/i);
+        const fallback = p.question.replace(/\?.*/, '').replace(/^¿/, '').trim();
+        return {
+          key: p.key,
+          label: labelMatch ? labelMatch[1] : fallback,
+          value: this.answers[p.key],
+        };
+      });
+  }
+
+  /**
+   * Go back to a specific prompt to edit its answer.
+   */
+  protected async editField(key: string): Promise<void> {
+    const idx = this._prompts().findIndex((p) => p.key === key);
+    if (idx < 0) return;
+    this.currentIndex.set(idx);
+    delete this.answers[key];
+    await this.say('De acuerdo, repitamos esa pregunta.');
+    await this.askCurrent();
+  }
+
+  /**
+   * Confirm the survey from the review screen and complete it.
+   */
+  protected async confirmReview(): Promise<void> {
+    await this.completeSurvey();
+  }
+
   private async finish(): Promise<void> {
+    // Enter review state: show captured answers and allow editing
+    this.state.set('reviewing');
+    await this.say(
+      'Listo, terminamos de capturar los datos. Revisa el resumen y dime si está todo correcto o quieres cambiar algo.'
+    );
+    // The component waits for the user to either click "Confirmar" or "Editar".
+    // Confirmation is handled by confirmReview() which calls completeSurvey().
+  }
+
+  private async completeSurvey(): Promise<void> {
     this.state.set('summary');
-    await this.tts.speak(
-      'Listo, terminamos. Voy a llenar el formulario con tus datos. Por favor revísalos antes de enviar.',
-      this.language()
+    await this.say(
+      'Perfecto. Llenamos el formulario con tus datos. Por favor revísalos antes de enviar.'
     );
     this.state.set('done');
     this.surveyComplete.emit({ ...this.answers });
@@ -338,9 +507,16 @@ export class VoiceAssistantComponent implements OnDestroy {
   }
 
   protected cancel(): void {
+    // 1. Stop any pending async work in the survey flow
+    this.aborted = true;
+    // 2. Cancel any speech currently playing
     this.tts.cancel();
+    // 3. Close panel and reset visible state
     this.open.set(false);
     this.state.set('idle');
+    this.interimText.set('');
+    this.capturedValue.set('');
+    // 4. Notify caller and clear promise handles
     this.surveyCancelled.emit();
     this.rejectSurvey?.(new Error('Cancelado por el usuario'));
     this.resolveSurvey = null;
