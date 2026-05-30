@@ -35,6 +35,7 @@ from . import auth
 from . import otp
 from . import ai
 from . import external
+from . import settings
 from . import shared
 
 # Re-export shared utilities at package level
