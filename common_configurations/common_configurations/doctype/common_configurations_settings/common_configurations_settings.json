@@ -1,0 +1,128 @@
+{
+ "actions": [],
+ "creation": "2026-05-18 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_voice_assistant",
+  "enable_voice_assistant",
+  "voice_assistant_name",
+  "column_break_voice",
+  "voice_assistant_language",
+  "section_voice_assistant_ai",
+  "enable_voice_assistant_ai",
+  "voice_assistant_ai_configuration",
+  "column_break_voice_ai",
+  "voice_assistant_ai_help_html"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_voice_assistant",
+   "fieldtype": "Section Break",
+   "label": "Voice Assistant"
+  },
+  {
+   "default": "0",
+   "description": "Habilita el asistente de voz en el Portal de Servicios (MVP, sin IA). Activado: aparece el botón flotante 🎤 en el portal.",
+   "fieldname": "enable_voice_assistant",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Habilitar Asistente de Voz"
+  },
+  {
+   "default": "Asistente",
+   "depends_on": "eval:doc.enable_voice_assistant",
+   "description": "Nombre con el que el asistente se presenta al usuario (ej: Asistente, Nora, Nexa)",
+   "fieldname": "voice_assistant_name",
+   "fieldtype": "Data",
+   "label": "Nombre del Asistente"
+  },
+  {
+   "fieldname": "column_break_voice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "es-ES",
+   "depends_on": "eval:doc.enable_voice_assistant",
+   "description": "Idioma de la voz (síntesis y reconocimiento)",
+   "fieldname": "voice_assistant_language",
+   "fieldtype": "Select",
+   "label": "Idioma del Asistente",
+   "options": "es-ES\nes-CO\nes-MX\nen-US"
+  },
+  {
+   "depends_on": "eval:doc.enable_voice_assistant",
+   "fieldname": "section_voice_assistant_ai",
+   "fieldtype": "Section Break",
+   "label": "Modo Inteligente (IA)"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.enable_voice_assistant",
+   "description": "Habilita parseo natural con IA: el usuario puede hablar libremente y el asistente extrae datos, hace correcciones y conversa con naturalidad. Requiere una Configuración de IA válida.",
+   "fieldname": "enable_voice_assistant_ai",
+   "fieldtype": "Check",
+   "label": "Habilitar Modo IA"
+  },
+  {
+   "depends_on": "eval:doc.enable_voice_assistant_ai",
+   "description": "Configuración de IA que el asistente usará. Debe estar activa y tener proveedor, modelo y API Key configurados.",
+   "fieldname": "voice_assistant_ai_configuration",
+   "fieldtype": "Link",
+   "label": "Configuración de IA",
+   "mandatory_depends_on": "eval:doc.enable_voice_assistant_ai",
+   "options": "AI Configuration"
+  },
+  {
+   "fieldname": "column_break_voice_ai",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.enable_voice_assistant_ai",
+   "fieldname": "voice_assistant_ai_help_html",
+   "fieldtype": "HTML",
+   "label": "",
+   "options": "<div style='padding:12px; background:#eff6ff; border-left:4px solid #2563eb; border-radius:4px; font-size:13px;'><strong>Validación:</strong> al guardar, el sistema verifica que la Configuración de IA tenga proveedor activo, modelo y API Key. Si algo falta, el guardado falla con el detalle.</div>"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Common Configurations Settings",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 0,
+   "export": 0,
+   "print": 1,
+   "read": 1,
+   "report": 0,
+   "role": "Common Config Manager",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
