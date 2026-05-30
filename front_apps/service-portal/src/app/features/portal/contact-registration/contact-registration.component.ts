@@ -543,6 +543,7 @@ export class ContactRegistrationComponent implements OnInit {
       const isOptional = !f.reqd;
       let question = `¿Cuál es tu ${label.toLowerCase()}?`;
       let sanitize: ((v: string) => string | null) | undefined;
+      let minLength: number | undefined;
 
       // Customize question + sanitizer per fieldtype
       if (f.fieldtype === 'Select' && f.options) {
@@ -565,12 +566,15 @@ export class ContactRegistrationComponent implements OnInit {
       } else if (f.fieldname === 'document' || (f.label || '').toLowerCase().includes('documento')) {
         question = `¿Cuál es tu número de ${label.toLowerCase()}? Por favor díctalo dígito por dígito.`;
         sanitize = (v: string) => sanitizeDigits(v);
+        minLength = 6; // Documentos colombianos típicamente 6-10 dígitos
       } else if (f.fieldtype === 'Data' && (f.options === 'Email' || (f.label || '').toLowerCase().includes('correo'))) {
         question = `¿Cuál es tu correo electrónico? Puedes decir arroba, punto y guion para los símbolos.`;
         sanitize = (v: string) => sanitizeEmail(v);
+        minLength = 5; // a@b.c mínimo
       } else if ((f.label || '').toLowerCase().includes('teléfono') || (f.label || '').toLowerCase().includes('telefono')) {
         question = `¿Cuál es tu número de teléfono?`;
         sanitize = (v: string) => sanitizeDigits(v, true);
+        minLength = 7;
       }
 
       return {
@@ -578,6 +582,7 @@ export class ContactRegistrationComponent implements OnInit {
         question,
         sanitize,
         optional: isOptional,
+        minLength,
         confirmTemplate: (val) => `Entendí ${val} para ${label.toLowerCase()}. ¿Es correcto? Di sí o no.`,
       };
     });
