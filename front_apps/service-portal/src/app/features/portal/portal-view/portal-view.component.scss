@@ -7,13 +7,28 @@
   width: 100%;
 }
 
-// 3-zone layout: left aside | main | right aside
+// 3-zone layout: left aside | main | right aside.
+// Columns adapt to whether announcements asides are actually rendered.
+// Without these modifiers, CSS Grid auto-placement would shrink portal-main
+// to the first `auto` column when asides are missing → tools collapse to 1 col.
 .portal-layout {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
   width: 100%;
+
+  &.has-left {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  &.has-right {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  &.has-left.has-right {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
 }
 
 .portal-main {

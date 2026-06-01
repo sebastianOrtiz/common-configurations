@@ -63,6 +63,28 @@ export class ProceduresToolComponent implements OnInit {
   // Procedures list
   protected procedures = signal<Procedure[]>([]);
   protected selectedProcedure = signal<Procedure | null>(null);
+  protected expandedDescriptions = signal<Set<string>>(new Set());
+
+  /** Heuristic to decide whether the "Ver más" toggle should appear at all. */
+  protected readonly DESCRIPTION_CLAMP_THRESHOLD = 200;
+
+  protected isExpanded(name: string): boolean {
+    return this.expandedDescriptions().has(name);
+  }
+
+  protected isLong(description?: string): boolean {
+    return !!description && description.length > this.DESCRIPTION_CLAMP_THRESHOLD;
+  }
+
+  protected toggleDescription(name: string, event: Event): void {
+    event.stopPropagation();
+    this.expandedDescriptions.update((current) => {
+      const next = new Set(current);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
 
   // Form state (internal procedure)
   protected userContext = signal<string>('');

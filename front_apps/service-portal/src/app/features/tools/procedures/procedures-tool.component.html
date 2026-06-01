@@ -58,11 +58,16 @@
       } @else {
         <div class="procedures-grid">
           @for (procedure of procedures(); track procedure.name) {
-            <button
+            <div
               class="procedure-card"
+              role="button"
+              tabindex="0"
               [class.internal]="procedure.procedure_type === 'internal'"
               [class.external]="procedure.procedure_type === 'external'"
+              [class.expanded]="isExpanded(procedure.name)"
               (click)="selectProcedure(procedure)"
+              (keydown.enter)="selectProcedure(procedure)"
+              (keydown.space)="selectProcedure(procedure)"
             >
               @if (procedure.icon) {
                 <img [src]="procedure.icon" [alt]="procedure.title" class="procedure-icon-img" />
@@ -78,7 +83,19 @@
               <div class="procedure-info">
                 <h3>{{ procedure.title }}</h3>
                 @if (procedure.description) {
-                  <p>{{ procedure.description }}</p>
+                  <p
+                    class="procedure-description"
+                    [class.clamped]="isLong(procedure.description) && !isExpanded(procedure.name)"
+                  >{{ procedure.description }}</p>
+                  @if (isLong(procedure.description)) {
+                    <button
+                      type="button"
+                      class="btn-toggle-description"
+                      (click)="toggleDescription(procedure.name, $event)"
+                    >
+                      {{ isExpanded(procedure.name) ? 'Ver menos' : 'Ver más' }}
+                    </button>
+                  }
                 }
               </div>
               <div class="procedure-badge" [class.external-badge]="procedure.procedure_type === 'external'">
@@ -90,7 +107,7 @@
                   Iniciar
                 }
               </div>
-            </button>
+            </div>
           }
         </div>
       }

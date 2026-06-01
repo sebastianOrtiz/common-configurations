@@ -22,7 +22,11 @@
 
     <!-- Portal layout: left aside | main | right aside -->
     @if (!loading() && !error() && portal()) {
-      <div class="portal-layout">
+      <div
+        class="portal-layout"
+        [class.has-left]="!!portal()!.announcements_left?.announcements?.length"
+        [class.has-right]="!!portal()!.announcements_right?.announcements?.length"
+      >
 
         @if (portal()!.announcements_left?.announcements?.length) {
           <aside class="announcements-aside announcements-left">
