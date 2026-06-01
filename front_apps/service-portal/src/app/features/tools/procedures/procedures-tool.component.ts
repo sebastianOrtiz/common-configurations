@@ -6,13 +6,16 @@
  * - External procedures: show an info modal and register a Procedure Request automatically
  */
 
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { SettingsService } from '../../../core/services/settings.service';
+import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
+import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 interface Procedure {
@@ -40,7 +43,7 @@ type ViewState = 'list' | 'form' | 'confirm' | 'external';
 @Component({
   selector: 'app-procedures-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent, IconComponent],
+  imports: [CommonModule, FormsModule, VoiceInputComponent, VoiceAssistantComponent, IconComponent],
   templateUrl: './procedures-tool.component.html',
   styleUrls: ['./procedures-tool.component.scss']
 })
@@ -48,6 +51,10 @@ export class ProceduresToolComponent implements OnInit {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  protected settingsService = inject(SettingsService);
+  private promptBuilder = inject(VoicePromptBuilder);
+
+  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
@@ -242,6 +249,36 @@ export class ProceduresToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.portal_name, 'register']);
+    }
+  }
+
+  // ============================================================
+  // Voice Assistant integration
+  // ============================================================
+
+  get isVoiceAssistantAvailable(): boolean {
+    return this.settingsService.isVoiceAssistantEnabled();
+  }
+
+  async startVoiceAssistant(): Promise<void> {
+    if (!this.voiceAssistant) return;
+
+    const procTitle = this.selectedProcedure()?.title?.toLowerCase() || 'trámite';
+
+    const prompt = this.promptBuilder.text({
+      key: 'user_context',
+      label: 'detalles del trámite',
+      question: `Cuéntame los detalles de tu ${procTitle}: tu situación, fechas, lugares, personas involucradas y lo que esperas como resultado.`,
+      minLength: 10,
+    });
+
+    try {
+      const answers = await this.voiceAssistant.startSurvey([prompt]);
+      if (answers['user_context']) {
+        this.userContext.set(answers['user_context']);
+      }
+    } catch {
+      // Cancelado por el usuario
     }
   }
 }
