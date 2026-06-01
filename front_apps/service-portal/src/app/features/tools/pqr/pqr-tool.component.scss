@@ -134,6 +134,28 @@
   line-height: 1.5;
 }
 
+/* ===== VOICE ASSISTANT TRIGGER ===== */
+.btn-voice-assistant {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.625rem 1.125rem;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+  }
+}
+
 /* ===== FORM ===== */
 .pqr-form-container {
   background: #ffffff;

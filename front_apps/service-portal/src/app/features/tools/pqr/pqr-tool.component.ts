@@ -10,14 +10,17 @@
  * OR if the user is not logged in (always treated as anonymous).
  */
 
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { SettingsService } from '../../../core/services/settings.service';
+import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
+import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 
 interface PQRType {
   name: string;
@@ -48,7 +51,7 @@ type ViewState = 'list' | 'form' | 'confirm';
 @Component({
   selector: 'app-pqr-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, VoiceInputComponent],
+  imports: [CommonModule, FormsModule, IconComponent, VoiceInputComponent, VoiceAssistantComponent],
   templateUrl: './pqr-tool.component.html',
   styleUrls: ['./pqr-tool.component.scss']
 })
@@ -56,6 +59,10 @@ export class PqrToolComponent implements OnInit {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  protected settingsService = inject(SettingsService);
+  private promptBuilder = inject(VoicePromptBuilder);
+
+  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
@@ -205,6 +212,59 @@ export class PqrToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.portal_name, 'register']);
+    }
+  }
+
+  // ============================================================
+  // Voice Assistant integration
+  // ============================================================
+
+  get isVoiceAssistantAvailable(): boolean {
+    return this.settingsService.isVoiceAssistantEnabled();
+  }
+
+  protected async startVoiceAssistant(): Promise<void> {
+    if (!this.voiceAssistant) return;
+
+    const typeLabel = this.selectedType()?.label?.toLowerCase() || 'PQR';
+    const canAskAnonymous = !this.isAnonymousUser() && this.allowAnonymous();
+
+    const prompts = [
+      this.promptBuilder.text({
+        key: 'subject',
+        label: 'asunto',
+        question: `¿Cuál es el asunto de tu ${typeLabel}? Resúmelo en una frase corta.`,
+        minLength: 3,
+        maxLength: 200,
+      }),
+      this.promptBuilder.text({
+        key: 'description',
+        label: 'descripción',
+        question:
+          'Cuéntame los detalles del caso. Sé tan específico como quieras: fechas, lugares, personas involucradas y lo que esperas como respuesta.',
+        minLength: 10,
+      }),
+    ];
+
+    if (canAskAnonymous) {
+      prompts.push(
+        this.promptBuilder.yesNo({
+          key: 'is_anonymous',
+          question:
+            '¿Quieres enviar esta PQR de forma anónima? Si dices que sí, tu identidad no quedará asociada y no podrás consultar el estado después.',
+        }),
+      );
+    }
+
+    try {
+      const answers = await this.voiceAssistant.startSurvey(prompts);
+      if (answers['subject']) this.subject.set(answers['subject']);
+      if (answers['description']) this.description.set(answers['description']);
+      if (canAskAnonymous && answers['is_anonymous'] !== undefined) {
+        this.sendAsAnonymous.set(answers['is_anonymous'] === '1');
+      }
+    } catch {
+      // Cancelado por el usuario
     }
   }
 

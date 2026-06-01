@@ -36,6 +36,7 @@ Documentación exhaustiva de los DocTypes definidos por la app. Cada archivo des
 | `API Service` + `API Service Key` | Standard + Child | [doctypes/API_SERVICE.md](doctypes/API_SERVICE.md) |
 | `AI Provider` + `AI Model` + `AI Configuration` | Standard + Child + Standard | [doctypes/AI_CONFIGURATION.md](doctypes/AI_CONFIGURATION.md) |
 | `OTP Settings` + `SMS Provider` | Single + Standard | [doctypes/OTP_SETTINGS.md](doctypes/OTP_SETTINGS.md) |
+| `Common Configurations Settings` | Single | [doctypes/COMMON_CONFIGURATIONS_SETTINGS.md](doctypes/COMMON_CONFIGURATIONS_SETTINGS.md) |
 
 > El DocType `Service Portal` también tiene una especificación funcional histórica en [SERVICE_PORTAL.md](SERVICE_PORTAL.md) (raíz de `docs/`).
 
@@ -53,6 +54,7 @@ Cada archivo describe los endpoints disponibles, parámetros, rate limits, auten
 | OTP | [api/OTP.md](api/OTP.md) | `request_otp`, `verify_otp`, `request_registration_otp`, `verify_registration_otp`, etc. |
 | AI | [api/AI.md](api/AI.md) | `get_ai_client` (Python helper para OpenAI / Anthropic / Google) |
 | External (API Key) | [api/EXTERNAL.md](api/EXTERNAL.md) | `lookup_contact`, `register_contact` |
+| Settings | [api/SETTINGS.md](api/SETTINGS.md) | `get_public_settings`, `diagnose_voice_assistant_ai` |
 | Shared utilities | [api/SHARED.md](api/SHARED.md) | `security.py`, `rate_limit.py`, `validators.py`, `api_key.py`, `email.py`, `exceptions.py` |
 
 ---
@@ -68,6 +70,7 @@ Documentación de los sistemas transversales que combinan varios módulos.
 | Frontend Angular del Service Portal | [features/SERVICE_PORTAL_FRONTEND.md](features/SERVICE_PORTAL_FRONTEND.md) |
 | Tool `quick_link` (Enlace Directo) | [features/QUICK_LINK_TOOL.md](features/QUICK_LINK_TOOL.md) |
 | Módulo de Anuncios (Announcements) | [features/ANNOUNCEMENTS.md](features/ANNOUNCEMENTS.md) |
+| Asistente de Voz del Service Portal | [features/VOICE_ASSISTANT.md](features/VOICE_ASSISTANT.md) |
 
 ---
 

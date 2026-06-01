@@ -5,13 +5,16 @@
  * without needing to create an Appointment first.
  */
 
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { SettingsService } from '../../../core/services/settings.service';
+import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
+import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 interface CreatedEntry {
@@ -26,7 +29,7 @@ interface CreatedEntry {
 @Component({
   selector: 'app-create-logbook-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent, IconComponent],
+  imports: [CommonModule, FormsModule, VoiceInputComponent, VoiceAssistantComponent, IconComponent],
   templateUrl: './create-logbook-tool.component.html',
   styleUrls: ['./create-logbook-tool.component.scss']
 })
@@ -34,6 +37,10 @@ export class CreateLogbookToolComponent implements OnInit {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  protected settingsService = inject(SettingsService);
+  private promptBuilder = inject(VoicePromptBuilder);
+
+  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
   // State
   protected selectedPortal = this.stateService.selectedPortal;
@@ -136,6 +143,35 @@ export class CreateLogbookToolComponent implements OnInit {
     const portal = this.selectedPortal();
     if (portal) {
       this.router.navigate(['/portal', portal.portal_name, 'register']);
+    }
+  }
+
+  // ============================================================
+  // Voice Assistant integration
+  // ============================================================
+
+  get isVoiceAssistantAvailable(): boolean {
+    return this.settingsService.isVoiceAssistantEnabled();
+  }
+
+  async startVoiceAssistant(): Promise<void> {
+    if (!this.voiceAssistant) return;
+
+    const prompt = this.promptBuilder.text({
+      key: 'user_context',
+      label: 'caso o necesidad',
+      question:
+        'Cuéntame con detalle el caso o necesidad que quieres registrar en tu bitácora.',
+      minLength: 10,
+    });
+
+    try {
+      const answers = await this.voiceAssistant.startSurvey([prompt]);
+      if (answers['user_context']) {
+        this.userContext.set(answers['user_context']);
+      }
+    } catch {
+      // Cancelado por el usuario
     }
   }
 }

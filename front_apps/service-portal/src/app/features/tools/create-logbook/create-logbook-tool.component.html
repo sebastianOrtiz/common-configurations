@@ -44,6 +44,13 @@
           </div>
         </div>
 
+        @if (isVoiceAssistantAvailable) {
+          <button type="button" class="btn-voice-assistant" (click)="startVoiceAssistant()">
+            <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
+            Llenar con asistente de voz
+          </button>
+        }
+
         <div class="form-group">
           <label for="userContext">Describe tu caso o necesidad</label>
           <textarea
@@ -85,6 +92,9 @@
     </div>
   }
 </div>
+
+<!-- Voice Assistant (modal flotante) -->
+<app-voice-assistant></app-voice-assistant>
 
 <!-- Confirmation Modal -->
 @if (showConfirmModal()) {

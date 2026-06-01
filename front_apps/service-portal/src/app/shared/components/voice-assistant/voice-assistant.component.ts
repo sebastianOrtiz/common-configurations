@@ -34,28 +34,11 @@ import { TtsService } from '../../../core/services/voice/tts.service';
 import { SttService } from '../../../core/services/voice/stt.service';
 import { SoundService } from '../../../core/services/voice/sound.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
 import { IconComponent } from '../icon/icon.component';
 
-export interface VoicePrompt {
-  /** Field key, used in the returned map */
-  key: string;
-  /** Question text — spoken aloud and shown on screen */
-  question: string;
-  /** Optional confirmation phrase after capturing the value */
-  confirmTemplate?: (value: string) => string;
-  /** Optional client-side sanitizer/validator. Return null/false to mark invalid. */
-  sanitize?: (value: string) => string | null;
-  /**
-   * If true, the user can skip this question by saying things like
-   * "no tengo", "saltar", "siguiente", "no aplica", "ninguno".
-   * The skip pattern is checked BEFORE the sanitizer runs.
-   */
-  optional?: boolean;
-  /** Minimum length the sanitized value must have to be accepted (e.g. 6 for cédula) */
-  minLength?: number;
-  /** Maximum length (truncates or rejects) */
-  maxLength?: number;
-}
+// Re-export so existing consumers (e.g. contact-registration) keep working
+export type { VoicePrompt };
 
 type AssistantState =
   | 'idle'
@@ -220,8 +203,15 @@ export class VoiceAssistantComponent implements OnDestroy {
       const sanitized = this.applySanitizer(text);
 
       if (prompt && sanitized) {
-        // Valid match → move to confirming with the sanitized value
         this.capturedValue.set(sanitized);
+
+        // Binary prompts (yes/no) skip the redundant read-back confirmation.
+        if (prompt.skipConfirmation) {
+          await this.acceptCurrent();
+          return;
+        }
+
+        // Valid match → move to confirming with the sanitized value
         this.state.set('confirming');
         const confirmText =
           prompt.confirmTemplate?.(sanitized) ||
@@ -483,13 +473,129 @@ export class VoiceAssistantComponent implements OnDestroy {
   }
 
   private async finish(): Promise<void> {
+    if (this.aborted) return;
     // Enter review state: show captured answers and allow editing
     this.state.set('reviewing');
     await this.say(
-      'Listo, terminamos de capturar los datos. Revisa el resumen y dime si está todo correcto o quieres cambiar algo.'
+      'Listo, terminamos. Revisa el resumen. Para confirmar di "sí" o "confirmar". Si quieres cambiar algo di "editar" y el nombre del campo, o usa los botones.'
     );
-    // The component waits for the user to either click "Confirmar" or "Editar".
-    // Confirmation is handled by confirmReview() which calls completeSurvey().
+    if (this.aborted) return;
+    await this.captureReviewResponse();
+  }
+
+  /**
+   * Listen for the user's voice response on the review screen.
+   * - "sí" / "confirmar" / "acepto" → complete the survey
+   * - "no" / "cambiar" → ask which field (or hint to use buttons)
+   * - "editar <campo>" → jump to that field for editing
+   * - "atrás" → go back to the last prompt
+   * - "cancelar" → cancel the survey
+   * If nothing valid is captured, hint and wait (the user can still use buttons).
+   */
+  private async captureReviewResponse(retries: number = 0): Promise<void> {
+    if (this.aborted) return;
+    if (this.state() !== 'reviewing') return; // safety: user may have already clicked a button
+
+    try {
+      this.interimText.set('');
+      this.sound.beepStart();
+      const raw = await this.stt.listenOnce(this.language(), (t) => this.interimText.set(t));
+      if (this.aborted) return;
+      this.sound.beepEnd();
+      if (this.state() !== 'reviewing') return; // user clicked confirm/edit during listen
+      const text = this.normalizeText(raw || '');
+
+      // Universal control commands
+      const command = this.detectControlCommand(raw || '');
+      if (command === 'cancel') {
+        this.cancel();
+        return;
+      }
+      if (command === 'back') {
+        // Edit the last captured field
+        const entries = this.reviewEntries();
+        if (entries.length > 0) {
+          await this.editField(entries[entries.length - 1].key);
+        }
+        return;
+      }
+
+      // Yes → confirm
+      const yesPattern =
+        /\b(si|sii+|sip|claro|correcto|confirmo|confirmar|acepto|afirmativo|ok|okay|vale|de acuerdo|todo bien|esta bien|listo|enviar)\b/;
+      if (yesPattern.test(text)) {
+        await this.completeSurvey();
+        return;
+      }
+
+      // Edit a specific field: "editar nombre", "cambiar correo", "modifica telefono"
+      const editMatch = text.match(/\b(editar|edita|cambiar|cambia|modificar|modifica|corregir|corrige)\s+(.+)/);
+      if (editMatch) {
+        const target = editMatch[2].trim();
+        const matchedKey = this.findFieldByText(target);
+        if (matchedKey) {
+          await this.editField(matchedKey);
+          return;
+        }
+        // Couldn't match the field name
+        await this.say(
+          `No encontré un campo que coincida con "${target}". Por favor di el nombre de uno de los campos del resumen o usa los botones.`
+        );
+        if (this.aborted) return;
+        await this.captureReviewResponse(retries + 1);
+        return;
+      }
+
+      // Plain "no" / "cambiar" without a target field
+      const noPattern = /\b(no|nop|incorrecto|cambiar|cambia|editar|edita|corregir)\b/;
+      if (noPattern.test(text)) {
+        const entries = this.reviewEntries();
+        const list = entries.map((e) => e.label).join(', ');
+        await this.say(
+          `Los campos disponibles para editar son: ${list}. Di "editar" y el nombre del campo que quieres cambiar.`
+        );
+        if (this.aborted) return;
+        await this.captureReviewResponse(retries + 1);
+        return;
+      }
+
+      // Nothing matched
+      if (retries < 2) {
+        const hint = text
+          ? 'No entendí. Di "sí" para confirmar, o "editar" y el nombre del campo para cambiarlo.'
+          : 'No te escuché. Di "sí" para confirmar o usa los botones.';
+        await this.say(hint);
+        if (this.aborted) return;
+        await this.captureReviewResponse(retries + 1);
+      }
+      // After max retries we stop listening — user can still use the buttons.
+    } catch (err: any) {
+      if (this.aborted) return;
+      this.errorMessage.set(err?.message || 'Error de reconocimiento de voz');
+      this.state.set('error');
+    }
+  }
+
+  /**
+   * Find a prompt key by matching the spoken text against the prompt's label.
+   * Uses normalized comparison (lowercase, no diacritics) and partial match.
+   */
+  private findFieldByText(spoken: string): string | null {
+    const target = this.normalizeText(spoken);
+    if (!target) return null;
+    const entries = this.reviewEntries();
+
+    // Exact label match first
+    for (const e of entries) {
+      const label = this.normalizeText(e.label);
+      if (label === target) return e.key;
+    }
+    // Partial match (one contains the other)
+    for (const e of entries) {
+      const label = this.normalizeText(e.label);
+      if (label.includes(target) || target.includes(label)) return e.key;
+    }
+    return null;
   }
 
   private async completeSurvey(): Promise<void> {

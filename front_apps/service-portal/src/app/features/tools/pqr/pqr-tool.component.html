@@ -84,6 +84,13 @@
         </div>
       </div>
 
+      @if (isVoiceAssistantAvailable) {
+        <button type="button" class="btn-voice-assistant" (click)="startVoiceAssistant()">
+          <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
+          Llenar con asistente de voz
+        </button>
+      }
+
       <div class="form-group">
         <label for="pqrSubject">
           Asunto
@@ -185,6 +192,9 @@
     </div>
   }
 </div>
+
+<!-- Voice Assistant (modal flotante, feature flagged) -->
+<app-voice-assistant></app-voice-assistant>
 
 <!-- Modal: Confirmation -->
 @if (view() === 'confirm' && createdPQR()) {

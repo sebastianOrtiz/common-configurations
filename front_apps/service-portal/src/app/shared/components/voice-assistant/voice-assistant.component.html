@@ -106,6 +106,9 @@
       @if (state() === 'reviewing') {
         <div class="va-review">
           <p class="va-review-title">Revisemos tus respuestas:</p>
+          <p class="va-skip-hint">
+            Di "sí" para confirmar, o "editar" y el nombre del campo para cambiarlo.
+          </p>
           <ul class="va-review-list">
             @for (entry of reviewEntries(); track entry.key) {
               <li class="va-review-item">
