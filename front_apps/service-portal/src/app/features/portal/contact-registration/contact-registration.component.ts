@@ -81,8 +81,33 @@ export class ContactRegistrationComponent implements OnInit {
       return;
     }
 
+    // Ensure the selected portal is loaded into state. Without this, users
+    // arriving directly at /portal/<x>/register (reload, shared link, bookmark)
+    // would see "Error de sesión" when submitting because selectedPortal()
+    // is null until the home view loads it.
+    this.ensurePortalLoaded();
+
     // Load User Contact DocType fields
     this.loadFields();
+  }
+
+  private ensurePortalLoaded(): void {
+    if (this.stateService.selectedPortal()) return;
+
+    const portalName = this.route.snapshot.paramMap.get('portalName');
+    if (!portalName) return;
+
+    this.portalService.getPortal(portalName).subscribe({
+      next: (portal) => {
+        if (portal) {
+          this.stateService.setSelectedPortal(portal);
+        }
+      },
+      error: (err) => {
+        console.error('Error loading portal:', err);
+        this.error.set('No se pudo cargar el portal. Verifica el enlace o intenta de nuevo.');
+      }
+    });
   }
 
   /**
