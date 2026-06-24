@@ -33,6 +33,8 @@ class HubService:
     def get_group_with_portals(cls, slug: str) -> Optional[Dict[str, Any]]:
         """
         Active group identified by `slug` with its active portals.
+        Joins through the child table `Tenant Portal Group Item` so a
+        portal can belong to multiple groups (many-to-many).
         Each portal carries the composed `target_url` so the frontend
         does not need to know about Destination CRM.
         """
@@ -60,19 +62,21 @@ class HubService:
                 tp.description,
                 tp.logo,
                 tp.requires_auth,
-                tp.display_order,
                 tp.portal_path,
                 tp.destination_crm,
                 crm.display_name AS crm_display_name,
                 crm.logo         AS crm_logo,
-                crm.base_url     AS crm_base_url
-            FROM `tabTenant Portal` tp
-            INNER JOIN `tabDestination CRM` crm
-                ON crm.name = tp.destination_crm
-            WHERE tp.group = %(group)s
+                crm.base_url     AS crm_base_url,
+                item.idx         AS display_order
+            FROM `tabTenant Portal Group Item` item
+            INNER JOIN `tabTenant Portal` tp        ON tp.name  = item.tenant_portal
+            INNER JOIN `tabDestination CRM` crm     ON crm.name = tp.destination_crm
+            WHERE item.parent = %(group)s
+              AND item.parenttype = 'Tenant Portal Group'
+              AND item.is_active_in_group = 1
               AND tp.is_active = 1
               AND crm.is_active = 1
-            ORDER BY tp.display_order ASC, tp.display_name ASC
+            ORDER BY item.idx ASC
             """,
             {"group": group["name"]},
             as_dict=True,

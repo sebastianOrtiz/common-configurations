@@ -1,8 +1,10 @@
 """
 Tenant Portal
 
-A single Service Portal indexed by the central Hub. Points to a remote
-Destination CRM (Frappe site) and a specific portal path inside it.
+A single external Service Portal indexed by the central Hub. Points to a
+remote Destination CRM (Frappe site) and a specific portal path inside
+it. Membership in one or more groups is modeled via the child table
+`Tenant Portal Group Item` on `Tenant Portal Group` (many-to-many).
 
 The hub composes the full target URL as:
     destination_crm.base_url + portal_path

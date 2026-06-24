@@ -14,7 +14,9 @@
   "display_order",
   "description",
   "section_appearance",
-  "banner_image"
+  "banner_image",
+  "section_portals",
+  "portals"
  ],
  "fields": [
   {
@@ -75,6 +77,18 @@
    "fieldname": "banner_image",
    "fieldtype": "Attach Image",
    "label": "Banner Image"
+  },
+  {
+   "fieldname": "section_portals",
+   "fieldtype": "Section Break",
+   "label": "Portals in this Group"
+  },
+  {
+   "description": "External service portals shown in this group. Reorder rows to change the display order.",
+   "fieldname": "portals",
+   "fieldtype": "Table",
+   "label": "Portals",
+   "options": "Tenant Portal Group Item"
   }
  ],
  "index_web_pages_for_search": 1,

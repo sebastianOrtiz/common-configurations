@@ -8,13 +8,11 @@
  "field_order": [
   "section_basic",
   "display_name",
-  "group",
   "destination_crm",
   "is_active",
   "column_break_basic",
   "portal_path",
   "requires_auth",
-  "display_order",
   "section_appearance",
   "logo",
   "description"
@@ -34,15 +32,6 @@
    "reqd": 1
   },
   {
-   "description": "Group this portal belongs to",
-   "fieldname": "group",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Group",
-   "options": "Tenant Portal Group",
-   "reqd": 1
-  },
-  {
    "description": "Destination CRM (Frappe site) that hosts this portal",
    "fieldname": "destination_crm",
    "fieldtype": "Link",
@@ -53,7 +42,7 @@
   },
   {
    "default": "1",
-   "description": "Inactive portals are hidden from the hub",
+   "description": "Inactive portals are hidden from all groups",
    "fieldname": "is_active",
    "fieldtype": "Check",
    "in_list_view": 1,
@@ -77,13 +66,6 @@
    "fieldtype": "Check",
    "in_list_view": 1,
    "label": "Requires Auth"
-  },
-  {
-   "default": "0",
-   "description": "Lower values appear first within its group",
-   "fieldname": "display_order",
-   "fieldtype": "Int",
-   "label": "Display Order"
   },
   {
    "fieldname": "section_appearance",
@@ -138,8 +120,8 @@
   }
  ],
  "row_format": "Dynamic",
- "sort_field": "display_order",
- "sort_order": "ASC",
+ "sort_field": "modified",
+ "sort_order": "DESC",
  "states": [],
  "title_field": "display_name",
  "track_changes": 1

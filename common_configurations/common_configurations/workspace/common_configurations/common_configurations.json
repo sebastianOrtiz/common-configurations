@@ -211,7 +211,7 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Services",
-   "link_count": 4,
+   "link_count": 5,
    "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
@@ -239,7 +239,7 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Destination CRM",
+   "label": "CRM Destino",
    "link_count": 0,
    "link_to": "Destination CRM",
    "link_type": "DocType",
@@ -249,15 +249,25 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tenant Portal Group",
+   "label": "Grupo de Portales",
    "link_count": 0,
    "link_to": "Tenant Portal Group",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tenant Portal",
+   "link_count": 0,
+   "link_to": "Tenant Portal",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-06-24 16:31:48.870869",
+ "modified": "2026-06-24 16:49:47.128481",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",
