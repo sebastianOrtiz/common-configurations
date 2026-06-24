@@ -35,6 +35,7 @@ from . import auth
 from . import otp
 from . import ai
 from . import external
+from . import hub
 from . import settings
 from . import shared
 
@@ -66,6 +67,7 @@ __all__ = [
     "otp",
     "ai",
     "external",
+    "hub",
     "shared",
     # Shared utilities
     "check_rate_limit",

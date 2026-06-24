@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:crm_name",
+ "creation": "2026-06-24 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_basic",
+  "crm_name",
+  "display_name",
+  "is_active",
+  "column_break_basic",
+  "base_url",
+  "contact_admin_email",
+  "section_appearance",
+  "logo",
+  "description",
+  "section_sso",
+  "hub_shared_secret"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_basic",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "description": "Unique internal slug (e.g. 'camara-comercio-la-dorada'). Lowercase, hyphens, no spaces.",
+   "fieldname": "crm_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "CRM Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "Visible name (e.g. 'Cámara de Comercio La Dorada')",
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Only active CRMs can be used by Tenant Portals",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Base URL of the destination Frappe site (e.g. 'https://camara.nexoraonline.co'). No trailing slash.",
+   "fieldname": "base_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Base URL",
+   "options": "URL",
+   "reqd": 1
+  },
+  {
+   "description": "Optional admin contact for SSO incident alerts",
+   "fieldname": "contact_admin_email",
+   "fieldtype": "Data",
+   "label": "Contact Admin Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "section_appearance",
+   "fieldtype": "Section Break",
+   "label": "Appearance"
+  },
+  {
+   "description": "Optional logo for the CRM (shown next to its portals in the hub)",
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "description": "Internal description (not shown to citizens)",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "section_sso",
+   "fieldtype": "Section Break",
+   "label": "SSO"
+  },
+  {
+   "description": "Shared secret used to sign SSO requests from the hub. Auto-generated and shown only once. Use the 'Regenerate Secret' button to rotate it.",
+   "fieldname": "hub_shared_secret",
+   "fieldtype": "Password",
+   "label": "Hub Shared Secret",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Destination CRM",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Common Config Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "display_name",
+ "track_changes": 1
+}

@@ -14,6 +14,16 @@ export const routes: Routes = [
     loadComponent: () => import('./features/portal/portal-selector/portal-selector.component').then(m => m.PortalSelectorComponent)
   },
 
+  // Tenant Hub: cross-tenant directory of Service Portals (public, no auth)
+  {
+    path: 'hub',
+    loadComponent: () => import('./features/hub/tenant-hub-list/tenant-hub-list.component').then(m => m.TenantHubListComponent)
+  },
+  {
+    path: 'hub/:slug',
+    loadComponent: () => import('./features/hub/tenant-hub-group/tenant-hub-group.component').then(m => m.TenantHubGroupComponent)
+  },
+
   // Portal view and tools (public - no authentication required)
   {
     path: 'portal/:portalName',

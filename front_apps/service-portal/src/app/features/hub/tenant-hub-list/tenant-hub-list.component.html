@@ -1,0 +1,62 @@
+<div class="tenant-hub-list">
+  <header class="hub-header">
+    <h1>Directorio de servicios</h1>
+    <p>
+      Encuentra el portal que necesitas. Selecciona una categoría para ver las
+      entidades disponibles.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="spinner"></span>
+      <p>Cargando categorías…</p>
+    </div>
+  } @else if (error()) {
+    <div class="error-state">
+      <app-icon name="AlertCircle" [size]="48" [strokeWidth]="1.5"></app-icon>
+      <p>{{ error() }}</p>
+      <button class="btn-primary" (click)="retry()">Reintentar</button>
+    </div>
+  } @else if (groups().length === 0) {
+    <div class="empty-state">
+      <app-icon name="Inbox" [size]="48" [strokeWidth]="1.5"></app-icon>
+      <h3>Aún no hay categorías</h3>
+      <p>El administrador todavía no ha publicado categorías en el directorio.</p>
+    </div>
+  } @else {
+    <div class="groups-grid">
+      @for (group of groups(); track group.name) {
+        <div
+          class="group-card"
+          role="button"
+          tabindex="0"
+          (click)="openGroup(group)"
+          (keydown.enter)="openGroup(group)"
+          (keydown.space)="openGroup(group)"
+        >
+          @if (group.banner_image) {
+            <img
+              class="group-banner"
+              [src]="group.banner_image"
+              [alt]="group.display_name"
+            />
+          } @else {
+            <div class="group-banner-placeholder">
+              <app-icon name="Folder" [size]="40" [strokeWidth]="1.5"></app-icon>
+            </div>
+          }
+          <div class="group-info">
+            <h3>{{ group.display_name }}</h3>
+            @if (group.description) {
+              <p>{{ group.description }}</p>
+            }
+          </div>
+          <div class="group-arrow">
+            <app-icon name="ChevronRight" [size]="24" [strokeWidth]="2"></app-icon>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

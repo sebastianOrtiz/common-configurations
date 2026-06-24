@@ -1,0 +1,82 @@
+<div class="tenant-hub-group">
+  <header class="group-header">
+    <button class="btn-back" (click)="goBack()">
+      <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
+      Directorio
+    </button>
+    @if (group()) {
+      <h1>{{ group()!.display_name }}</h1>
+      @if (group()!.description) {
+        <p>{{ group()!.description }}</p>
+      }
+    }
+  </header>
+
+  @if (error()) {
+    <div class="alert alert-info">
+      <app-icon name="Info" [size]="20" [strokeWidth]="2"></app-icon>
+      <span>{{ error() }}</span>
+      <button class="close-btn" (click)="error.set(null)">&times;</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="spinner"></span>
+      <p>Cargando portales…</p>
+    </div>
+  } @else if (group()) {
+    @if (group()!.portals.length === 0) {
+      <div class="empty-state">
+        <app-icon name="Inbox" [size]="48" [strokeWidth]="1.5"></app-icon>
+        <h3>Aún no hay portales</h3>
+        <p>El administrador todavía no ha publicado portales en esta categoría.</p>
+      </div>
+    } @else {
+      <div class="portals-grid">
+        @for (portal of group()!.portals; track portal.name) {
+          <div
+            class="portal-card"
+            role="button"
+            tabindex="0"
+            (click)="openPortal(portal)"
+            (keydown.enter)="openPortal(portal)"
+            (keydown.space)="openPortal(portal)"
+          >
+            @if (portal.effective_logo) {
+              <img
+                class="portal-logo"
+                [src]="portal.effective_logo"
+                [alt]="portal.display_name"
+              />
+            } @else {
+              <div class="portal-logo-placeholder">
+                <app-icon name="Globe" [size]="32" [strokeWidth]="1.5"></app-icon>
+              </div>
+            }
+            <div class="portal-info">
+              <h3>{{ portal.display_name }}</h3>
+              <p class="portal-crm">{{ portal.crm_display_name }}</p>
+              @if (portal.description) {
+                <p class="portal-description">{{ portal.description }}</p>
+              }
+            </div>
+            <div class="portal-action">
+              @if (portal.requires_auth) {
+                <span class="badge badge-auth">
+                  <app-icon name="LogOut" [size]="14" [strokeWidth]="2"></app-icon>
+                  Requiere ingreso
+                </span>
+              } @else {
+                <span class="badge badge-public">
+                  <app-icon name="ExternalLink" [size]="14" [strokeWidth]="2"></app-icon>
+                  Acceso público
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

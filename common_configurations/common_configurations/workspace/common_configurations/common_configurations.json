@@ -122,35 +122,6 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Services",
-   "link_count": 2,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Portal de servicio",
-   "link_count": 0,
-   "link_to": "Service Portal",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "API Service",
-   "link_count": 0,
-   "link_to": "API Service",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
    "label": "Advertising",
    "link_count": 2,
    "link_type": "DocType",
@@ -235,9 +206,58 @@
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Services",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Portal de servicio",
+   "link_count": 0,
+   "link_to": "Service Portal",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Servicio API",
+   "link_count": 0,
+   "link_to": "API Service",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Destination CRM",
+   "link_count": 0,
+   "link_to": "Destination CRM",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Tenant Portal Group",
+   "link_count": 0,
+   "link_to": "Tenant Portal Group",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
   }
  ],
- "modified": "2026-05-30 06:44:14.656259",
+ "modified": "2026-06-24 16:31:48.870869",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",

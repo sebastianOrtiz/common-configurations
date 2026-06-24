@@ -1,0 +1,146 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:TP-{####}",
+ "creation": "2026-06-24 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_basic",
+  "display_name",
+  "group",
+  "destination_crm",
+  "is_active",
+  "column_break_basic",
+  "portal_path",
+  "requires_auth",
+  "display_order",
+  "section_appearance",
+  "logo",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_basic",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "description": "Visible name shown on the portal card (e.g. 'Trámites y servicios')",
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name",
+   "reqd": 1
+  },
+  {
+   "description": "Group this portal belongs to",
+   "fieldname": "group",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Group",
+   "options": "Tenant Portal Group",
+   "reqd": 1
+  },
+  {
+   "description": "Destination CRM (Frappe site) that hosts this portal",
+   "fieldname": "destination_crm",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Destination CRM",
+   "options": "Destination CRM",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "description": "Inactive portals are hidden from the hub",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_basic",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Path of the portal on the destination site (e.g. '/service-portal/cc-la-dorada'). Will be appended to the CRM's base URL.",
+   "fieldname": "portal_path",
+   "fieldtype": "Data",
+   "label": "Portal Path",
+   "reqd": 1
+  },
+  {
+   "default": "0",
+   "description": "If checked, the hub forces login/SSO before sending the user to this portal.",
+   "fieldname": "requires_auth",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Requires Auth"
+  },
+  {
+   "default": "0",
+   "description": "Lower values appear first within its group",
+   "fieldname": "display_order",
+   "fieldtype": "Int",
+   "label": "Display Order"
+  },
+  {
+   "fieldname": "section_appearance",
+   "fieldtype": "Section Break",
+   "label": "Appearance"
+  },
+  {
+   "description": "Optional logo shown on the portal card (defaults to the CRM logo if empty)",
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "description": "Short description shown on the card",
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-24 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Tenant Portal",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Common Config Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "display_order",
+ "sort_order": "ASC",
+ "states": [],
+ "title_field": "display_name",
+ "track_changes": 1
+}
