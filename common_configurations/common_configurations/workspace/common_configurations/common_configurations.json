@@ -249,9 +249,9 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Grupo de Portales",
+   "label": "Portal de Servicio Externo",
    "link_count": 0,
-   "link_to": "Tenant Portal Group",
+   "link_to": "Tenant Portal",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
@@ -259,15 +259,15 @@
   {
    "hidden": 0,
    "is_query_report": 0,
-   "label": "Tenant Portal",
+   "label": "Grupo de Portales",
    "link_count": 0,
-   "link_to": "Tenant Portal",
+   "link_to": "Tenant Portal Group",
    "link_type": "DocType",
    "onboard": 0,
    "type": "Link"
   }
  ],
- "modified": "2026-06-24 16:49:47.128481",
+ "modified": "2026-06-24 17:06:36.423527",
  "modified_by": "Administrator",
  "module": "Common Configurations",
  "name": "Common Configurations",
