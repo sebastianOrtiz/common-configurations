@@ -12,6 +12,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { HubService } from '../hub.service';
 import { TenantPortal, TenantPortalGroupWithPortals } from '../hub.types';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { StateService } from '../../../core/services/state.service';
 
 @Component({
   selector: 'app-tenant-hub-group',
@@ -24,6 +25,7 @@ export class TenantHubGroupComponent implements OnInit {
   private hubService = inject(HubService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private stateService = inject(StateService);
 
   protected loading = signal<boolean>(true);
   protected error = signal<string | null>(null);
@@ -48,17 +50,26 @@ export class TenantHubGroupComponent implements OnInit {
       return;
     }
 
-    if (portal.requires_auth) {
-      // Phase 2 — SSO flow. For now, surface a clear message instead of
-      // silently redirecting (the destination would otherwise reject the
-      // anonymous request).
-      this.error.set(
-        'Este portal requiere autorización. Próximamente habilitaremos el ingreso con tu cuenta del directorio.',
-      );
+    // Public portal: straight redirect, no SSO involved.
+    if (!portal.requires_auth) {
+      window.location.href = portal.target_url;
       return;
     }
 
-    window.location.href = portal.target_url;
+    // Auth-gated portal: run SSO. If the hub user is not authenticated
+    // yet, bounce to /hub/login keeping the pending portal so the flow
+    // resumes after login. Otherwise jump straight to /hub/sso-trigger
+    // which mints the nonce and forwards to the destination.
+    if (!this.stateService.userContact()) {
+      this.router.navigate(['/hub/login'], {
+        queryParams: { pending_portal: portal.name },
+      });
+      return;
+    }
+
+    this.router.navigate(['/hub/sso-trigger'], {
+      queryParams: { pending_portal: portal.name },
+    });
   }
 
   private loadGroup(slug: string): void {

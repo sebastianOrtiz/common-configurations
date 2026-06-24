@@ -154,6 +154,16 @@ export class StateService {
     localStorage.removeItem(STORAGE_KEYS.selectedPortal);
   }
 
+  /**
+   * Set selected portal in memory ONLY (no localStorage).
+   * Used by the Tenant Hub login flow to inject a synthetic "hub" portal
+   * so ContactRegistrationComponent has the context it needs without
+   * polluting the real per-site selection persisted across reloads.
+   */
+  setSelectedPortalEphemeral(portal: ServicePortal | null): void {
+    this.selectedPortalSignal.set(portal);
+  }
+
   // ===================
   // User Contact State
   // ===================

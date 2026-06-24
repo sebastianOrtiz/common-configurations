@@ -33,3 +33,10 @@ export interface TenantPortal {
 export interface TenantPortalGroupWithPortals extends TenantPortalGroup {
   portals: TenantPortal[];
 }
+
+export interface SsoNonceResponse {
+  nonce: string;
+  target_url: string;
+  destination_crm: string;
+  expires_in: number;
+}

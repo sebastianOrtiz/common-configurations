@@ -9,9 +9,16 @@ Endpoints exposed:
     - get_group_with_portals → group metadata + active portals (with composed target URLs)
 """
 
-from .endpoints import get_groups, get_group_with_portals
+from .endpoints import (
+    generate_sso_nonce,
+    get_group_with_portals,
+    get_groups,
+    verify_sso_nonce,
+)
 
 __all__ = [
     "get_groups",
     "get_group_with_portals",
+    "generate_sso_nonce",
+    "verify_sso_nonce",
 ]

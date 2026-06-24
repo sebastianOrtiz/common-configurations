@@ -277,3 +277,7 @@ External service portal to include in the group,Portal de servicio externo que s
 "If unchecked, this portal is hidden only in this group (its global status is unchanged)","Si se desmarca, el portal solo se oculta en este grupo (su estado global no cambia)",
 External service portals shown in this group. Reorder rows to change the display order.,Portales de servicio externos mostrados en este grupo. Reordena las filas para cambiar el orden de visualización.,
 Inactive portals are hidden from all groups,Los portales inactivos se ocultan en todos los grupos,
+Tenant Hub (SSO),Tenant Hub (SSO),
+Tenant Hub URL,URL del Tenant Hub,
+URL del Tenant Hub que envía usuarios autenticados a este sitio (ej: https://hub.nexoraonline.co). Opcional; solo se usa para mostrar el botón 'Volver al directorio' en el portal.,URL del Tenant Hub que envía usuarios autenticados a este sitio (ej: https://hub.nexoraonline.co). Opcional; solo se usa para mostrar el botón 'Volver al directorio' en el portal.,
+Secreto compartido entregado por el hub al registrar este sitio como Destination CRM. Se usa para validar las firmas HMAC de las peticiones de SSO entrantes.,Secreto compartido entregado por el hub al registrar este sitio como Destination CRM. Se usa para validar las firmas HMAC de las peticiones de SSO entrantes.,

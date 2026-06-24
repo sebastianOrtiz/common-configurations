@@ -20,6 +20,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/hub/tenant-hub-list/tenant-hub-list.component').then(m => m.TenantHubListComponent)
   },
   {
+    path: 'hub/login',
+    loadComponent: () => import('./features/hub/hub-login/hub-login.component').then(m => m.HubLoginComponent)
+  },
+  {
+    path: 'hub/sso-trigger',
+    loadComponent: () => import('./features/hub/hub-sso-trigger/hub-sso-trigger.component').then(m => m.HubSsoTriggerComponent)
+  },
+  {
     path: 'hub/:slug',
     loadComponent: () => import('./features/hub/tenant-hub-group/tenant-hub-group.component').then(m => m.TenantHubGroupComponent)
   },
@@ -39,6 +47,12 @@ export const routes: Routes = [
       {
         path: 'register',
         loadComponent: () => import('./features/portal/contact-registration/contact-registration.component').then(m => m.ContactRegistrationComponent)
+      },
+
+      // SSO consumer (handles ?identity_nonce=... from the Tenant Hub)
+      {
+        path: 'sso',
+        loadComponent: () => import('./features/portal/sso-consumer/sso-consumer.component').then(m => m.SsoConsumerComponent)
       },
 
       // Tool routes (lazy loaded by tool type)

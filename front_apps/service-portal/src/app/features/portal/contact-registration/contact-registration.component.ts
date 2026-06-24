@@ -8,7 +8,7 @@
  * Now includes MFA via OTP (SMS/WhatsApp) when enabled in OTP Settings.
  */
 
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, Input, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -41,6 +41,21 @@ export class ContactRegistrationComponent implements OnInit {
   protected settingsService = inject(SettingsService);
 
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
+
+  /**
+   * Optional override for post-auth navigation. When the component is
+   * embedded outside a real portal (e.g. the Tenant Hub login wrapper),
+   * the host sets this URL and we navigate there instead of /portal/<x>.
+   */
+  @Input() postAuthRedirect?: string;
+
+  private navigateAfterAuth(portalName: string): void {
+    if (this.postAuthRedirect) {
+      this.router.navigateByUrl(this.postAuthRedirect);
+    } else {
+      this.router.navigate(['/portal', portalName]);
+    }
+  }
 
   // Current registration step
   protected currentStep = signal<RegistrationStep>('initial');
@@ -76,7 +91,7 @@ export class ContactRegistrationComponent implements OnInit {
       // Already registered, redirect to portal
       const portalName = this.route.snapshot.paramMap.get('portalName');
       if (portalName) {
-        this.router.navigate(['/portal', portalName]);
+        this.navigateAfterAuth(portalName);
       }
       return;
     }
@@ -317,7 +332,7 @@ export class ContactRegistrationComponent implements OnInit {
           } else if (contact.auth_token) {
             // OTP not required - proceed with auth token
             this.stateService.setUserContact(contact, contact.auth_token);
-            this.router.navigate(['/portal', portal.portal_name]);
+            this.navigateAfterAuth(portal.portal_name);
           } else {
             // No token and no OTP - something is wrong
             this.error.set('Error de autenticacion. Por favor intenta de nuevo.');
@@ -389,7 +404,7 @@ export class ContactRegistrationComponent implements OnInit {
           this.loading.set(false);
 
           // Navigate to portal
-          this.router.navigate(['/portal', portal.portal_name]);
+          this.navigateAfterAuth(portal.portal_name);
         },
         error: (err) => {
           console.error('Error updating contact:', err);
@@ -440,7 +455,7 @@ export class ContactRegistrationComponent implements OnInit {
         if (contact.auth_token) {
           // User created successfully
           this.stateService.setUserContact(contact, contact.auth_token);
-          this.router.navigate(['/portal', portalName]);
+          this.navigateAfterAuth(portalName);
         } else {
           this.error.set('Error de autenticación. Por favor intenta de nuevo.');
         }
@@ -500,7 +515,7 @@ export class ContactRegistrationComponent implements OnInit {
     }
 
     // Navigate to portal
-    this.router.navigate(['/portal', portal.portal_name]);
+    this.navigateAfterAuth(portal.portal_name);
   }
 
   /**
@@ -525,7 +540,7 @@ export class ContactRegistrationComponent implements OnInit {
     this.registrationFormData.set(null);
 
     // Navigate to portal
-    this.router.navigate(['/portal', portal.portal_name]);
+    this.navigateAfterAuth(portal.portal_name);
   }
 
   /**

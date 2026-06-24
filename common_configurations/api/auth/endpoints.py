@@ -8,6 +8,7 @@ import frappe
 
 from ..shared.rate_limit import check_rate_limit
 from ..shared.security import check_honeypot, get_current_user_contact
+from . import sso
 from .service import AuthService
 
 
@@ -79,3 +80,18 @@ def logout_user_contact(honeypot: str = None):
     except Exception as e:
         frappe.log_error(f"Error logging out user contact: {str(e)}")
         return {"success": False}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def consume_sso_nonce(nonce: str):
+    """
+    Redeem a one-time SSO nonce issued by the Tenant Hub.
+
+    Requires this site to have `tenant_hub_url` and `hub_shared_secret`
+    configured in Common Configurations Settings. The nonce is signed
+    via HMAC and validated against the hub; on success, a local User
+    Contact is upserted (by document) and a fresh local auth token is
+    minted and returned.
+    """
+    check_rate_limit("sso_consume", limit=30, seconds=60)
+    return sso.consume_nonce(nonce)
