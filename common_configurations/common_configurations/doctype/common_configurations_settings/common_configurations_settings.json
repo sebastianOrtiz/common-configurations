@@ -16,6 +16,8 @@
   "column_break_voice_ai",
   "voice_assistant_ai_help_html",
   "section_tenant_hub",
+  "tenant_hub_url",
+  "column_break_tenant_hub",
   "hub_shared_secret"
  ],
  "fields": [
@@ -102,7 +104,18 @@
    "label": "Tenant Hub (SSO)"
   },
   {
-   "description": "Secreto compartido entregado por el hub al registrar este sitio como Destination CRM. Se usa para validar las firmas HMAC de las peticiones de SSO entrantes. La URL del hub no requiere configuración aquí: el hub la envía en cada redirect.",
+   "description": "URL base del Tenant Hub que envía usuarios autenticados a este sitio (ej: https://hub.nexoraonline.co). Requerida para validar los nonces de SSO contra el hub legítimo. Debe coincidir exactamente con el origen del hub al que se registró este sitio.",
+   "fieldname": "tenant_hub_url",
+   "fieldtype": "Data",
+   "label": "Tenant Hub URL",
+   "options": "URL"
+  },
+  {
+   "fieldname": "column_break_tenant_hub",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Secreto compartido entregado por el hub al registrar este sitio como Destination CRM. Se usa para firmar (HMAC) las peticiones de SSO al hub para que este pueda verificar que la petición viene de un destino legítimo.",
    "fieldname": "hub_shared_secret",
    "fieldtype": "Password",
    "label": "Hub Shared Secret"
