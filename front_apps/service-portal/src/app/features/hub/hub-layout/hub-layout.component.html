@@ -1,0 +1,36 @@
+<div class="hub-layout">
+  <header class="hub-header">
+    <div class="header-content">
+      <a class="hub-brand" routerLink="/hub">
+        <div class="hub-logo">
+          <app-icon name="Globe" [size]="28" [strokeWidth]="2"></app-icon>
+        </div>
+        <div class="hub-text">
+          <h1>Directorio Nexora</h1>
+          <p>Portales conectados a tu cuenta</p>
+        </div>
+      </a>
+
+      <div class="user-menu">
+        @if (isLoggedIn()) {
+          <div class="user-info">
+            <span class="user-name">{{ getUserDisplayName() }}</span>
+            <div class="user-avatar-placeholder">{{ getUserInitial() }}</div>
+          </div>
+          <button class="btn-logout" (click)="logout()" title="Cerrar sesión">
+            <app-icon name="LogOut" [size]="20" [strokeWidth]="2"></app-icon>
+          </button>
+        } @else {
+          <a class="btn-login" routerLink="/hub/login">
+            <app-icon name="User" [size]="18" [strokeWidth]="2"></app-icon>
+            <span>Iniciar sesión</span>
+          </a>
+        }
+      </div>
+    </div>
+  </header>
+
+  <main class="hub-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

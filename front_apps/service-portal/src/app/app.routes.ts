@@ -14,22 +14,29 @@ export const routes: Routes = [
     loadComponent: () => import('./features/portal/portal-selector/portal-selector.component').then(m => m.PortalSelectorComponent)
   },
 
-  // Tenant Hub: cross-tenant directory of Service Portals (public, no auth)
+  // Tenant Hub: cross-tenant directory of Service Portals.
+  // All hub views share HubLayoutComponent (header + user menu).
   {
     path: 'hub',
-    loadComponent: () => import('./features/hub/tenant-hub-list/tenant-hub-list.component').then(m => m.TenantHubListComponent)
-  },
-  {
-    path: 'hub/login',
-    loadComponent: () => import('./features/hub/hub-login/hub-login.component').then(m => m.HubLoginComponent)
-  },
-  {
-    path: 'hub/sso-trigger',
-    loadComponent: () => import('./features/hub/hub-sso-trigger/hub-sso-trigger.component').then(m => m.HubSsoTriggerComponent)
-  },
-  {
-    path: 'hub/:slug',
-    loadComponent: () => import('./features/hub/tenant-hub-group/tenant-hub-group.component').then(m => m.TenantHubGroupComponent)
+    loadComponent: () => import('./features/hub/hub-layout/hub-layout.component').then(m => m.HubLayoutComponent),
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./features/hub/tenant-hub-list/tenant-hub-list.component').then(m => m.TenantHubListComponent)
+      },
+      {
+        path: 'login',
+        loadComponent: () => import('./features/hub/hub-login/hub-login.component').then(m => m.HubLoginComponent)
+      },
+      {
+        path: 'sso-trigger',
+        loadComponent: () => import('./features/hub/hub-sso-trigger/hub-sso-trigger.component').then(m => m.HubSsoTriggerComponent)
+      },
+      {
+        path: ':slug',
+        loadComponent: () => import('./features/hub/tenant-hub-group/tenant-hub-group.component').then(m => m.TenantHubGroupComponent)
+      }
+    ]
   },
 
   // Portal view and tools (public - no authentication required)
