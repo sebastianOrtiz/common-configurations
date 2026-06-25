@@ -21,6 +21,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { PortalService } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
 import { UserContact } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -98,6 +99,7 @@ export class SsoConsumerComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private frappeApi = inject(FrappeApiService);
+  private portalService = inject(PortalService);
   private stateService = inject(StateService);
 
   protected error = signal<string | null>(null);
@@ -143,7 +145,11 @@ export class SsoConsumerComponent implements OnInit {
             return;
           }
           this.stateService.setUserContact(payload.user_contact, payload.auth_token);
-          this.goToPortalHome();
+          // Load the destination portal into state BEFORE navigating, so the
+          // PortalView doesn't bounce the user back to the selector while it
+          // still fetches the portal (was causing a flash + redirect to
+          // /service-portal/portal/).
+          this.loadPortalAndNavigate();
         },
         error: (err) => {
           console.error('SSO consume failed:', err);
@@ -153,6 +159,26 @@ export class SsoConsumerComponent implements OnInit {
           this.error.set(typeof msg === 'string' ? msg : 'No pudimos validar tu acceso.');
         },
       });
+  }
+
+  private loadPortalAndNavigate(): void {
+    if (!this.portalName) {
+      this.router.navigate(['/portals']);
+      return;
+    }
+    this.portalService.getPortal(this.portalName).subscribe({
+      next: (portal) => {
+        if (portal) {
+          this.stateService.setSelectedPortal(portal);
+        }
+        this.goToPortalHome();
+      },
+      error: (err) => {
+        console.error('SSO consumer: could not preload portal:', err);
+        // Navigate anyway — PortalView will retry the fetch itself.
+        this.goToPortalHome();
+      },
+    });
   }
 
   protected goToPortalHome(): void {
