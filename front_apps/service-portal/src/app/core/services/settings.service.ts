@@ -17,8 +17,14 @@ export interface VoiceAssistantSettings {
   gender: 'female' | 'male';
 }
 
+export interface TenantHubSettings {
+  /** URL of the Tenant Hub that sends users to this site, or null if not configured. */
+  url: string | null;
+}
+
 export interface PublicSettings {
   voice_assistant: VoiceAssistantSettings;
+  tenant_hub: TenantHubSettings;
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
@@ -28,6 +34,9 @@ const DEFAULT_SETTINGS: PublicSettings = {
     name: 'Asistente',
     language: 'es-ES',
     gender: 'female',
+  },
+  tenant_hub: {
+    url: null,
   },
 };
 
@@ -64,6 +73,10 @@ export class SettingsService {
             ...DEFAULT_SETTINGS.voice_assistant,
             ...(data.voice_assistant || {}),
           },
+          tenant_hub: {
+            ...DEFAULT_SETTINGS.tenant_hub,
+            ...(data.tenant_hub || {}),
+          },
         });
       }
     } catch (err) {
@@ -81,5 +94,21 @@ export class SettingsService {
 
   isVoiceAssistantAIEnabled(): boolean {
     return this._settings().voice_assistant.ai_enabled;
+  }
+
+  /**
+   * URL of the Tenant Hub to render the "Back to directory" button.
+   * Prefers the admin-configured value; falls back to the referrer that
+   * the SSO consumer captured into localStorage when the user arrived
+   * via SSO. Returns null if neither is available.
+   */
+  tenantHubUrl(): string | null {
+    const configured = this._settings().tenant_hub?.url || null;
+    if (configured) return configured;
+    try {
+      return localStorage.getItem('sp_tenant_hub_referrer');
+    } catch {
+      return null;
+    }
   }
 }

@@ -38,6 +38,12 @@
               <span class="btn-back-label">Volver</span>
             </button>
           }
+          @if (tenantHubUrl()) {
+            <button class="btn-tenant-hub" (click)="goToTenantHub()" title="Volver al directorio">
+              <app-icon name="Globe" [size]="20" [strokeWidth]="2"></app-icon>
+              <span class="btn-tenant-hub-label">Directorio</span>
+            </button>
+          }
           <button class="btn-logout" (click)="exitPortal()" title="Salir">
             <app-icon name="LogOut" [size]="20" [strokeWidth]="2"></app-icon>
           </button>

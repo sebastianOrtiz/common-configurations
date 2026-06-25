@@ -8,6 +8,7 @@ import { Component, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
+import { SettingsService } from '../../../core/services/settings.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { filter } from 'rxjs/operators';
 
@@ -20,6 +21,7 @@ import { filter } from 'rxjs/operators';
 })
 export class PortalLayoutComponent {
   private stateService = inject(StateService);
+  private settingsService = inject(SettingsService);
   private router = inject(Router);
 
   protected portal = this.stateService.selectedPortal;
@@ -34,6 +36,14 @@ export class PortalLayoutComponent {
 
   // Show back button when portal was opened from another portal
   protected showBackButton = computed(() => this.referrerPortal() !== null);
+
+  /**
+   * URL of the Tenant Hub to render the "Back to directory" button.
+   * Comes from the public settings (admin-configured) OR — as a soft
+   * fallback — from the referrer captured by SsoConsumerComponent when
+   * the user arrived via SSO from a hub.
+   */
+  protected tenantHubUrl = computed(() => this.settingsService.tenantHubUrl());
 
   constructor() {
     // Update currentUrl signal when route changes
@@ -60,6 +70,12 @@ export class PortalLayoutComponent {
     if (!referrer) return;
     this.stateService.clearReferrerPortal();
     this.router.navigate(['/portal', referrer]);
+  }
+
+  goToTenantHub(): void {
+    const url = this.tenantHubUrl();
+    if (!url) return;
+    window.location.href = url;
   }
 
   exitPortal(): void {
