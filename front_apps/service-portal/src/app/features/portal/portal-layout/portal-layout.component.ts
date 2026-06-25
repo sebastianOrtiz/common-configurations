@@ -6,9 +6,9 @@
 
 import { Component, inject, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterOutlet, NavigationEnd } from '@angular/router';
+import { Router, RouterOutlet, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
-import { SettingsService } from '../../../core/services/settings.service';
+import { SettingsService, TENANT_HUB_REFERRER_KEY } from '../../../core/services/settings.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { filter } from 'rxjs/operators';
 
@@ -46,12 +46,31 @@ export class PortalLayoutComponent {
   protected tenantHubUrl = computed(() => this.settingsService.tenantHubUrl());
 
   constructor() {
+    // Capture ?hub_back=... on first load and on every navigation. The
+    // hub appends it to every redirect so a destination can render a
+    // "back to directory" button without needing any admin configuration.
+    this.captureHubBackFromUrl();
+
     // Update currentUrl signal when route changes
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)
     ).subscribe((event) => {
       this.currentUrl.set((event as NavigationEnd).urlAfterRedirects);
+      this.captureHubBackFromUrl();
     });
+  }
+
+  private captureHubBackFromUrl(): void {
+    try {
+      const url = new URL(window.location.href);
+      const hubBack = url.searchParams.get('hub_back');
+      if (!hubBack) return;
+      // Basic sanity: must be http(s)://. Anything else is ignored.
+      if (!/^https?:\/\//i.test(hubBack)) return;
+      localStorage.setItem(TENANT_HUB_REFERRER_KEY, hubBack);
+    } catch {
+      // ignore — best-effort capture
+    }
   }
 
   getUserDisplayName(): string {

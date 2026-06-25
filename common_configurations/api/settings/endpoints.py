@@ -44,10 +44,6 @@ def get_public_settings() -> Dict[str, Any]:
 			issues = validate_ai_configuration(settings.voice_assistant_ai_configuration)
 			ai_enabled = not issues
 
-	# Tenant Hub URL (public; the secret stays server-side). Used by the
-	# Service Portal to render a "Back to directory" button.
-	tenant_hub_url = (settings.get("tenant_hub_url") or "").strip().rstrip("/") or None
-
 	return {
 		"voice_assistant": {
 			"enabled": bool(settings.enable_voice_assistant),
@@ -55,9 +51,6 @@ def get_public_settings() -> Dict[str, Any]:
 			"name": settings.voice_assistant_name or "Asistente",
 			"language": settings.voice_assistant_language or "es-ES",
 			"gender": settings.voice_assistant_gender or "female",
-		},
-		"tenant_hub": {
-			"url": tenant_hub_url,
 		},
 	}
 

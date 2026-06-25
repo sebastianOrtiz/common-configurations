@@ -51,8 +51,12 @@ export class TenantHubGroupComponent implements OnInit {
     }
 
     // Public portal: straight redirect, no SSO involved.
+    // We append ?hub_back=<this hub's URL> so the destination knows
+    // it can render a "back to directory" button.
     if (!portal.requires_auth) {
-      window.location.href = portal.target_url;
+      const hubBack = this.computeHubBackUrl();
+      const sep = portal.target_url.includes('?') ? '&' : '?';
+      window.location.href = `${portal.target_url}${sep}hub_back=${encodeURIComponent(hubBack)}`;
       return;
     }
 
@@ -70,6 +74,11 @@ export class TenantHubGroupComponent implements OnInit {
     this.router.navigate(['/hub/sso-trigger'], {
       queryParams: { pending_portal: portal.name },
     });
+  }
+
+  /** URL of this hub used as the `hub_back` value sent to destinations. */
+  private computeHubBackUrl(): string {
+    return `${window.location.origin}/service-portal/hub`;
   }
 
   private loadGroup(slug: string): void {

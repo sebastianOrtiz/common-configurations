@@ -112,13 +112,18 @@ export class SsoConsumerComponent implements OnInit {
       return;
     }
 
-    // Capture the hub origin from the referrer so we can render a
-    // "back to hub" button later (Phase 3). Best-effort — fine if blocked.
+    // The hub also appends `?hub_back=<url>` on every SSO redirect,
+    // and PortalLayoutComponent captures it on every navigation. We
+    // keep a best-effort referrer fallback here for the rare case
+    // where the URL is rewritten by an intermediary that strips
+    // query params but leaves Referer intact.
     try {
-      const ref = document.referrer;
-      if (ref) {
-        const url = new URL(ref);
-        localStorage.setItem(HUB_REFERRER_STORAGE_KEY, `${url.protocol}//${url.host}/service-portal/hub`);
+      if (!localStorage.getItem(HUB_REFERRER_STORAGE_KEY) && document.referrer) {
+        const url = new URL(document.referrer);
+        localStorage.setItem(
+          HUB_REFERRER_STORAGE_KEY,
+          `${url.protocol}//${url.host}/service-portal/hub`,
+        );
       }
     } catch {
       // ignore referrer parse errors

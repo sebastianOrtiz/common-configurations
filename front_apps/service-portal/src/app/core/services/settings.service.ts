@@ -17,14 +17,8 @@ export interface VoiceAssistantSettings {
   gender: 'female' | 'male';
 }
 
-export interface TenantHubSettings {
-  /** URL of the Tenant Hub that sends users to this site, or null if not configured. */
-  url: string | null;
-}
-
 export interface PublicSettings {
   voice_assistant: VoiceAssistantSettings;
-  tenant_hub: TenantHubSettings;
 }
 
 const DEFAULT_SETTINGS: PublicSettings = {
@@ -35,10 +29,14 @@ const DEFAULT_SETTINGS: PublicSettings = {
     language: 'es-ES',
     gender: 'female',
   },
-  tenant_hub: {
-    url: null,
-  },
 };
+
+/**
+ * localStorage key where we persist the Tenant Hub URL announced by the
+ * hub via the `?hub_back=...` query param. Used to render the "back to
+ * directory" button without requiring any per-site admin configuration.
+ */
+export const TENANT_HUB_REFERRER_KEY = 'sp_tenant_hub_referrer';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
@@ -73,10 +71,6 @@ export class SettingsService {
             ...DEFAULT_SETTINGS.voice_assistant,
             ...(data.voice_assistant || {}),
           },
-          tenant_hub: {
-            ...DEFAULT_SETTINGS.tenant_hub,
-            ...(data.tenant_hub || {}),
-          },
         });
       }
     } catch (err) {
@@ -98,15 +92,14 @@ export class SettingsService {
 
   /**
    * URL of the Tenant Hub to render the "Back to directory" button.
-   * Prefers the admin-configured value; falls back to the referrer that
-   * the SSO consumer captured into localStorage when the user arrived
-   * via SSO. Returns null if neither is available.
+   * Sourced exclusively from the `?hub_back=...` query param that the
+   * hub appends to every redirect — captured into localStorage by
+   * PortalLayoutComponent. Returns null when the user did not arrive
+   * from a hub.
    */
   tenantHubUrl(): string | null {
-    const configured = this._settings().tenant_hub?.url || null;
-    if (configured) return configured;
     try {
-      return localStorage.getItem('sp_tenant_hub_referrer');
+      return localStorage.getItem(TENANT_HUB_REFERRER_KEY);
     } catch {
       return null;
     }

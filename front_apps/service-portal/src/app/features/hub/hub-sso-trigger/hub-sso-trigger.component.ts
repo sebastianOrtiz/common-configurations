@@ -116,9 +116,14 @@ export class HubSsoTriggerComponent implements OnInit {
           return;
         }
         // target_url is something like https://site/service-portal/portal/<x>
-        // We append /sso?identity_nonce=...; backend trims trailing slashes.
+        // We append /sso?identity_nonce=...&hub_back=<this hub URL>.
         const base = res.target_url.replace(/\/+$/, '');
-        window.location.href = `${base}/sso?identity_nonce=${encodeURIComponent(res.nonce)}`;
+        const hubBack = `${window.location.origin}/service-portal/hub`;
+        const qs = new URLSearchParams({
+          identity_nonce: res.nonce,
+          hub_back: hubBack,
+        }).toString();
+        window.location.href = `${base}/sso?${qs}`;
       },
       error: (err) => {
         console.error('SSO trigger error:', err);
