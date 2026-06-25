@@ -82,16 +82,22 @@ def logout_user_contact(honeypot: str = None):
         return {"success": False}
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def consume_sso_nonce(nonce: str):
     """
     Redeem a one-time SSO nonce issued by the Tenant Hub.
 
-    Requires this site to have `tenant_hub_url` and `hub_shared_secret`
-    configured in Common Configurations Settings. The nonce is signed
-    via HMAC and validated against the hub; on success, a local User
-    Contact is upserted (by document) and a fresh local auth token is
-    minted and returned.
+    Supports GET because the destination's frontend calls it on first
+    page load with no Frappe session yet — CSRF tokens are unavailable.
+    Security still holds:
+      - the nonce is single-use, expires in 60s,
+      - the hub validates HMAC + freshness before returning identity,
+      - this endpoint does NOT mutate user-owned data via the caller's
+        session, the only mutation (User Contact upsert + token) is
+        gated by the successful hub round-trip.
+
+    Requires this site to have `hub_shared_secret` configured in
+    Common Configurations Settings.
     """
     check_rate_limit("sso_consume", limit=30, seconds=60)
     return sso.consume_nonce(nonce)

@@ -133,7 +133,7 @@ export class SsoConsumerComponent implements OnInit {
       .callMethod<ConsumeSsoResponse>(
         'common_configurations.api.auth.consume_sso_nonce',
         { nonce },
-        false,
+        true, // GET — no CSRF needed; nonce is single-use + HMAC-protected
       )
       .subscribe({
         next: (resp) => {
