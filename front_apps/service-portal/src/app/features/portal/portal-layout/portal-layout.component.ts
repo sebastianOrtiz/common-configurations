@@ -102,7 +102,26 @@ export class PortalLayoutComponent {
     if (!currentPortal) return;
 
     const referrer = this.referrerPortal();
+
+    // If the user arrived from the Tenant Hub (via SSO or public click),
+    // closing the session here should also close it on the hub so they
+    // don't stay silently logged in on the directory. We bounce to
+    // <hub>/service-portal/hub?logout=1 and the HubLayout handles the
+    // hub-side logout on arrival. Clear the local referrer so a future
+    // visit without coming from the hub doesn't keep redirecting there.
+    const hubUrl = this.settingsService.tenantHubUrl();
     this.stateService.clearUserContact();
+
+    if (hubUrl) {
+      try {
+        localStorage.removeItem(TENANT_HUB_REFERRER_KEY);
+      } catch {
+        // ignore
+      }
+      const sep = hubUrl.includes('?') ? '&' : '?';
+      window.location.href = `${hubUrl}${sep}logout=1`;
+      return;
+    }
 
     if (referrer) {
       // Redirect to the source portal instead of login cycle
