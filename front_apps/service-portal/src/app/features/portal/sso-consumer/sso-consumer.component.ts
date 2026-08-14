@@ -140,6 +140,12 @@ export class SsoConsumerComponent implements OnInit {
       .subscribe({
         next: (resp) => {
           const payload = resp?.message;
+          // TEMP DEBUG (SSO): confirms the nonce was consumed and a token came
+          // back. Logs only booleans. Remove once the issue is confirmed fixed.
+          console.log('[SSO Debug v2] consume_sso_nonce result', {
+            hasToken: !!payload?.auth_token,
+            hasContact: !!payload?.user_contact,
+          });
           if (!payload?.auth_token || !payload?.user_contact) {
             this.error.set('No pudimos validar tu acceso. Intenta de nuevo.');
             return;
