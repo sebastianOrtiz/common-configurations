@@ -223,4 +223,70 @@ export class VoicePromptBuilder {
     if (!value || value.length <= max) return value;
     return value.substring(0, max) + '…';
   }
+
+  /**
+   * Human-readable labels for the guided radicación survey (see
+   * `guidedRequestSurvey`), keyed the same way. Shared so every consumer
+   * builds the same `user_context` format: "Pregunta: respuesta".
+   */
+  readonly guidedRequestLabels: Record<string, string> = {
+    que_quiere: '¿Qué quieres?',
+    como_lo_quiere: '¿Cómo lo quieres?',
+    para_que_lo_quiere: '¿Para qué lo quieres?',
+    contexto_adicional: 'Contexto adicional',
+    cuando_lo_quiere: '¿Cuándo lo quieres?',
+  };
+
+  /**
+   * Build the 5-question guided survey used across radicación flows
+   * (procedures, create-logbook) to gather a citizen's request in a
+   * structured way. Pair with `buildGuidedRequestContext` to turn the
+   * captured answers into a single `user_context` string.
+   */
+  guidedRequestSurvey(): VoicePrompt[] {
+    return [
+      this.text({
+        key: 'que_quiere',
+        label: 'qué quieres',
+        question: '¿Qué quieres?',
+        minLength: 2,
+      }),
+      this.text({
+        key: 'como_lo_quiere',
+        label: 'cómo lo quieres',
+        question: '¿Cómo lo quieres?',
+        minLength: 2,
+      }),
+      this.text({
+        key: 'para_que_lo_quiere',
+        label: 'para qué lo quieres',
+        question: '¿Para qué lo quieres?',
+        minLength: 2,
+      }),
+      this.text({
+        key: 'contexto_adicional',
+        label: 'contexto adicional',
+        question: 'Cuéntanos un poco más o danos contexto de la solicitud.',
+        minLength: 2,
+      }),
+      this.text({
+        key: 'cuando_lo_quiere',
+        label: 'cuándo lo quieres',
+        question: '¿Cuándo lo quieres?',
+        minLength: 2,
+      }),
+    ];
+  }
+
+  /**
+   * Join the answers of `guidedRequestSurvey` into a single free-text block,
+   * one "Pregunta: respuesta" line per answered question (skips anything the
+   * user chose not to answer).
+   */
+  buildGuidedRequestContext(answers: Record<string, string>): string {
+    return Object.entries(this.guidedRequestLabels)
+      .filter(([key]) => !!answers[key])
+      .map(([key, label]) => `${label} ${answers[key]}`)
+      .join('\n');
+  }
 }

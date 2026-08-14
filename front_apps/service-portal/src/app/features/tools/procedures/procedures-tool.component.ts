@@ -17,6 +17,10 @@ import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-bu
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import {
+  AttachmentUploaderComponent,
+  UploadedAttachment,
+} from '../../../shared/components/attachment-uploader/attachment-uploader.component';
 
 interface Procedure {
   name: string;
@@ -43,7 +47,14 @@ type ViewState = 'list' | 'form' | 'confirm' | 'external';
 @Component({
   selector: 'app-procedures-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent, VoiceAssistantComponent, IconComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    VoiceInputComponent,
+    VoiceAssistantComponent,
+    IconComponent,
+    AttachmentUploaderComponent,
+  ],
   templateUrl: './procedures-tool.component.html',
   styleUrls: ['./procedures-tool.component.scss']
 })
@@ -55,6 +66,7 @@ export class ProceduresToolComponent implements OnInit {
   private promptBuilder = inject(VoicePromptBuilder);
 
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
+  @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
@@ -95,6 +107,10 @@ export class ProceduresToolComponent implements OnInit {
 
   // Form state (internal procedure)
   protected userContext = signal<string>('');
+
+  // Attachments (evidence uploaded before submitting)
+  protected attachments = signal<UploadedAttachment[]>([]);
+  protected attachmentsUploading = signal<boolean>(false);
 
   // Result state
   protected createdEntry = signal<CreatedEntry | null>(null);
@@ -150,6 +166,7 @@ export class ProceduresToolComponent implements OnInit {
 
     if (procedure.procedure_type === 'internal') {
       this.userContext.set('');
+      this.attachments.set([]);
       this.view.set('form');
     } else {
       this.view.set('external');
@@ -191,11 +208,14 @@ export class ProceduresToolComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    const documents = this.attachments().map((a) => ({ file_url: a.file_url, title: a.file_name }));
+
     this.frappeApi.callMethod<CreatedEntry>(
       'logbook.api.procedures.create_procedure_entry',
       {
         procedure_name: procedure.name,
         user_context: context.trim(),
+        documents: JSON.stringify(documents),
       }
     ).subscribe({
       next: (response) => {
@@ -203,6 +223,8 @@ export class ProceduresToolComponent implements OnInit {
           this.createdEntry.set(response.message);
           this.view.set('confirm');
           this.userContext.set('');
+          this.attachments.set([]);
+          this.attachmentUploader?.reset();
         }
         this.loading.set(false);
       },
@@ -228,7 +250,20 @@ export class ProceduresToolComponent implements OnInit {
     this.view.set('list');
     this.selectedProcedure.set(null);
     this.userContext.set('');
+    this.attachments.set([]);
     this.error.set(null);
+  }
+
+  // ============================================================
+  // Attachments
+  // ============================================================
+
+  protected onAttachmentsChange(attachments: UploadedAttachment[]): void {
+    this.attachments.set(attachments);
+  }
+
+  protected onAttachmentsUploadingChange(uploading: boolean): void {
+    this.attachmentsUploading.set(uploading);
   }
 
   closeAndGoHome(): void {
@@ -260,22 +295,19 @@ export class ProceduresToolComponent implements OnInit {
     return this.settingsService.isVoiceAssistantEnabled();
   }
 
+  /**
+   * Guides the citizen through 5 fixed questions (qué/cómo/para qué/contexto/
+   * cuándo) and joins the answers into the `user_context` textarea so they
+   * can review everything before radicando el trámite.
+   */
   async startVoiceAssistant(): Promise<void> {
     if (!this.voiceAssistant) return;
 
-    const procTitle = this.selectedProcedure()?.title?.toLowerCase() || 'trámite';
-
-    const prompt = this.promptBuilder.text({
-      key: 'user_context',
-      label: 'detalles del trámite',
-      question: `Cuéntame los detalles de tu ${procTitle}: tu situación, fechas, lugares, personas involucradas y lo que esperas como resultado.`,
-      minLength: 10,
-    });
-
     try {
-      const answers = await this.voiceAssistant.startSurvey([prompt]);
-      if (answers['user_context']) {
-        this.userContext.set(answers['user_context']);
+      const answers = await this.voiceAssistant.startSurvey(this.promptBuilder.guidedRequestSurvey());
+      const context = this.promptBuilder.buildGuidedRequestContext(answers);
+      if (context) {
+        this.userContext.set(context);
       }
     } catch {
       // Cancelado por el usuario

@@ -128,6 +128,39 @@
                     </div>
                   </div>
 
+                  @if (isRatable(entry.status)) {
+                    <div class="rating-widget" (click)="$event.stopPropagation()">
+                      @if (entry.citizen_rating) {
+                        <div class="rating-given">
+                          <app-icon [name]="getRatingOption(entry.citizen_rating)?.icon" [size]="20" [strokeWidth]="2"></app-icon>
+                          <span>Gracias por tu calificación: {{ entry.citizen_rating }}</span>
+                        </div>
+                      } @else {
+                        <div class="rating-prompt">
+                          <span class="rating-label">¿Cómo fue tu experiencia?</span>
+                          <div class="rating-faces">
+                            @for (option of RATING_OPTIONS; track option.value) {
+                              <button
+                                type="button"
+                                class="rating-face"
+                                [class.loading]="ratingSubmittingFor() === entry.name"
+                                [disabled]="ratingSubmittingFor() === entry.name"
+                                [attr.aria-label]="option.label"
+                                [title]="option.label"
+                                (click)="submitRating(entry.name, option.value, $event)"
+                              >
+                                <app-icon [name]="option.icon" [size]="22" [strokeWidth]="2"></app-icon>
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      }
+                      @if (ratingErrorFor() === entry.name) {
+                        <span class="rating-error-text">No se pudo enviar tu calificación. Intenta de nuevo.</span>
+                      }
+                    </div>
+                  }
+
                   <div class="entry-card-footer">
                     <button class="btn-link">
                       Ver detalles
@@ -236,6 +269,46 @@
               Contexto Proporcionado
             </h3>
             <div class="context-content">{{ entryDetail.user_context }}</div>
+          </div>
+        }
+
+        <!-- Rating (caritas) -->
+        @if (isRatable(entryDetail.status)) {
+          <div class="detail-section">
+            <h3>
+              <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Calificación del servicio
+            </h3>
+            <div class="rating-widget">
+              @if (entryDetail.citizen_rating) {
+                <div class="rating-given">
+                  <app-icon [name]="getRatingOption(entryDetail.citizen_rating)?.icon" [size]="24" [strokeWidth]="2"></app-icon>
+                  <span>Gracias por tu calificación: {{ entryDetail.citizen_rating }}</span>
+                </div>
+              } @else {
+                <div class="rating-prompt">
+                  <span class="rating-label">¿Cómo fue tu experiencia?</span>
+                  <div class="rating-faces">
+                    @for (option of RATING_OPTIONS; track option.value) {
+                      <button
+                        type="button"
+                        class="rating-face"
+                        [class.loading]="ratingSubmittingFor() === entryDetail.name"
+                        [disabled]="ratingSubmittingFor() === entryDetail.name"
+                        [attr.aria-label]="option.label"
+                        [title]="option.label"
+                        (click)="submitRating(entryDetail.name, option.value, $event)"
+                      >
+                        <app-icon [name]="option.icon" [size]="24" [strokeWidth]="2"></app-icon>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+              @if (ratingErrorFor() === entryDetail.name) {
+                <span class="rating-error-text">No se pudo enviar tu calificación. Intenta de nuevo.</span>
+              }
+            </div>
           </div>
         }
 

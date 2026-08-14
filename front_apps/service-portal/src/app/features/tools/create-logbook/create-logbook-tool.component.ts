@@ -16,6 +16,10 @@ import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-bu
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import {
+  AttachmentUploaderComponent,
+  UploadedAttachment,
+} from '../../../shared/components/attachment-uploader/attachment-uploader.component';
 
 interface CreatedEntry {
   name: string;
@@ -29,7 +33,14 @@ interface CreatedEntry {
 @Component({
   selector: 'app-create-logbook-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, VoiceInputComponent, VoiceAssistantComponent, IconComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    VoiceInputComponent,
+    VoiceAssistantComponent,
+    IconComponent,
+    AttachmentUploaderComponent,
+  ],
   templateUrl: './create-logbook-tool.component.html',
   styleUrls: ['./create-logbook-tool.component.scss']
 })
@@ -41,6 +52,7 @@ export class CreateLogbookToolComponent implements OnInit {
   private promptBuilder = inject(VoicePromptBuilder);
 
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
+  @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
   // State
   protected selectedPortal = this.stateService.selectedPortal;
@@ -53,6 +65,10 @@ export class CreateLogbookToolComponent implements OnInit {
   protected userContext = signal<string>('');
   protected showConfirmModal = signal<boolean>(false);
   protected createdEntry = signal<CreatedEntry | null>(null);
+
+  // Attachments (evidence uploaded before submitting)
+  protected attachments = signal<UploadedAttachment[]>([]);
+  protected attachmentsUploading = signal<boolean>(false);
 
   // Config
   private logbookAvailability = '';
@@ -92,12 +108,15 @@ export class CreateLogbookToolComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
+    const documents = this.attachments().map((a) => ({ file_url: a.file_url, title: a.file_name }));
+
     this.frappeApi.callMethod<CreatedEntry>(
       'logbook.api.entries.create_entry_from_portal',
       {
         user_contact: contact.name,
         user_context: context.trim(),
         logbook_availability: this.logbookAvailability,
+        documents: JSON.stringify(documents),
       }
     ).subscribe({
       next: (response) => {
@@ -105,6 +124,8 @@ export class CreateLogbookToolComponent implements OnInit {
           this.createdEntry.set(response.message);
           this.showConfirmModal.set(true);
           this.userContext.set('');
+          this.attachments.set([]);
+          this.attachmentUploader?.reset();
         }
         this.loading.set(false);
       },
@@ -147,6 +168,18 @@ export class CreateLogbookToolComponent implements OnInit {
   }
 
   // ============================================================
+  // Attachments
+  // ============================================================
+
+  protected onAttachmentsChange(attachments: UploadedAttachment[]): void {
+    this.attachments.set(attachments);
+  }
+
+  protected onAttachmentsUploadingChange(uploading: boolean): void {
+    this.attachmentsUploading.set(uploading);
+  }
+
+  // ============================================================
   // Voice Assistant integration
   // ============================================================
 
@@ -154,21 +187,19 @@ export class CreateLogbookToolComponent implements OnInit {
     return this.settingsService.isVoiceAssistantEnabled();
   }
 
+  /**
+   * Guides the citizen through 5 fixed questions (qué/cómo/para qué/contexto/
+   * cuándo) and joins the answers into the `user_context` textarea so they
+   * can review everything before submitting.
+   */
   async startVoiceAssistant(): Promise<void> {
     if (!this.voiceAssistant) return;
 
-    const prompt = this.promptBuilder.text({
-      key: 'user_context',
-      label: 'caso o necesidad',
-      question:
-        'Cuéntame con detalle el caso o necesidad que quieres registrar en tu bitácora.',
-      minLength: 10,
-    });
-
     try {
-      const answers = await this.voiceAssistant.startSurvey([prompt]);
-      if (answers['user_context']) {
-        this.userContext.set(answers['user_context']);
+      const answers = await this.voiceAssistant.startSurvey(this.promptBuilder.guidedRequestSurvey());
+      const context = this.promptBuilder.buildGuidedRequestContext(answers);
+      if (context) {
+        this.userContext.set(context);
       }
     } catch {
       // Cancelado por el usuario

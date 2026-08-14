@@ -5,6 +5,8 @@ import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
+type CitizenRating = 'Malo' | 'Bueno' | 'Excelente';
+
 interface LogbookEntry {
   name: string;
   title: string;
@@ -14,6 +16,7 @@ interface LogbookEntry {
   assigned_to: string;
   description?: string;
   estimated_end_date?: string;
+  citizen_rating?: CitizenRating | '';
 }
 
 interface LogbookAction {
@@ -73,6 +76,18 @@ interface LogbookEntryDetail {
   documents?: LogbookDocument[];
   important_dates?: LogbookDate[];
   parties?: LogbookParty[];
+  citizen_rating?: CitizenRating | '';
+}
+
+interface RatingOption {
+  value: CitizenRating;
+  label: string;
+  icon: string;
+}
+
+interface SubmitRatingResponse {
+  name: string;
+  citizen_rating: CitizenRating;
 }
 
 @Component({
@@ -98,6 +113,15 @@ export class MyLogbookToolComponent implements OnInit {
   protected entries = signal<LogbookEntry[]>([]);
   protected selectedEntry = signal<LogbookEntryDetail | null>(null);
   protected showEntryDetail = signal<boolean>(false);
+
+  // Rating (caritas) state
+  protected readonly RATING_OPTIONS: RatingOption[] = [
+    { value: 'Malo', label: 'Malo', icon: 'Frown' },
+    { value: 'Bueno', label: 'Bueno', icon: 'Meh' },
+    { value: 'Excelente', label: 'Excelente', icon: 'Smile' },
+  ];
+  protected ratingSubmittingFor = signal<string | null>(null);
+  protected ratingErrorFor = signal<string | null>(null);
 
   // Computed
   protected hasEntries = computed(() => this.entries().length > 0);
@@ -250,5 +274,51 @@ export class MyLogbookToolComponent implements OnInit {
   protected isOverdue(endDate: string | undefined, status: string): boolean {
     const daysRemaining = this.getDaysRemaining(endDate, status);
     return daysRemaining !== null && daysRemaining < 0;
+  }
+
+  // ============================================================
+  // Citizen rating (caritas)
+  // ============================================================
+
+  /** Only entries actually marked "Completed" can be rated (not Archived). */
+  protected isRatable(status: string): boolean {
+    return status === 'Completed' || status === 'Completado';
+  }
+
+  protected getRatingOption(rating: string | undefined): RatingOption | undefined {
+    return this.RATING_OPTIONS.find((o) => o.value === rating);
+  }
+
+  protected submitRating(entryName: string, rating: CitizenRating, event: Event): void {
+    event.stopPropagation();
+
+    if (this.ratingSubmittingFor()) return;
+
+    this.ratingSubmittingFor.set(entryName);
+    this.ratingErrorFor.set(null);
+
+    this.frappeApi.callMethod<SubmitRatingResponse>(
+      'logbook.api.ratings.submit_rating',
+      { entry_name: entryName, rating, honeypot: '' }
+    ).subscribe({
+      next: (response) => {
+        const result = response?.message;
+        if (result) {
+          this.entries.update((list) =>
+            list.map((e) => (e.name === result.name ? { ...e, citizen_rating: result.citizen_rating } : e))
+          );
+          const selected = this.selectedEntry();
+          if (selected && selected.name === result.name) {
+            this.selectedEntry.set({ ...selected, citizen_rating: result.citizen_rating });
+          }
+        }
+        this.ratingSubmittingFor.set(null);
+      },
+      error: (err) => {
+        console.error('Error submitting rating:', err);
+        this.ratingErrorFor.set(entryName);
+        this.ratingSubmittingFor.set(null);
+      }
+    });
   }
 }

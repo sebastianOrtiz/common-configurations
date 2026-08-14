@@ -17,7 +17,7 @@ import { LucideAngularModule, Calendar, CalendarCheck, CalendarClock, CalendarDa
   GraduationCap, Video, Mic, Camera, Image,
   FileCheck, FilePlus, Download, Upload, Search,
   Filter, Circle, ChevronRight, ChevronLeft, LogOut, AlertCircle, Inbox,
-  ExternalLink, Link
+  ExternalLink, Link, Smile, Meh, Frown, Paperclip, Trash2, X, Send
 } from 'lucide-angular';
 
 // Map of available icons
@@ -33,7 +33,7 @@ const ICON_MAP = {
   GraduationCap, Video, Mic, Camera, Image,
   FileCheck, FilePlus, Download, Upload, Search,
   Filter, Circle, ChevronRight, ChevronLeft, LogOut, AlertCircle, Inbox,
-  ExternalLink, Link
+  ExternalLink, Link, Smile, Meh, Frown, Paperclip, Trash2, X, Send
 };
 
 @Component({

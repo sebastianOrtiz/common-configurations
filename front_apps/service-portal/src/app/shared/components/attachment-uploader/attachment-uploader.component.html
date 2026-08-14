@@ -1,0 +1,52 @@
+<div class="attachment-uploader">
+  <div class="attachment-uploader-controls">
+    <input
+      type="file"
+      multiple
+      [accept]="accept"
+      [disabled]="disabled"
+      (change)="onFilesSelected($event)"
+      #fileInput
+      hidden
+    />
+    <button type="button" class="btn-attach" [disabled]="disabled" (click)="fileInput.click()">
+      <app-icon name="Paperclip" [size]="18" [strokeWidth]="2"></app-icon>
+      Adjuntar evidencia
+    </button>
+    <span class="attachment-hint">PDF, JPG o PNG · máx. {{ maxFileSizeMB }}MB por archivo</span>
+  </div>
+
+  @if (uploadError()) {
+    <div class="attachment-alert">
+      <span>{{ uploadError() }}</span>
+      <button type="button" class="close-btn" (click)="uploadError.set(null)">&times;</button>
+    </div>
+  }
+
+  @if (items().length > 0) {
+    <ul class="attachment-list">
+      @for (item of items(); track item.id) {
+        <li class="attachment-item" [class.has-error]="item.status === 'error'">
+          <app-icon name="FileText" [size]="18" [strokeWidth]="2"></app-icon>
+          <span class="attachment-name">{{ item.file_name }}</span>
+
+          @if (item.status === 'uploading') {
+            <span class="attachment-spinner"></span>
+          } @else if (item.status === 'error') {
+            <span class="attachment-error-text">{{ item.errorMessage }}</span>
+          }
+
+          <button
+            type="button"
+            class="btn-remove-attachment"
+            [disabled]="disabled"
+            title="Quitar adjunto"
+            (click)="removeItem(item.id)"
+          >
+            <app-icon name="X" [size]="16" [strokeWidth]="2"></app-icon>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
