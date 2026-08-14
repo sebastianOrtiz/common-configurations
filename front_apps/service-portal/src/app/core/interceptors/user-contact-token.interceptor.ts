@@ -22,17 +22,6 @@ export const userContactTokenInterceptor: HttpInterceptorFn = (req, next) => {
   const state = inject(StateService);
   const token = state.getAuthToken();
 
-  // TEMP DEBUG (SSO): confirms this NEW bundle is live and whether a token is
-  // available at request time. Logs only a boolean, never the token value.
-  // Remove once the SSO delegated-auth issue is confirmed fixed.
-  if (req.url.includes('/api/method/')) {
-    console.log('[SSO Debug v2] interceptor run', {
-      url: req.url,
-      hasToken: !!token,
-      sameOrigin: isSameOrigin(req.url),
-    });
-  }
-
   if (token && isSameOrigin(req.url)) {
     req = req.clone({ setHeaders: { [USER_CONTACT_AUTH_HEADER]: token } });
   }
