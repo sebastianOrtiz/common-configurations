@@ -13,6 +13,8 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, from, throwError } from 'rxjs';
 import { map, catchError, shareReplay } from 'rxjs/operators';
 
+import { StateService } from './state.service';
+
 // Header name for User Contact authentication
 export const USER_CONTACT_AUTH_HEADER = 'X-User-Contact-Token';
 
@@ -20,7 +22,6 @@ export const USER_CONTACT_AUTH_HEADER = 'X-User-Contact-Token';
 interface FrappeConfig {
   authorizationMode: 'api-token' | 'csrf-token';
   token?: string;
-  userContactToken?: string;  // Token for User Contact authentication
 }
 
 // Default config (csrf-token mode for web login)
@@ -49,7 +50,10 @@ export interface ApiResponse<T = any> {
 export class FrappeApiService {
   private config: FrappeConfig = DEFAULT_CONFIG;
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private state: StateService,
+  ) {
     // Try to load config from environment or localStorage
     this.loadConfig();
   }
@@ -64,15 +68,8 @@ export class FrappeApiService {
       this.config.authorizationMode = 'api-token';
       this.config.token = storedToken;
     }
-
-    // Load User Contact auth token if available
-    const userContactToken = localStorage.getItem('sp_auth_token');
-    if (userContactToken) {
-      this.config.userContactToken = userContactToken;
-      console.log('[Auth Debug] Loaded token from localStorage:', userContactToken.substring(0, 20) + '...');
-    } else {
-      console.log('[Auth Debug] No token found in localStorage');
-    }
+    // The User Contact auth token lives in StateService (single source of
+    // truth) and is attached per-request by userContactTokenInterceptor.
   }
 
   /**
@@ -94,13 +91,8 @@ export class FrappeApiService {
       }
     }
 
-    // Add User Contact auth token if available
-    if (this.config.userContactToken) {
-      headers = headers.set(USER_CONTACT_AUTH_HEADER, this.config.userContactToken);
-      console.log('[Auth Debug] Sending User Contact token:', this.config.userContactToken.substring(0, 20) + '...');
-    } else {
-      console.log('[Auth Debug] No User Contact token in config');
-    }
+    // The User Contact auth token (X-User-Contact-Token) is added per-request
+    // by userContactTokenInterceptor, reading it from StateService.
 
     return headers;
   }
@@ -501,27 +493,22 @@ export class FrappeApiService {
    * This token is used for guest user authentication via X-User-Contact-Token header
    */
   setUserContactToken(token: string): void {
-    console.log('[Auth Debug] setUserContactToken called with:', token.substring(0, 20) + '...');
-    this.config.userContactToken = token;
-    localStorage.setItem('sp_auth_token', token);
-    // Verify it was saved
-    const saved = localStorage.getItem('sp_auth_token');
-    console.log('[Auth Debug] Token saved to localStorage:', saved ? saved.substring(0, 20) + '...' : 'null');
+    // StateService is the single source of truth; the interceptor reads from it.
+    this.state.setAuthToken(token);
   }
 
   /**
    * Clear User Contact authentication token
    */
   clearUserContactToken(): void {
-    this.config.userContactToken = undefined;
-    localStorage.removeItem('sp_auth_token');
+    this.state.setAuthToken(null);
   }
 
   /**
    * Get current User Contact token
    */
   getUserContactToken(): string | undefined {
-    return this.config.userContactToken;
+    return this.state.getAuthToken() ?? undefined;
   }
 
   /**
