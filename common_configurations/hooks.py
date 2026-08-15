@@ -30,6 +30,23 @@ website_route_rules = [
 	{"from_route": "/service-portal/<path:app_path>", "to_route": "service-portal"}
 ]
 
+# Portal Config Providers
+# ------------------------
+# Declarative multi-module config import/export framework
+# (common_configurations.api.config). Each app that wants to expose part of
+# the site configuration for import/export appends ITS OWN provider(s) to
+# this list in its own hooks.py — NEVER overrides it, always appends, e.g.:
+#
+#   portal_config_providers = [
+#       "logbook.config_providers.logbook_config_provider.LogbookConfigProvider",
+#   ]
+#
+# See common_configurations/api/config/provider.py (ConfigProvider),
+# context.py (ImportContext) and upsert.py (upsert_doc) for the contract.
+portal_config_providers = [
+	"common_configurations.config_providers.common_config_provider.CommonConfigProvider",
+]
+
 # Apps
 # ------------------
 

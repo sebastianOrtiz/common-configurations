@@ -16,6 +16,12 @@ Structure:
     ├── auth/                # Authentication domain
     │   ├── endpoints.py
     │   └── service.py
+    ├── config/              # Declarative multi-module config import/export
+    │   ├── provider.py      # ConfigProvider base class (public contract)
+    │   ├── context.py       # ImportContext (public contract)
+    │   ├── upsert.py        # upsert_doc() helper (public contract)
+    │   ├── engine.py        # provider discovery/ordering + run_import/export
+    │   └── endpoints.py     # import_site_config/export_site_config/describe_config_schema
     └── shared/              # Shared utilities
         ├── security.py      # Auth, tokens, honeypot
         ├── rate_limit.py    # Rate limiting
@@ -26,6 +32,7 @@ Usage:
     frappe.call("common_configurations.api.contacts.get_user_contact_by_document", ...)
     frappe.call("common_configurations.api.portals.get_portal", ...)
     frappe.call("common_configurations.api.auth.get_csrf_token", ...)
+    frappe.call("common_configurations.api.config.import_site_config", ...)
 """
 
 # Re-export domains for convenient access
@@ -37,6 +44,7 @@ from . import ai
 from . import external
 from . import hub
 from . import settings
+from . import config
 from . import shared
 
 # Re-export shared utilities at package level
@@ -68,6 +76,7 @@ __all__ = [
     "ai",
     "external",
     "hub",
+    "config",
     "shared",
     # Shared utilities
     "check_rate_limit",
