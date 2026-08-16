@@ -71,7 +71,6 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
       const toolType = params.get('toolType') || '';
       const toolName = params.get('toolName') || undefined;
 
-      console.log('[ToolRouter] Params changed:', { toolType, toolName });
 
       this.toolType = toolType;
       this.toolName = toolName;
@@ -83,7 +82,6 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
   private async loadToolComponent(toolType: string, toolName?: string) {
     const requestId = ++this.loadRequestId;
 
-    console.log('[ToolRouter] Loading component for:', toolType, toolName);
     this.loading = true;
     this.error = false;
 
@@ -101,55 +99,46 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
         case 'meet_scheduling':
           const meetScheduling = await import('../meet-scheduling/meet-scheduling-tool.component');
           ComponentClass = meetScheduling.MeetSchedulingToolComponent;
-          console.log('[ToolRouter] Loaded meet_scheduling component:', ComponentClass);
           break;
 
         case 'my_appointments':
           const myAppointments = await import('../my-appointments/my-appointments-tool.component');
           ComponentClass = myAppointments.MyAppointmentsToolComponent;
-          console.log('[ToolRouter] Loaded my_appointments component:', ComponentClass);
           break;
 
         case 'my_cases':
           const myCases = await import('../my-cases/my-cases-tool.component');
           ComponentClass = myCases.MyCasesToolComponent;
-          console.log('[ToolRouter] Loaded my_cases component:', ComponentClass);
           break;
 
         case 'portal_quick_links':
           const quickLinks = await import('../portal-quick-links/portal-quick-links-tool.component');
           ComponentClass = quickLinks.PortalQuickLinksToolComponent;
-          console.log('[ToolRouter] Loaded portal_quick_links component:', ComponentClass);
           break;
 
         case 'my_logbook':
           const myLogbook = await import('../my-logbook/my-logbook-tool.component');
           ComponentClass = myLogbook.MyLogbookToolComponent;
-          console.log('[ToolRouter] Loaded my_logbook component:', ComponentClass);
           break;
 
         case 'create_logbook':
           const createLogbook = await import('../create-logbook/create-logbook-tool.component');
           ComponentClass = createLogbook.CreateLogbookToolComponent;
-          console.log('[ToolRouter] Loaded create_logbook component:', ComponentClass);
           break;
 
         case 'procedures':
           const procedures = await import('../procedures/procedures-tool.component');
           ComponentClass = procedures.ProceduresToolComponent;
-          console.log('[ToolRouter] Loaded procedures component:', ComponentClass);
           break;
 
         case 'pqr':
           const pqr = await import('../pqr/pqr-tool.component');
           ComponentClass = pqr.PqrToolComponent;
-          console.log('[ToolRouter] Loaded pqr component:', ComponentClass);
           break;
 
         case 'my_pqr':
           const myPqr = await import('../my-pqr/my-pqr-tool.component');
           ComponentClass = myPqr.MyPqrToolComponent;
-          console.log('[ToolRouter] Loaded my_pqr component:', ComponentClass);
           break;
 
         default:
@@ -172,7 +161,6 @@ export class ToolRouterComponent implements OnInit, OnDestroy {
           this.componentRef.setInput('toolName', toolName);
         }
 
-        console.log('[ToolRouter] Component created successfully');
         this.loading = false;
         this.error = false;
       } else {
