@@ -130,8 +130,11 @@ export class PortalViewComponent implements OnInit {
       return;
     }
 
-    // Navigate to tool route (will be lazy loaded)
-    this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
+    // Navigate to tool route (will be lazy loaded).
+    // tool.name (docname) disambiguates portals with several tools of the same
+    // tool_type (e.g. "procedures" per secretaría) so the router reinstantiates
+    // the right one instead of always resolving the first row of that type.
+    this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type, tool.name]);
   }
 
   /**

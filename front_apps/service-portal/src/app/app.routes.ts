@@ -62,7 +62,15 @@ export const routes: Routes = [
         loadComponent: () => import('./features/portal/sso-consumer/sso-consumer.component').then(m => m.SsoConsumerComponent)
       },
 
-      // Tool routes (lazy loaded by tool type)
+      // Tool routes (lazy loaded by tool type).
+      // :toolName (the Service Portal Tool docname) disambiguates portals that have
+      // several tools of the same tool_type (e.g. "procedures" per secretaría).
+      // The 2-segment fallback is kept for callers that still navigate without it
+      // (tool types whose config doesn't depend on the specific row, e.g. my_appointments).
+      {
+        path: 'tool/:toolType/:toolName',
+        loadChildren: () => import('./features/tools/tools.routes').then(m => m.toolRoutes)
+      },
       {
         path: 'tool/:toolType',
         loadChildren: () => import('./features/tools/tools.routes').then(m => m.toolRoutes)

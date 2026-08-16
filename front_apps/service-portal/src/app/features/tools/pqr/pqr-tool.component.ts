@@ -10,7 +10,7 @@
  * OR if the user is not logged in (always treated as anonymous).
  */
 
-import { Component, OnInit, signal, computed, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, Input, signal, computed, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -64,6 +64,12 @@ export class PqrToolComponent implements OnInit {
 
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
+  /**
+   * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
+   * route param. Disambiguates portals with several "pqr" tools.
+   */
+  @Input() toolName?: string;
+
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
@@ -88,8 +94,10 @@ export class PqrToolComponent implements OnInit {
   // Result state
   protected createdPQR = signal<CreatedPQR | null>(null);
 
-  // Config
-  private toolName = '';
+  // Config: docname of the resolved Service Portal Tool row (used for API calls).
+  // Not to be confused with the `toolName` @Input, which is the route param used
+  // to pick WHICH row to resolve when the portal has several "pqr" tools.
+  private resolvedToolName = '';
 
   protected canSubmit = computed(() => {
     return (
@@ -101,14 +109,16 @@ export class PqrToolComponent implements OnInit {
 
   ngOnInit(): void {
     const portal = this.selectedPortal();
-    const tool = portal?.tools.find((t: any) => t.tool_type === 'pqr');
+    const tool = this.toolName
+      ? portal?.tools.find((t: any) => t.name === this.toolName)
+      : portal?.tools.find((t: any) => t.tool_type === 'pqr');
 
     if (!tool) {
       this.error.set('La configuración de PQR no se encontró.');
       return;
     }
 
-    this.toolName = (tool as any).name;
+    this.resolvedToolName = (tool as any).name;
     this.loadTypes();
   }
 
@@ -119,7 +129,7 @@ export class PqrToolComponent implements OnInit {
     try {
       const response = await this.frappeApi.callMethod<ToolTypesResponse>(
         'pqr_management.api.types.get_tool_types',
-        { tool_name: this.toolName },
+        { tool_name: this.resolvedToolName },
         true
       ).toPromise();
 

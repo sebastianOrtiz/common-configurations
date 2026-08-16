@@ -4,7 +4,7 @@
  * Provides appointment scheduling functionality
  */
 
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, Input, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -41,6 +41,11 @@ export class MeetSchedulingToolComponent implements OnInit {
   private stateService = inject(StateService);
   private router = inject(Router);
 
+  /**
+   * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
+   * route param. Disambiguates portals with several "meet_scheduling" tools.
+   */
+  @Input() toolName?: string;
 
   // Configuration from portal tool
   protected calendarResource = signal<string>('');
@@ -87,7 +92,9 @@ export class MeetSchedulingToolComponent implements OnInit {
 
     // Get calendar resource from portal tool configuration
     const portal = this.selectedPortal();
-    const tool = portal?.tools.find(t => t.tool_type === 'meet_scheduling');
+    const tool = this.toolName
+      ? portal?.tools.find(t => t.name === this.toolName)
+      : portal?.tools.find(t => t.tool_type === 'meet_scheduling');
 
     if (tool && tool.calendar_resource) {
       this.calendarResource.set(tool.calendar_resource);
@@ -557,7 +564,7 @@ export class MeetSchedulingToolComponent implements OnInit {
   goBack(): void {
     const portal = this.selectedPortal();
     if (portal) {
-      this.router.navigate(['/portal', portal.name]);
+      this.router.navigate(['/portal', portal.portal_name]);
     }
   }
 

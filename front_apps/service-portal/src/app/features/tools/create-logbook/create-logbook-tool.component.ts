@@ -5,7 +5,7 @@
  * without needing to create an Appointment first.
  */
 
-import { Component, OnInit, signal, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, Input, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -54,6 +54,12 @@ export class CreateLogbookToolComponent implements OnInit {
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
   @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
+  /**
+   * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
+   * route param. Disambiguates portals with several "create_logbook" tools.
+   */
+  @Input() toolName?: string;
+
   // State
   protected selectedPortal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
@@ -77,7 +83,9 @@ export class CreateLogbookToolComponent implements OnInit {
     if (this.isAnonymousUser()) return;
 
     const portal = this.selectedPortal();
-    const tool = portal?.tools.find(t => t.tool_type === 'create_logbook');
+    const tool = this.toolName
+      ? portal?.tools.find(t => t.name === this.toolName)
+      : portal?.tools.find(t => t.tool_type === 'create_logbook');
 
     if (tool && (tool as any).logbook_availability) {
       this.logbookAvailability = (tool as any).logbook_availability;
@@ -156,7 +164,7 @@ export class CreateLogbookToolComponent implements OnInit {
   goBack(): void {
     const portal = this.selectedPortal();
     if (portal) {
-      this.router.navigate(['/portal', portal.name]);
+      this.router.navigate(['/portal', portal.portal_name]);
     }
   }
 

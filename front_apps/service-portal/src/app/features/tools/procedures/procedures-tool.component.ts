@@ -6,7 +6,7 @@
  * - External procedures: show an info modal and register a Procedure Request automatically
  */
 
-import { Component, OnInit, signal, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, Input, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -68,6 +68,13 @@ export class ProceduresToolComponent implements OnInit {
   @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
   @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
+  /**
+   * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
+   * route param. Disambiguates portals with several "procedures" tools (one per
+   * secretaría) — without it we'd always resolve the first row of that type.
+   */
+  @Input() toolName?: string;
+
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
@@ -115,21 +122,25 @@ export class ProceduresToolComponent implements OnInit {
   // Result state
   protected createdEntry = signal<CreatedEntry | null>(null);
 
-  // Config
-  private toolName = '';
+  // Config: docname of the resolved Service Portal Tool row (used for API calls).
+  // Not to be confused with the `toolName` @Input, which is the route param used
+  // to pick WHICH row to resolve when the portal has several "procedures" tools.
+  private resolvedToolName = '';
 
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;
 
     const portal = this.selectedPortal();
-    const tool = portal?.tools.find(t => t.tool_type === 'procedures');
+    const tool = this.toolName
+      ? portal?.tools.find(t => t.name === this.toolName)
+      : portal?.tools.find(t => t.tool_type === 'procedures');
 
     if (!tool) {
       this.error.set('Configuración de trámites no encontrada');
       return;
     }
 
-    this.toolName = tool.name || '';
+    this.resolvedToolName = tool.name || '';
 
     if (!(tool as any).logbook_procedures_config) {
       this.error.set('Esta herramienta no tiene una configuración de trámites asignada');
@@ -145,7 +156,7 @@ export class ProceduresToolComponent implements OnInit {
 
     this.frappeApi.callMethod<Procedure[]>(
       'logbook.api.procedures.get_procedures',
-      { tool_name: this.toolName },
+      { tool_name: this.resolvedToolName },
       true
     ).subscribe({
       next: (response) => {
@@ -276,7 +287,7 @@ export class ProceduresToolComponent implements OnInit {
   goBack(): void {
     const portal = this.selectedPortal();
     if (portal) {
-      this.router.navigate(['/portal', portal.name]);
+      this.router.navigate(['/portal', portal.portal_name]);
     }
   }
 
