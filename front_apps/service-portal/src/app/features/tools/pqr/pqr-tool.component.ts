@@ -110,7 +110,7 @@ export class PqrToolComponent implements OnInit {
   ngOnInit(): void {
     const portal = this.selectedPortal();
     const tool = this.toolName
-      ? portal?.tools.find((t: any) => t.name === this.toolName)
+      ? portal?.tools.find((t: any) => String(t.name) === String(this.toolName))
       : portal?.tools.find((t: any) => t.tool_type === 'pqr');
 
     if (!tool) {

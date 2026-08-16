@@ -132,7 +132,7 @@ export class ProceduresToolComponent implements OnInit {
 
     const portal = this.selectedPortal();
     const tool = this.toolName
-      ? portal?.tools.find(t => t.name === this.toolName)
+      ? portal?.tools.find(t => String(t.name) === String(this.toolName))
       : portal?.tools.find(t => t.tool_type === 'procedures');
 
     if (!tool) {

@@ -93,7 +93,7 @@ export class MeetSchedulingToolComponent implements OnInit {
     // Get calendar resource from portal tool configuration
     const portal = this.selectedPortal();
     const tool = this.toolName
-      ? portal?.tools.find(t => t.name === this.toolName)
+      ? portal?.tools.find(t => String(t.name) === String(this.toolName))
       : portal?.tools.find(t => t.tool_type === 'meet_scheduling');
 
     if (tool && tool.calendar_resource) {
