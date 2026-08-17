@@ -53,17 +53,32 @@ class AnthropicClient(AIClient):
 			with self.client.messages.stream(**kw) as stream:
 				return stream.get_final_message()
 
+		import re
+
 		try:
-			try:
-				response = _stream_final(call_kwargs)
-			except Exception as inner:
-				# Newer models (Sonnet 5, Opus 5, ...) reject `temperature` with
-				# a 400. Retry once without it instead of failing the whole call.
-				if "temperature" in call_kwargs and "temperature" in str(inner).lower():
-					call_kwargs.pop("temperature", None)
+			response = None
+			# Self-heal known recoverable 400s (bad temperature / oversized
+			# max_tokens) by adjusting the payload and retrying, instead of
+			# failing the whole call. Bounded to a few attempts.
+			for _ in range(3):
+				try:
 					response = _stream_final(call_kwargs)
-				else:
+					break
+				except Exception as inner:
+					msg = str(inner).lower()
+					# Newer models (Sonnet 5, Opus 5, ...) reject `temperature`.
+					if "temperature" in call_kwargs and "temperature" in msg:
+						call_kwargs.pop("temperature", None)
+						continue
+					# max_tokens above the model's output ceiling: clamp to the
+					# limit the API reports ("... > 128000, which is the maximum").
+					limit = re.search(r">\s*(\d+)", str(inner))
+					if "max_tokens" in msg and limit:
+						call_kwargs["max_tokens"] = int(limit.group(1))
+						continue
 					raise
+			if response is None:
+				raise Exception("Anthropic request failed after retries")
 			# Return the first text block (skip thinking/tool blocks).
 			for block in response.content:
 				if getattr(block, "type", None) == "text":
