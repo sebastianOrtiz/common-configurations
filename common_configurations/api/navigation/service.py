@@ -421,19 +421,48 @@ class NavigationService:
 
             system_prompt = (
                 "Eres un experto en cómo los ciudadanos colombianos hablan "
-                "coloquialmente al buscar trámites y servicios en un portal "
-                "municipal. Para cada ítem del catálogo que te doy (con su "
-                "título, descripción, secretaría y tipo), genera una lista "
-                "de palabras clave y sinónimos de cómo un ciudadano diría "
-                "eso mismo, incluyendo formas coloquiales, informales y "
-                "abreviadas (ej: 'eps' para 'entidad promotora de salud'). "
-                "Responde SIEMPRE y ÚNICAMENTE con un objeto JSON plano, "
-                "sin texto adicional antes ni después, ni bloques de "
-                "código, con esta forma exacta: "
-                '{"<id>": ["palabra1", "palabra2", ...], ...} '
-                "usando ÚNICAMENTE los ids que te doy, una entrada por "
-                "cada ítem recibido."
+                "coloquialmente al buscar trámites en un portal municipal.\n"
+                "Recibes: 'items' (los trámites a enriquecer, con id, título, "
+                "descripción, secretaría y tipo) y 'catalogo' (la lista COMPLETA "
+                "de trámites del portal, con su título y secretaría, como "
+                "contexto para NO confundir unos con otros).\n"
+                "Para CADA ítem de 'items' genera:\n"
+                "1. 'keywords': de 8 a 15 frases/palabras de cómo un ciudadano "
+                "diría ESE trámite, en lenguaje coloquial, informal y regional "
+                "colombiano, incluyendo abreviaturas (ej: 'eps') y errores "
+                "comunes de escritura.\n"
+                "2. 'description': una sola frase corta (máx 15 palabras) en "
+                "lenguaje sencillo de qué es el trámite.\n"
+                "REGLAS DE PRECISIÓN (obligatorias):\n"
+                "- Las keywords deben DISTINGUIR este trámite de los demás del "
+                "'catalogo'. Si un concepto (p.ej. 'sisben', 'subsidio', "
+                "'conciliacion', 'denuncia', 'ica', 'licencia', 'certificado') "
+                "aplica a MÁS DE UNA secretaría, NUNCA uses la palabra sola: "
+                "siempre califícala con su contexto específico (ej: 'subsidio "
+                "de vivienda' vs 'subsidio de salud'; 'conciliacion entre "
+                "vecinos' vs 'conciliacion de alimentos'). Ninguna keyword debe "
+                "servir también para un trámite de OTRA secretaría.\n"
+                "- No uses el nombre de la secretaría como keyword.\n"
+                "- No inventes trámites que no existan en el catálogo.\n"
+                "- Escribe TODAS las keywords en minúsculas y SIN tildes. La "
+                "'description' sí en lenguaje normal legible.\n"
+                "FORMATO: responde SIEMPRE y ÚNICAMENTE con un objeto JSON "
+                "plano, sin texto ni bloques de código antes o después, con "
+                "esta forma exacta: "
+                '{"<id>": {"keywords": ["...", "..."], "description": "..."}, ...} '
+                "usando ÚNICAMENTE los ids de 'items', una entrada por cada "
+                "ítem recibido."
             )
+
+            # Full-catalog context so the model can differentiate similar
+            # trámites across secretarías (prevents keyword collisions).
+            catalog_context = [
+                {
+                    "title": it.get("title") or "",
+                    "secretaria": it.get("secretaria") or "",
+                }
+                for it in items
+            ]
 
             for start in range(0, len(items), AI_ENRICH_BATCH_SIZE):
                 batch = items[start : start + AI_ENRICH_BATCH_SIZE]
@@ -448,7 +477,10 @@ class NavigationService:
                         }
                         for item in batch
                     ]
-                    prompt = json.dumps({"items": compact_batch}, ensure_ascii=False)
+                    prompt = json.dumps(
+                        {"items": compact_batch, "catalogo": catalog_context},
+                        ensure_ascii=False,
+                    )
 
                     raw_response = client.chat(prompt, system_prompt)
                     parsed = cls._parse_ai_json(raw_response)
@@ -456,15 +488,29 @@ class NavigationService:
                         continue
 
                     by_id = {item["id"]: item for item in batch}
-                    for item_id, keywords in parsed.items():
+                    for item_id, value in parsed.items():
                         item = by_id.get(item_id)
-                        if not item or not isinstance(keywords, list):
+                        if not item:
+                            continue
+
+                        # Accept both the new shape {"keywords": [...],
+                        # "description": "..."} and the legacy plain list.
+                        if isinstance(value, dict):
+                            kw_list = value.get("keywords") or []
+                            desc = value.get("description")
+                            if desc and not (item.get("description") or "").strip():
+                                item["description"] = str(desc).strip()
+                        elif isinstance(value, list):
+                            kw_list = value
+                        else:
+                            continue
+                        if not isinstance(kw_list, list):
                             continue
 
                         existing = [
                             k.strip() for k in (item.get("keywords") or "").split(",") if k.strip()
                         ]
-                        new_keywords = [str(k).strip() for k in keywords if str(k).strip()]
+                        new_keywords = [str(k).strip() for k in kw_list if str(k).strip()]
                         merged = existing + [k for k in new_keywords if k not in existing]
                         if merged:
                             item["keywords"] = ", ".join(merged)
