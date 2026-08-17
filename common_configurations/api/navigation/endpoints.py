@@ -170,7 +170,7 @@ def _status_key(portal_name: str) -> str:
     return f"nav_build_status:{portal_name}"
 
 
-@frappe.whitelist(methods=["GET"])
+@frappe.whitelist()
 def navigation_build_status(portal_name: str) -> Dict[str, Any]:
     """
     Poll the status of an in-flight (or just-finished) catalog build.
