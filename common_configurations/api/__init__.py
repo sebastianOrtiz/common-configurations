@@ -13,6 +13,9 @@ Structure:
     ├── portals/             # Service Portal domain
     │   ├── endpoints.py
     │   └── service.py
+    ├── navigation/           # Voice/intent navigation domain
+    │   ├── endpoints.py
+    │   └── service.py
     ├── auth/                # Authentication domain
     │   ├── endpoints.py
     │   └── service.py
@@ -31,6 +34,7 @@ Structure:
 Usage:
     frappe.call("common_configurations.api.contacts.get_user_contact_by_document", ...)
     frappe.call("common_configurations.api.portals.get_portal", ...)
+    frappe.call("common_configurations.api.navigation.resolve_navigation", ...)
     frappe.call("common_configurations.api.auth.get_csrf_token", ...)
     frappe.call("common_configurations.api.config.import_site_config", ...)
 """
@@ -38,6 +42,7 @@ Usage:
 # Re-export domains for convenient access
 from . import contacts
 from . import portals
+from . import navigation
 from . import auth
 from . import otp
 from . import ai
@@ -71,6 +76,7 @@ __all__ = [
     # Domains
     "contacts",
     "portals",
+    "navigation",
     "auth",
     "otp",
     "ai",

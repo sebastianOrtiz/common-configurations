@@ -12,11 +12,12 @@ import { StateService } from '../../../core/services/state.service';
 import { ServicePortal, ServicePortalTool } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { AnnouncementZoneComponent } from '../../../shared/components/announcement-zone/announcement-zone.component';
+import { VoiceNavigationComponent } from '../voice-navigation/voice-navigation.component';
 
 @Component({
   selector: 'app-portal-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, AnnouncementZoneComponent],
+  imports: [CommonModule, IconComponent, AnnouncementZoneComponent, VoiceNavigationComponent],
   templateUrl: './portal-view.component.html',
   styleUrls: ['./portal-view.component.scss']
 })

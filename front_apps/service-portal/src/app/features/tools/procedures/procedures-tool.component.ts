@@ -6,10 +6,11 @@
  * - External procedures: show an info modal and register a Procedure Request automatically
  */
 
-import { Component, OnInit, Input, signal, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
@@ -58,10 +59,11 @@ type ViewState = 'list' | 'form' | 'confirm' | 'external';
   templateUrl: './procedures-tool.component.html',
   styleUrls: ['./procedures-tool.component.scss']
 })
-export class ProceduresToolComponent implements OnInit {
+export class ProceduresToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
 
@@ -127,6 +129,16 @@ export class ProceduresToolComponent implements OnInit {
   // to pick WHICH row to resolve when the portal has several "procedures" tools.
   private resolvedToolName = '';
 
+  // ============================================================
+  // Deep-link auto-open (?procedure=<name> query param, e.g. from voice navigation)
+  // ============================================================
+
+  /** Latest value of the `procedure` queryParam, applied once the list is loaded. */
+  private pendingDeepLinkProcedure: string | null = null;
+  /** Avoids re-opening the same procedure on every emission/route reuse. */
+  private lastAutoOpenedProcedure: string | null = null;
+  private queryParamsSubscription?: Subscription;
+
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;
 
@@ -148,6 +160,40 @@ export class ProceduresToolComponent implements OnInit {
     }
 
     this.loadProcedures();
+
+    // Deep-link support (e.g. voice navigation): subscribe rather than reading
+    // the snapshot once, because Angular reuses this component instance when
+    // only the `procedure` queryParam changes (the :toolName path param stays
+    // the same), so a later voice search landing on the same tool wouldn't
+    // otherwise trigger a fresh auto-open.
+    this.queryParamsSubscription = this.route.queryParamMap.subscribe((params) => {
+      this.pendingDeepLinkProcedure = params.get('procedure');
+      this.tryAutoOpenDeepLinkProcedure();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.queryParamsSubscription?.unsubscribe();
+  }
+
+  /**
+   * Auto-opens the procedure named by the `?procedure=` queryParam, as if the
+   * citizen had clicked its card. Called both when the queryParam changes and
+   * after the procedures list finishes loading (whichever happens last).
+   * Silently ignores an unknown/missing procedure name.
+   */
+  private tryAutoOpenDeepLinkProcedure(): void {
+    const procedureName = this.pendingDeepLinkProcedure;
+    if (!procedureName) return;
+    if (this.loadingProcedures()) return; // wait for the list to be ready
+    if (this.view() !== 'list') return; // don't interrupt an in-progress view
+    if (this.lastAutoOpenedProcedure === procedureName) return; // already handled
+
+    const match = this.procedures().find((p) => p.name === procedureName);
+    if (!match) return; // unknown procedure: ignore without breaking the view
+
+    this.lastAutoOpenedProcedure = procedureName;
+    this.selectProcedure(match);
   }
 
   private loadProcedures(): void {
@@ -162,6 +208,7 @@ export class ProceduresToolComponent implements OnInit {
       next: (response) => {
         this.procedures.set(response?.message || []);
         this.loadingProcedures.set(false);
+        this.tryAutoOpenDeepLinkProcedure();
       },
       error: (err) => {
         console.error('Error loading procedures:', err);
