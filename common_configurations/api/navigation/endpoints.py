@@ -147,10 +147,17 @@ def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any
 
     # Enrichment makes several AI calls and can take minutes; run it in a
     # background worker so the HTTP request returns immediately and never
-    # times out. Progress/done/error are pushed to the user via realtime.
+    # times out. The 'default' queue is the one always served by the worker;
+    # progress is written to cache and polled by the client (realtime is
+    # published too, as a bonus, but the client relies on polling).
+    frappe.cache().set_value(
+        _status_key(portal_name),
+        {"status": "queued", "current": 0, "total": 0},
+        expires_in_sec=3600,
+    )
     frappe.enqueue(
         "common_configurations.api.navigation.endpoints._build_and_persist_catalog",
-        queue="long",
+        queue="default",
         timeout=1800,
         portal_name=portal_name,
         use_ai=int(use_ai or 0),
@@ -159,27 +166,55 @@ def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any
     return {"queued": True, "portal": portal_name}
 
 
+def _status_key(portal_name: str) -> str:
+    return f"nav_build_status:{portal_name}"
+
+
+@frappe.whitelist(methods=["GET"])
+def navigation_build_status(portal_name: str) -> Dict[str, Any]:
+    """
+    Poll the status of an in-flight (or just-finished) catalog build.
+    Admin-only. Returns {"status": "queued"|"running"|"done"|"error"|"idle",
+    ...} from the cache written by the background worker.
+    """
+    frappe.only_for("System Manager")
+    portal_name = sanitize_string(portal_name, 140)
+    status = frappe.cache().get_value(_status_key(portal_name))
+    if not isinstance(status, dict):
+        return {"status": "idle", "portal": portal_name}
+    out = dict(status)
+    out["portal"] = portal_name
+    return out
+
+
 def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None:
     """
     Background worker: build + (optionally) AI-enrich + persist the Portal
-    Navigation Catalog, pushing realtime progress/done/error events to
-    `user`. Never raises to the queue — failures are reported as an event.
+    Navigation Catalog. Writes progress/done/error to cache (polled by the
+    client) and also publishes realtime events. Never raises to the queue.
     """
 
-    def _publish(event: str, payload: Dict[str, Any]) -> None:
+    def _report(payload: Dict[str, Any], event: Optional[str] = None) -> None:
+        payload = dict(payload)
         payload["portal"] = portal_name
-        frappe.publish_realtime(event, payload, user=user)
+        frappe.cache().set_value(_status_key(portal_name), payload, expires_in_sec=3600)
+        if event:
+            try:
+                frappe.publish_realtime(event, payload, user=user)
+            except Exception:
+                pass
 
     try:
+        _report({"status": "running", "current": 0, "total": 0})
         built = NavigationService.build_catalog(portal_name)
         items = built["items"]
         used_ai = False
 
         if int(use_ai or 0):
             def _progress(current: int, total: int) -> None:
-                _publish(
-                    "navigation_catalog_progress",
-                    {"current": current, "total": total},
+                _report(
+                    {"status": "running", "current": current, "total": total},
+                    event="navigation_catalog_progress",
                 )
 
             items, used_ai = NavigationService.enrich_catalog_with_ai(
@@ -201,14 +236,15 @@ def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None
         catalog_doc.save(ignore_permissions=True)
         frappe.db.commit()
 
-        _publish(
-            "navigation_catalog_done",
+        _report(
             {
+                "status": "done",
                 "item_count": catalog_doc.item_count,
                 "tool_count": catalog_doc.tool_count,
                 "built_with_ai": bool(catalog_doc.built_with_ai),
                 "enriched": bool(used_ai),
             },
+            event="navigation_catalog_done",
         )
     except Exception as e:
         frappe.db.rollback()
@@ -216,4 +252,4 @@ def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None
             title="Navigation catalog build failed",
             message=frappe.get_traceback(),
         )
-        _publish("navigation_catalog_error", {"message": str(e)})
+        _report({"status": "error", "message": str(e)}, event="navigation_catalog_error")

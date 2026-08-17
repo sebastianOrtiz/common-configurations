@@ -140,31 +140,18 @@ function build_navigation_catalog(frm) {
 }
 
 // Kicks off the (background) catalog build and shows a live, NON-blocking
-// progress bar driven by realtime events, so the admin can see it advancing
-// instead of a frozen UI. Resolves with a done/error message.
+// progress bar. Progress is polled from the server (does not depend on
+// realtime/socketio), so it works reliably in any setup.
 function start_catalog_build(frm, use_ai) {
 	const portal = frm.doc.name;
 	let finished = false;
+	let poll_timer = null;
 
-	const on_progress = function(data) {
-		if (!data || data.portal !== portal) return;
-		const pct = data.total ? Math.round((data.current / data.total) * 100) : 30;
-		frappe.show_progress(
-			__('Generando catálogo de navegación'),
-			pct,
-			__('Enriqueciendo con IA — lote {0} de {1}…', [data.current, data.total])
-		);
+	const stop = function() {
+		if (poll_timer) { clearInterval(poll_timer); poll_timer = null; }
 	};
-	const cleanup = function() {
-		frappe.realtime.off('navigation_catalog_progress', on_progress);
-		frappe.realtime.off('navigation_catalog_done', on_done);
-		frappe.realtime.off('navigation_catalog_error', on_error);
-	};
-	const on_done = function(data) {
-		if (!data || data.portal !== portal) return;
-		finished = true;
-		frappe.hide_progress();
-		cleanup();
+	const show_done = function(data) {
+		finished = true; stop(); frappe.hide_progress();
 		const ai_line = data.enriched
 			? __('Sí, se usó IA para enriquecer keywords/sinónimos.')
 			: __('No (deshabilitado, sin configurar, o no solicitado).');
@@ -186,42 +173,48 @@ function start_catalog_build(frm, use_ai) {
 		});
 		frm.refresh();
 	};
-	const on_error = function(data) {
-		if (!data || data.portal !== portal) return;
-		finished = true;
-		frappe.hide_progress();
-		cleanup();
+	const show_error = function(msg) {
+		finished = true; stop(); frappe.hide_progress();
 		frappe.msgprint({
 			title: __('Error generando el catálogo'),
 			indicator: 'red',
-			message: frappe.utils.escape_html(data.message || __('Error desconocido'))
+			message: frappe.utils.escape_html(msg || __('Error desconocido'))
 		});
 	};
-
-	frappe.realtime.on('navigation_catalog_progress', on_progress);
-	frappe.realtime.on('navigation_catalog_done', on_done);
-	frappe.realtime.on('navigation_catalog_error', on_error);
 
 	frappe.show_progress(__('Generando catálogo de navegación'), 5, __('Encolando la tarea…'));
 
 	frappe.call({
 		method: 'common_configurations.api.navigation.build_navigation_catalog',
 		args: { portal_name: portal, use_ai: use_ai },
-		callback: function(r) {
-			if (r && r.message && r.message.queued) {
-				frappe.show_progress(
-					__('Generando catálogo de navegación'), 10,
-					__('Procesando en segundo plano… puedes seguir trabajando.')
-				);
-			}
-		},
-		error: function() {
-			if (!finished) { frappe.hide_progress(); cleanup(); }
-		}
+		error: function() { if (!finished) { stop(); frappe.hide_progress(); } }
 	});
 
-	// Safety net: stop listening after 30 min if no done/error arrived.
-	setTimeout(function() {
-		if (!finished) { frappe.hide_progress(); cleanup(); }
-	}, 30 * 60 * 1000);
+	const poll = function() {
+		if (finished) return;
+		frappe.call({
+			method: 'common_configurations.api.navigation.navigation_build_status',
+			args: { portal_name: portal },
+			callback: function(r) {
+				if (finished || !r || !r.message) return;
+				const s = r.message;
+				if (s.status === 'done') { show_done(s); }
+				else if (s.status === 'error') { show_error(s.message); }
+				else {
+					const pct = s.total ? Math.round((s.current / s.total) * 100) : 15;
+					frappe.show_progress(
+						__('Generando catálogo de navegación'),
+						Math.max(pct, 10),
+						s.total
+							? __('Enriqueciendo con IA — lote {0} de {1}…', [s.current, s.total])
+							: __('Procesando en segundo plano… puedes seguir trabajando.')
+					);
+				}
+			}
+		});
+	};
+	poll_timer = setInterval(poll, 3000);
+
+	// Safety net: stop polling after 30 min if nothing resolved.
+	setTimeout(function() { if (!finished) { stop(); frappe.hide_progress(); } }, 30 * 60 * 1000);
 }
