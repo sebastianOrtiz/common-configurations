@@ -59,11 +59,11 @@ def validate_ai_configuration(config_name: str) -> List[str]:
 			_("La Configuración de IA '{0}' no tiene Proveedor configurado").format(ai.config_name)
 		)
 	else:
-		provider_active = frappe.db.get_value("AI Provider", ai.provider, "is_active")
-		if provider_active is None:
+		# AI Provider has no "is_active" flag (only a name, description and models);
+		# just ensure it exists. The active/inactive concept lives on the AI
+		# Configuration itself (its `is_active`, already checked above).
+		if not frappe.db.exists("AI Provider", ai.provider):
 			issues.append(_("El Proveedor '{0}' no existe").format(ai.provider))
-		elif not provider_active:
-			issues.append(_("El Proveedor '{0}' está desactivado").format(ai.provider))
 
 	if not ai.model:
 		issues.append(
