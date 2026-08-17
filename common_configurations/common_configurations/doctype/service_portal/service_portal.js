@@ -132,49 +132,96 @@ function build_navigation_catalog(frm) {
 		primary_action_label: __('Generar'),
 		primary_action: function(values) {
 			dialog.hide();
-
-			frappe.dom.freeze(__('Generando catálogo de navegación...'));
-			frappe.call({
-				method: 'common_configurations.api.navigation.build_navigation_catalog',
-				args: {
-					portal_name: frm.doc.name,
-					use_ai: values.use_ai ? 1 : 0
-				},
-				callback: function(r) {
-					frappe.dom.unfreeze();
-					if (!r.message) return;
-
-					const summary = r.message;
-					const ai_line = summary.enriched
-						? __('Sí, se usó IA para enriquecer keywords/sinónimos.')
-						: __('No (deshabilitado, sin configurar, o no solicitado).');
-
-					frappe.msgprint({
-						title: __('Catálogo de navegación generado'),
-						indicator: 'green',
-						message: `
-							<p>${__('Portal')}: <strong>${frappe.utils.escape_html(summary.portal)}</strong></p>
-							<p>${__('Herramientas cubiertas')}: <strong>${summary.tool_count}</strong></p>
-							<p>${__('Ítems navegables')}: <strong>${summary.item_count}</strong></p>
-							<p>${__('Enriquecido con IA')}: ${ai_line}</p>
-						`,
-						primary_action: {
-							label: __('Ver catálogo'),
-							action: function() {
-								frappe.set_route('Form', 'Portal Navigation Catalog', summary.portal);
-							}
-						}
-					});
-
-					// Re-render toolbar so the "Ver catálogo de navegación" button appears now.
-					frm.refresh();
-				},
-				error: function() {
-					frappe.dom.unfreeze();
-				}
-			});
+			start_catalog_build(frm, values.use_ai ? 1 : 0);
 		}
 	});
 
 	dialog.show();
+}
+
+// Kicks off the (background) catalog build and shows a live, NON-blocking
+// progress bar driven by realtime events, so the admin can see it advancing
+// instead of a frozen UI. Resolves with a done/error message.
+function start_catalog_build(frm, use_ai) {
+	const portal = frm.doc.name;
+	let finished = false;
+
+	const on_progress = function(data) {
+		if (!data || data.portal !== portal) return;
+		const pct = data.total ? Math.round((data.current / data.total) * 100) : 30;
+		frappe.show_progress(
+			__('Generando catálogo de navegación'),
+			pct,
+			__('Enriqueciendo con IA — lote {0} de {1}…', [data.current, data.total])
+		);
+	};
+	const cleanup = function() {
+		frappe.realtime.off('navigation_catalog_progress', on_progress);
+		frappe.realtime.off('navigation_catalog_done', on_done);
+		frappe.realtime.off('navigation_catalog_error', on_error);
+	};
+	const on_done = function(data) {
+		if (!data || data.portal !== portal) return;
+		finished = true;
+		frappe.hide_progress();
+		cleanup();
+		const ai_line = data.enriched
+			? __('Sí, se usó IA para enriquecer keywords/sinónimos.')
+			: __('No (deshabilitado, sin configurar, o no solicitado).');
+		frappe.msgprint({
+			title: __('Catálogo de navegación generado'),
+			indicator: 'green',
+			message: `
+				<p>${__('Portal')}: <strong>${frappe.utils.escape_html(portal)}</strong></p>
+				<p>${__('Herramientas cubiertas')}: <strong>${data.tool_count}</strong></p>
+				<p>${__('Ítems navegables')}: <strong>${data.item_count}</strong></p>
+				<p>${__('Enriquecido con IA')}: ${ai_line}</p>
+			`,
+			primary_action: {
+				label: __('Ver catálogo'),
+				action: function() {
+					frappe.set_route('Form', 'Portal Navigation Catalog', portal);
+				}
+			}
+		});
+		frm.refresh();
+	};
+	const on_error = function(data) {
+		if (!data || data.portal !== portal) return;
+		finished = true;
+		frappe.hide_progress();
+		cleanup();
+		frappe.msgprint({
+			title: __('Error generando el catálogo'),
+			indicator: 'red',
+			message: frappe.utils.escape_html(data.message || __('Error desconocido'))
+		});
+	};
+
+	frappe.realtime.on('navigation_catalog_progress', on_progress);
+	frappe.realtime.on('navigation_catalog_done', on_done);
+	frappe.realtime.on('navigation_catalog_error', on_error);
+
+	frappe.show_progress(__('Generando catálogo de navegación'), 5, __('Encolando la tarea…'));
+
+	frappe.call({
+		method: 'common_configurations.api.navigation.build_navigation_catalog',
+		args: { portal_name: portal, use_ai: use_ai },
+		callback: function(r) {
+			if (r && r.message && r.message.queued) {
+				frappe.show_progress(
+					__('Generando catálogo de navegación'), 10,
+					__('Procesando en segundo plano… puedes seguir trabajando.')
+				);
+			}
+		},
+		error: function() {
+			if (!finished) { frappe.hide_progress(); cleanup(); }
+		}
+	});
+
+	// Safety net: stop listening after 30 min if no done/error arrived.
+	setTimeout(function() {
+		if (!finished) { frappe.hide_progress(); cleanup(); }
+	}, 30 * 60 * 1000);
 }

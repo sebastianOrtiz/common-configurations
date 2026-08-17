@@ -142,38 +142,78 @@ def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any
     if not portal_name:
         frappe.throw(_("Portal name is required"))
 
+    if not frappe.db.exists("Service Portal", portal_name):
+        frappe.throw(_("Service Portal not found"), frappe.DoesNotExistError)
+
+    # Enrichment makes several AI calls and can take minutes; run it in a
+    # background worker so the HTTP request returns immediately and never
+    # times out. Progress/done/error are pushed to the user via realtime.
+    frappe.enqueue(
+        "common_configurations.api.navigation.endpoints._build_and_persist_catalog",
+        queue="long",
+        timeout=1800,
+        portal_name=portal_name,
+        use_ai=int(use_ai or 0),
+        user=frappe.session.user,
+    )
+    return {"queued": True, "portal": portal_name}
+
+
+def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None:
+    """
+    Background worker: build + (optionally) AI-enrich + persist the Portal
+    Navigation Catalog, pushing realtime progress/done/error events to
+    `user`. Never raises to the queue — failures are reported as an event.
+    """
+
+    def _publish(event: str, payload: Dict[str, Any]) -> None:
+        payload["portal"] = portal_name
+        frappe.publish_realtime(event, payload, user=user)
+
     try:
         built = NavigationService.build_catalog(portal_name)
-    except frappe.DoesNotExistError:
-        raise
+        items = built["items"]
+        used_ai = False
+
+        if int(use_ai or 0):
+            def _progress(current: int, total: int) -> None:
+                _publish(
+                    "navigation_catalog_progress",
+                    {"current": current, "total": total},
+                )
+
+            items, used_ai = NavigationService.enrich_catalog_with_ai(
+                items, progress=_progress
+            )
+
+        existing_name = frappe.db.exists("Portal Navigation Catalog", {"portal": portal_name})
+        if existing_name:
+            catalog_doc = frappe.get_doc("Portal Navigation Catalog", existing_name)
+        else:
+            catalog_doc = frappe.new_doc("Portal Navigation Catalog")
+            catalog_doc.portal = portal_name
+
+        catalog_doc.catalog_json = json.dumps(items, ensure_ascii=False)
+        catalog_doc.item_count = len(items)
+        catalog_doc.tool_count = built["tool_count"]
+        catalog_doc.built_with_ai = 1 if used_ai else 0
+        catalog_doc.last_built = now_datetime()
+        catalog_doc.save(ignore_permissions=True)
+        frappe.db.commit()
+
+        _publish(
+            "navigation_catalog_done",
+            {
+                "item_count": catalog_doc.item_count,
+                "tool_count": catalog_doc.tool_count,
+                "built_with_ai": bool(catalog_doc.built_with_ai),
+                "enriched": bool(used_ai),
+            },
+        )
     except Exception as e:
-        frappe.log_error(f"Error building navigation catalog for {portal_name}: {str(e)}")
-        frappe.throw(_("Error building navigation catalog"))
-
-    items = built["items"]
-    used_ai = False
-    if int(use_ai or 0):
-        items, used_ai = NavigationService.enrich_catalog_with_ai(items)
-
-    existing_name = frappe.db.exists("Portal Navigation Catalog", {"portal": portal_name})
-    if existing_name:
-        catalog_doc = frappe.get_doc("Portal Navigation Catalog", existing_name)
-    else:
-        catalog_doc = frappe.new_doc("Portal Navigation Catalog")
-        catalog_doc.portal = portal_name
-
-    catalog_doc.catalog_json = json.dumps(items, ensure_ascii=False)
-    catalog_doc.item_count = len(items)
-    catalog_doc.tool_count = built["tool_count"]
-    catalog_doc.built_with_ai = 1 if used_ai else 0
-    catalog_doc.last_built = now_datetime()
-    catalog_doc.save(ignore_permissions=True)
-    frappe.db.commit()
-
-    return {
-        "portal": portal_name,
-        "item_count": catalog_doc.item_count,
-        "tool_count": catalog_doc.tool_count,
-        "built_with_ai": bool(catalog_doc.built_with_ai),
-        "enriched": bool(used_ai),
-    }
+        frappe.db.rollback()
+        frappe.log_error(
+            title="Navigation catalog build failed",
+            message=frappe.get_traceback(),
+        )
+        _publish("navigation_catalog_error", {"message": str(e)})
