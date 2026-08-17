@@ -46,8 +46,17 @@ class AnthropicClient(AIClient):
 			call_kwargs["temperature"] = temperature
 
 		try:
-			response = self.client.messages.create(**call_kwargs)
-			return response.content[0].text if response.content else ""
+			# Stream and take the final message: the SDK refuses non-streaming
+			# requests it estimates could exceed ~10 minutes (large max_tokens),
+			# raising "Streaming is required...". Streaming avoids that guard and
+			# the request timeout, per Anthropic's long-requests guidance.
+			with self.client.messages.stream(**call_kwargs) as stream:
+				response = stream.get_final_message()
+			# Return the first text block (skip thinking/tool blocks).
+			for block in response.content:
+				if getattr(block, "type", None) == "text":
+					return block.text
+			return ""
 		except Exception as e:
 			frappe.log_error(
 				title="Anthropic API Error",
