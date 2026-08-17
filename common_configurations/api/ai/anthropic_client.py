@@ -45,13 +45,25 @@ class AnthropicClient(AIClient):
 		if temperature is not None:
 			call_kwargs["temperature"] = temperature
 
-		try:
+		def _stream_final(kw):
 			# Stream and take the final message: the SDK refuses non-streaming
 			# requests it estimates could exceed ~10 minutes (large max_tokens),
 			# raising "Streaming is required...". Streaming avoids that guard and
 			# the request timeout, per Anthropic's long-requests guidance.
-			with self.client.messages.stream(**call_kwargs) as stream:
-				response = stream.get_final_message()
+			with self.client.messages.stream(**kw) as stream:
+				return stream.get_final_message()
+
+		try:
+			try:
+				response = _stream_final(call_kwargs)
+			except Exception as inner:
+				# Newer models (Sonnet 5, Opus 5, ...) reject `temperature` with
+				# a 400. Retry once without it instead of failing the whole call.
+				if "temperature" in call_kwargs and "temperature" in str(inner).lower():
+					call_kwargs.pop("temperature", None)
+					response = _stream_final(call_kwargs)
+				else:
+					raise
 			# Return the first text block (skip thinking/tool blocks).
 			for block in response.content:
 				if getattr(block, "type", None) == "text":
