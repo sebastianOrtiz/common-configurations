@@ -7,9 +7,10 @@ Logbook Procedure(s), without the citizen needing to know which
 secretaría/tool it lives under.
 """
 
-from .endpoints import get_navigation_catalog, resolve_navigation
+from .endpoints import build_navigation_catalog, get_navigation_catalog, resolve_navigation
 
 __all__ = [
+    "build_navigation_catalog",
     "get_navigation_catalog",
     "resolve_navigation",
 ]

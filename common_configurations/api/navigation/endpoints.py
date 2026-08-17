@@ -7,10 +7,12 @@ under. HTTP concerns only (auth, rate limiting, honeypot, validation) —
 all matching logic lives in `service.py`.
 """
 
+import json
 from typing import Any, Dict, Optional
 
 import frappe
 from frappe import _
+from frappe.utils import now_datetime
 
 from ..shared import (
     check_honeypot,
@@ -111,3 +113,67 @@ def resolve_navigation(
     except Exception as e:
         frappe.log_error(f"Error resolving navigation query for {portal_name}: {str(e)}")
         frappe.throw(_("Error resolving navigation query"))
+
+
+@frappe.whitelist(methods=["POST"])
+def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any]:
+    """
+    Build (or rebuild) the FULL navigation catalog of a Service Portal —
+    every enabled tool, plus every sub-item its registered
+    `portal_navigation_providers` contribute — optionally enrich it with
+    AI-generated keywords/synonyms, and persist it into a `Portal
+    Navigation Catalog` cache record that `resolve_navigation` then reads.
+
+    Admin-only (System Manager). Called from the "Generar catálogo de
+    navegación" button on the Service Portal form.
+
+    Args:
+        portal_name: The portal_name identifier of a Service Portal.
+        use_ai: Truthy to enrich the catalog with AI-generated keywords
+            (requires `enable_voice_assistant_ai` + a configured AI model
+            in Common Configurations Settings — silently skipped otherwise).
+
+    Returns:
+        dict: {portal, item_count, tool_count, built_with_ai, enriched}
+    """
+    frappe.only_for("System Manager")
+
+    portal_name = sanitize_string(portal_name, 140)
+    if not portal_name:
+        frappe.throw(_("Portal name is required"))
+
+    try:
+        built = NavigationService.build_catalog(portal_name)
+    except frappe.DoesNotExistError:
+        raise
+    except Exception as e:
+        frappe.log_error(f"Error building navigation catalog for {portal_name}: {str(e)}")
+        frappe.throw(_("Error building navigation catalog"))
+
+    items = built["items"]
+    used_ai = False
+    if int(use_ai or 0):
+        items, used_ai = NavigationService.enrich_catalog_with_ai(items)
+
+    existing_name = frappe.db.exists("Portal Navigation Catalog", {"portal": portal_name})
+    if existing_name:
+        catalog_doc = frappe.get_doc("Portal Navigation Catalog", existing_name)
+    else:
+        catalog_doc = frappe.new_doc("Portal Navigation Catalog")
+        catalog_doc.portal = portal_name
+
+    catalog_doc.catalog_json = json.dumps(items, ensure_ascii=False)
+    catalog_doc.item_count = len(items)
+    catalog_doc.tool_count = built["tool_count"]
+    catalog_doc.built_with_ai = 1 if used_ai else 0
+    catalog_doc.last_built = now_datetime()
+    catalog_doc.save(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {
+        "portal": portal_name,
+        "item_count": catalog_doc.item_count,
+        "tool_count": catalog_doc.tool_count,
+        "built_with_ai": bool(catalog_doc.built_with_ai),
+        "enriched": bool(used_ai),
+    }

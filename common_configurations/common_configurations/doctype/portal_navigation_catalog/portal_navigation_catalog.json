@@ -1,0 +1,118 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:portal",
+ "creation": "2026-08-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "portal",
+  "column_break_portal",
+  "last_built",
+  "counts_section",
+  "tool_count",
+  "item_count",
+  "column_break_counts",
+  "built_with_ai",
+  "catalog_section",
+  "catalog_json"
+ ],
+ "fields": [
+  {
+   "description": "Service Portal al que pertenece este catálogo (cache)",
+   "fieldname": "portal",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Portal",
+   "options": "Service Portal",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_portal",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Última vez que se generó este catálogo",
+   "fieldname": "last_built",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Built",
+   "read_only": 1
+  },
+  {
+   "fieldname": "counts_section",
+   "fieldtype": "Section Break",
+   "label": "Resumen"
+  },
+  {
+   "description": "Número de herramientas (tools) habilitadas cubiertas por el catálogo",
+   "fieldname": "tool_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Tool Count",
+   "read_only": 1
+  },
+  {
+   "description": "Número total de ítems navegables en el catálogo (tools + sub-ítems)",
+   "fieldname": "item_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Item Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_counts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Si el catálogo fue enriquecido con IA (keywords/sinónimos) en la última generación",
+   "fieldname": "built_with_ai",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Built With AI",
+   "read_only": 1
+  },
+  {
+   "fieldname": "catalog_section",
+   "fieldtype": "Section Break",
+   "label": "Catálogo"
+  },
+  {
+   "description": "Catálogo aplanado serializado (JSON) usado por resolve_navigation como cache",
+   "fieldname": "catalog_json",
+   "fieldtype": "Code",
+   "label": "Catalog JSON",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Portal Navigation Catalog",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

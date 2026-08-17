@@ -20,6 +20,15 @@ frappe.ui.form.on('Service Portal', {
 				window.open(url, '_blank');
 			}, null, 'primary');
 		}
+
+		// Show "Generar catálogo de navegación" button for saved portals,
+		// System Manager only. Builds/refreshes the Portal Navigation Catalog
+		// cache used by the voice navigation resolver (resolve_navigation).
+		if (!frm.is_new() && frappe.user.has_role('System Manager')) {
+			frm.add_custom_button(__('🧭 Generar catálogo de navegación'), function() {
+				build_navigation_catalog(frm);
+			});
+		}
 	},
 	require_auth: function(frm) {
 		// When authentication is disabled, turn off MFA OTP too
@@ -91,3 +100,62 @@ frappe.ui.form.on('Service Portal Tool', {
 		}
 	}
 });
+
+// Builds/refreshes the Portal Navigation Catalog cache of a Service Portal
+// (common_configurations.api.navigation.build_navigation_catalog). Covers
+// every enabled tool of the portal, optionally enriched with AI-generated
+// keywords/synonyms, and is what resolve_navigation reads afterwards.
+function build_navigation_catalog(frm) {
+	const dialog = new frappe.ui.Dialog({
+		title: __('Generar catálogo de navegación'),
+		fields: [
+			{
+				fieldname: 'use_ai',
+				fieldtype: 'Check',
+				label: __('Enriquecer con IA (keywords y sinónimos)'),
+				default: 1,
+				description: __(
+					'Requiere tener habilitado el Modo IA del asistente de voz en Common Configurations Settings, con una Configuración de IA válida. Si no está configurado, el catálogo se genera igual, solo que sin enriquecer.'
+				)
+			}
+		],
+		primary_action_label: __('Generar'),
+		primary_action: function(values) {
+			dialog.hide();
+
+			frappe.dom.freeze(__('Generando catálogo de navegación...'));
+			frappe.call({
+				method: 'common_configurations.api.navigation.build_navigation_catalog',
+				args: {
+					portal_name: frm.doc.name,
+					use_ai: values.use_ai ? 1 : 0
+				},
+				callback: function(r) {
+					frappe.dom.unfreeze();
+					if (!r.message) return;
+
+					const summary = r.message;
+					const ai_line = summary.enriched
+						? __('Sí, se usó IA para enriquecer keywords/sinónimos.')
+						: __('No (deshabilitado, sin configurar, o no solicitado).');
+
+					frappe.msgprint({
+						title: __('Catálogo de navegación generado'),
+						indicator: 'green',
+						message: `
+							<p>${__('Portal')}: <strong>${frappe.utils.escape_html(summary.portal)}</strong></p>
+							<p>${__('Herramientas cubiertas')}: <strong>${summary.tool_count}</strong></p>
+							<p>${__('Ítems navegables')}: <strong>${summary.item_count}</strong></p>
+							<p>${__('Enriquecido con IA')}: ${ai_line}</p>
+						`
+					});
+				},
+				error: function() {
+					frappe.dom.unfreeze();
+				}
+			});
+		}
+	});
+
+	dialog.show();
+}

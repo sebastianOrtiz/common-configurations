@@ -71,6 +71,9 @@ STOPWORDS = {
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
+# Batch size for the AI enrichment pass (keeps prompts small/cheap).
+AI_ENRICH_BATCH_SIZE = 15
+
 
 # ---------------------------------------------------------------------
 # Text normalization
@@ -123,11 +126,95 @@ def _best_credit_against_field(query_token: str, field_tokens: List[str]) -> flo
     return best
 
 
+def default_procedures_provider(portal_doc: Any, tool_row: Any) -> List[Dict[str, Any]]:
+    """
+    Default `portal_navigation_providers` provider: expands a `procedures`
+    tool into one navigable sub-item per active Logbook Procedure inside its
+    active Logbook Procedures Config.
+
+    This is the reference implementation of the provider contract — see
+    `NavigationService.build_catalog` docstring for the full contract that
+    other apps must follow to contribute their own sub-items for other tool
+    types. It is registered as a normal provider (not special-cased) via
+    `portal_navigation_providers` in this app's `hooks.py`.
+
+    Args:
+        portal_doc: The loaded Service Portal document (unused here, but
+            part of the contract — other providers may need portal-level
+            context, e.g. branding or locale).
+        tool_row: A single row of `portal_doc.tools` (Service Portal Tool).
+
+    Returns:
+        list[dict]: `[]` if `tool_row.tool_type != "procedures"` (or it has
+        no usable config) — i.e. "not my tool type, nothing to add" — else
+        one dict per active procedure, shaped like every other catalog item
+        (see `build_catalog`).
+    """
+    if tool_row.tool_type != "procedures" or not tool_row.is_enabled:
+        return []
+
+    config_name = getattr(tool_row, "logbook_procedures_config", None)
+    if not config_name:
+        return []
+
+    config = frappe.db.get_value(
+        "Logbook Procedures Config",
+        {"name": config_name, "is_active": 1},
+        "name",
+    )
+    if not config:
+        return []
+
+    config_doc = frappe.get_doc("Logbook Procedures Config", config)
+
+    sub_items: List[Dict[str, Any]] = []
+    for row in sorted(config_doc.procedures or [], key=lambda x: x.sort_order or 0):
+        if not row.procedure:
+            continue
+
+        proc = frappe.db.get_value(
+            "Logbook Procedure",
+            row.procedure,
+            [
+                "name",
+                "title",
+                "description",
+                "keywords",
+                "procedure_type",
+                "external_url",
+                "is_active",
+            ],
+            as_dict=True,
+        )
+        if not proc or not proc.is_active:
+            continue
+
+        sub_items.append(
+            {
+                "kind": "procedure",
+                "id": proc.name,
+                "title": proc.title,
+                "description": proc.description or "",
+                "keywords": proc.keywords or "",
+                "secretaria": tool_row.label,
+                "tool_name": tool_row.name,
+                "tool_type": tool_row.tool_type,
+                "procedure_name": proc.name,
+                "type": proc.procedure_type,
+                "external_url": (proc.external_url or "") if proc.procedure_type == "external" else None,
+            }
+        )
+
+    return sub_items
+
+
 class NavigationService:
     """Stateless service for the Service Portal voice navigation resolver."""
 
     # ------------------------------------------------------------------
-    # Catalog
+    # Catalog (legacy: procedures-only — kept for `get_navigation_catalog`
+    # and as the fallback path of `resolve()` when no Portal Navigation
+    # Catalog cache exists yet for a portal).
     # ------------------------------------------------------------------
 
     @classmethod
@@ -147,70 +234,257 @@ class NavigationService:
         Raises:
             frappe.DoesNotExistError: If the portal doesn't exist or is inactive.
         """
-        portal = frappe.db.get_value(
-            "Service Portal", {"portal_name": portal_name, "is_active": 1}, "name"
-        )
-        if not portal:
-            frappe.throw(frappe._("Portal not found"), frappe.DoesNotExistError)
-
-        portal_doc = frappe.get_doc("Service Portal", portal)
+        portal_doc = cls._get_active_portal_doc(portal_name)
 
         catalog: List[Dict[str, Any]] = []
         for tool in portal_doc.tools:
             if tool.tool_type != "procedures" or not tool.is_enabled:
                 continue
-
-            config_name = getattr(tool, "logbook_procedures_config", None)
-            if not config_name:
-                continue
-
-            config = frappe.db.get_value(
-                "Logbook Procedures Config",
-                {"name": config_name, "is_active": 1},
-                "name",
-            )
-            if not config:
-                continue
-
-            config_doc = frappe.get_doc("Logbook Procedures Config", config)
-
-            for item in sorted(config_doc.procedures or [], key=lambda x: x.sort_order or 0):
-                if not item.procedure:
-                    continue
-
-                proc = frappe.db.get_value(
-                    "Logbook Procedure",
-                    item.procedure,
-                    [
-                        "name",
-                        "title",
-                        "description",
-                        "keywords",
-                        "procedure_type",
-                        "external_url",
-                        "is_active",
-                    ],
-                    as_dict=True,
-                )
-                if not proc or not proc.is_active:
-                    continue
-
-                entry = {
-                    "id": proc.name,
-                    "title": proc.title,
-                    "description": proc.description or "",
-                    "keywords": proc.keywords or "",
-                    "secretaria": tool.label,
-                    "tool_name": tool.name,
-                    "procedure_name": proc.name,
-                    "type": proc.procedure_type,
-                }
-                if proc.procedure_type == "external":
-                    entry["external_url"] = proc.external_url or ""
-
-                catalog.append(entry)
+            catalog.extend(default_procedures_provider(portal_doc, tool))
 
         return catalog
+
+    # ------------------------------------------------------------------
+    # Full catalog builder (extensible — covers every enabled tool)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def build_catalog(cls, portal_name: str) -> Dict[str, Any]:
+        """
+        Build the FULL navigation catalog of a Service Portal: one
+        tool-level entry per enabled tool (guaranteeing every tool is
+        reachable, even ones no provider knows how to expand), plus
+        whatever sub-items the registered `portal_navigation_providers`
+        contribute for each tool.
+
+        Hook contract — `portal_navigation_providers` (declared in a
+        consuming app's `hooks.py` as a list of dotted paths, e.g.::
+
+            portal_navigation_providers = [
+                "common_configurations.api.navigation.service.default_procedures_provider",
+                "my_app.navigation.my_tool_provider",
+            ]
+
+        Each dotted path must resolve (via `frappe.get_attr`) to a
+        callable with signature::
+
+            provider(portal_doc: "Service Portal", tool_row: "Service Portal Tool") -> list[dict]
+
+        - Called once per ENABLED tool row of the portal (every provider
+          sees every tool row — it's up to the provider to check
+          `tool_row.tool_type` and return `[]` for tool types it doesn't
+          know how to expand).
+        - Must return a list of item dicts (possibly empty), each shaped
+          like::
+
+              {
+                  "kind": str,            # e.g. "procedure", or a custom kind
+                  "id": str,              # globally unique across the catalog
+                  "title": str,
+                  "description": str,
+                  "keywords": str,        # free text, used for fuzzy matching
+                  "secretaria": str,      # human label shown to the citizen
+                  "tool_name": str,       # tool_row.name (Service Portal Tool docname)
+                  "tool_type": str,       # tool_row.tool_type
+                  "procedure_name": str | None,
+                  "type": str | None,
+                  "external_url": str | None,
+              }
+
+        - Must NEVER raise: any exception from a provider is caught and
+          logged per-provider-per-tool, and simply yields no sub-items for
+          that combination — it never aborts the whole build (the
+          tool-level fallback entry already guarantees that tool stays
+          navigable).
+        - Not required: an app is free to not implement a provider at all;
+          its tools remain reachable through their tool-level entry.
+
+        Returns:
+            dict: {"items": list[dict], "tool_count": int, "item_count": int}
+
+        Raises:
+            frappe.DoesNotExistError: If the portal doesn't exist or is inactive.
+        """
+        portal_doc = cls._get_active_portal_doc(portal_name)
+        providers = cls._get_navigation_providers()
+
+        items: List[Dict[str, Any]] = []
+        tool_count = 0
+
+        for tool in portal_doc.tools:
+            if not tool.is_enabled:
+                continue
+            tool_count += 1
+
+            # Tool-level entry — ALWAYS added, guaranteeing every enabled
+            # tool is reachable even if no provider covers its tool_type.
+            items.append(
+                {
+                    "kind": "tool",
+                    "id": f"tool:{tool.name}",
+                    "title": tool.label,
+                    "secretaria": tool.label,
+                    "description": tool.tool_description or "",
+                    "keywords": "",
+                    "tool_name": tool.name,
+                    "tool_type": tool.tool_type,
+                    "procedure_name": None,
+                    "type": None,
+                    "external_url": None,
+                }
+            )
+
+            for provider in providers:
+                try:
+                    sub_items = provider(portal_doc, tool) or []
+                except Exception:
+                    frappe.log_error(
+                        title="Navigation provider failed",
+                        message=(
+                            f"provider={getattr(provider, '__module__', '?')}."
+                            f"{getattr(provider, '__name__', provider)} "
+                            f"tool={tool.name} ({tool.tool_type})\n\n"
+                            f"{frappe.get_traceback()}"
+                        ),
+                    )
+                    sub_items = []
+                items.extend(sub_items)
+
+        return {"items": items, "tool_count": tool_count, "item_count": len(items)}
+
+    @staticmethod
+    def _get_active_portal_doc(portal_name: str):
+        """Load an active Service Portal by its `portal_name`, or throw."""
+        portal = frappe.db.get_value(
+            "Service Portal", {"portal_name": portal_name, "is_active": 1}, "name"
+        )
+        if not portal:
+            frappe.throw(frappe._("Portal not found"), frappe.DoesNotExistError)
+        return frappe.get_doc("Service Portal", portal)
+
+    @staticmethod
+    def _get_navigation_providers() -> List[Any]:
+        """Resolve every dotted path in the `portal_navigation_providers`
+        hook into a callable. Invalid paths are logged and skipped."""
+        resolved: List[Any] = []
+        for dotted_path in frappe.get_hooks("portal_navigation_providers") or []:
+            try:
+                resolved.append(frappe.get_attr(dotted_path))
+            except Exception:
+                frappe.log_error(
+                    title="Invalid portal_navigation_providers entry",
+                    message=f"{dotted_path}\n\n{frappe.get_traceback()}",
+                )
+        return resolved
+
+    # ------------------------------------------------------------------
+    # AI enrichment (best-effort, never required)
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def enrich_catalog_with_ai(cls, items: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], bool]:
+        """
+        Enrich every catalog item with citizen-facing keywords/synonyms
+        generated by the configured AI model — how a Colombian citizen
+        would colloquially ask for it, in batches to control cost/latency.
+
+        Fuses the AI-generated keywords into each item's existing
+        `keywords` field (never replaces what's already there). Any
+        failure (AI disabled/not configured, network error, bad JSON, a
+        single batch failing, ...) leaves the affected items unenriched —
+        this method NEVER raises.
+
+        Args:
+            items: Catalog items as built by `build_catalog` (mutated in
+                place and also returned for convenience).
+
+        Returns:
+            tuple[list[dict], bool]: (items, used_ai) — `used_ai` is True
+            only if at least one batch was successfully enriched.
+        """
+        used_ai = False
+        try:
+            if not frappe.db.get_single_value(
+                "Common Configurations Settings", "enable_voice_assistant_ai"
+            ):
+                return items, False
+
+            ai_config = frappe.db.get_single_value(
+                "Common Configurations Settings", "voice_assistant_ai_configuration"
+            )
+            if not ai_config:
+                return items, False
+
+            from common_configurations.api.ai.client_factory import get_ai_client
+
+            client = get_ai_client(ai_config)
+
+            system_prompt = (
+                "Eres un experto en cómo los ciudadanos colombianos hablan "
+                "coloquialmente al buscar trámites y servicios en un portal "
+                "municipal. Para cada ítem del catálogo que te doy (con su "
+                "título, descripción, secretaría y tipo), genera una lista "
+                "de palabras clave y sinónimos de cómo un ciudadano diría "
+                "eso mismo, incluyendo formas coloquiales, informales y "
+                "abreviadas (ej: 'eps' para 'entidad promotora de salud'). "
+                "Responde SIEMPRE y ÚNICAMENTE con un objeto JSON plano, "
+                "sin texto adicional antes ni después, ni bloques de "
+                "código, con esta forma exacta: "
+                '{"<id>": ["palabra1", "palabra2", ...], ...} '
+                "usando ÚNICAMENTE los ids que te doy, una entrada por "
+                "cada ítem recibido."
+            )
+
+            for start in range(0, len(items), AI_ENRICH_BATCH_SIZE):
+                batch = items[start : start + AI_ENRICH_BATCH_SIZE]
+                try:
+                    compact_batch = [
+                        {
+                            "id": item["id"],
+                            "title": item.get("title") or "",
+                            "description": item.get("description") or "",
+                            "secretaria": item.get("secretaria") or "",
+                            "type": item.get("kind") or "",
+                        }
+                        for item in batch
+                    ]
+                    prompt = json.dumps({"items": compact_batch}, ensure_ascii=False)
+
+                    raw_response = client.chat(prompt, system_prompt)
+                    parsed = cls._parse_ai_json(raw_response)
+                    if not isinstance(parsed, dict):
+                        continue
+
+                    by_id = {item["id"]: item for item in batch}
+                    for item_id, keywords in parsed.items():
+                        item = by_id.get(item_id)
+                        if not item or not isinstance(keywords, list):
+                            continue
+
+                        existing = [
+                            k.strip() for k in (item.get("keywords") or "").split(",") if k.strip()
+                        ]
+                        new_keywords = [str(k).strip() for k in keywords if str(k).strip()]
+                        merged = existing + [k for k in new_keywords if k not in existing]
+                        if merged:
+                            item["keywords"] = ", ".join(merged)
+                            used_ai = True
+
+                except Exception:
+                    frappe.log_error(
+                        title="Navigation AI enrich batch failed",
+                        message=frappe.get_traceback(),
+                    )
+                    continue
+
+            return items, used_ai
+
+        except Exception:
+            frappe.log_error(
+                title="Navigation AI enrich failed",
+                message=frappe.get_traceback(),
+            )
+            return items, used_ai
 
     # ------------------------------------------------------------------
     # Resolve (fuzzy always, AI only as a fallback for low-confidence)
@@ -220,6 +494,13 @@ class NavigationService:
     def resolve(cls, query: str, portal_name: str) -> Dict[str, Any]:
         """
         Resolve a spoken/typed query to navigable destination(s).
+
+        Reads the cached `Portal Navigation Catalog` (built by
+        `build_catalog` + optionally `enrich_catalog_with_ai`, covering
+        every tool of the portal) when one exists for this portal; falls
+        back to the legacy on-the-fly procedures-only catalog otherwise —
+        so a portal that has never been "built" keeps working exactly as
+        before.
 
         Returns a dict shaped as:
             {
@@ -231,7 +512,7 @@ class NavigationService:
                 "used_ai": bool,
             }
         """
-        catalog = cls.get_catalog(portal_name)
+        catalog = cls._get_catalog_for_resolve(portal_name)
         scored = cls._fuzzy_rank(query, catalog)
 
         fuzzy_mode, fuzzy_results, fuzzy_question = cls._decide(scored)
@@ -248,6 +529,27 @@ class NavigationService:
             return cls._response(ai_mode, ai_results, ai_question, query, used_ai=True)
 
         return cls._response(fuzzy_mode, fuzzy_results, fuzzy_question, query, used_ai=False)
+
+    @classmethod
+    def _get_catalog_for_resolve(cls, portal_name: str) -> List[Dict[str, Any]]:
+        """Prefer the cached `Portal Navigation Catalog` (fast, covers the
+        whole portal, possibly AI-enriched); fall back to the legacy
+        on-the-fly procedures-only catalog when no cache exists yet."""
+        cached_json = frappe.db.get_value(
+            "Portal Navigation Catalog", {"portal": portal_name}, "catalog_json"
+        )
+        if cached_json:
+            try:
+                items = json.loads(cached_json)
+                if isinstance(items, list):
+                    return items
+            except (ValueError, TypeError):
+                frappe.log_error(
+                    title="Corrupt Portal Navigation Catalog cache",
+                    message=f"portal={portal_name}",
+                )
+
+        return cls.get_catalog(portal_name)
 
     # ------------------------------------------------------------------
     # Fuzzy scoring
@@ -309,11 +611,12 @@ class NavigationService:
     def _to_result(item: Dict[str, Any], score: float) -> Dict[str, Any]:
         return {
             "id": item["id"],
+            "kind": item.get("kind", "procedure"),
             "title": item["title"],
             "secretaria": item["secretaria"],
             "tool_name": item["tool_name"],
-            "procedure_name": item["procedure_name"],
-            "type": item["type"],
+            "procedure_name": item.get("procedure_name"),
+            "type": item.get("type"),
             "external_url": item.get("external_url"),
             "score": round(score, 4),
         }

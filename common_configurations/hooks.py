@@ -47,6 +47,26 @@ portal_config_providers = [
 	"common_configurations.config_providers.common_config_provider.CommonConfigProvider",
 ]
 
+# Portal Navigation Providers
+# ----------------------------
+# Extensible catalog builder for the Service Portal navigation/voice
+# assistant (common_configurations.api.navigation). Each dotted path
+# resolves (via frappe.get_attr) to a callable:
+#
+#   provider(portal_doc: "Service Portal", tool_row: "Service Portal Tool") -> list[dict]
+#
+# Called once per ENABLED tool row of a portal when the catalog is built
+# (NavigationService.build_catalog). The provider must check
+# tool_row.tool_type itself and return [] for tool types it doesn't know
+# how to expand — never raise. See NavigationService.build_catalog's
+# docstring for the full item-shape contract. A tool_type with no matching
+# provider still gets a single tool-level entry (always added), so nothing
+# is ever unreachable. Apps append their own providers here in THEIR OWN
+# hooks.py — never override this list.
+portal_navigation_providers = [
+	"common_configurations.api.navigation.service.default_procedures_provider",
+]
+
 # Apps
 # ------------------
 
