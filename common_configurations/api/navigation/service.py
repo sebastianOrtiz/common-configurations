@@ -48,7 +48,11 @@ MIN_FUZZY_TOKEN_LEN = 4  # below this, only exact matches count (avoids noisy sh
 # Confidence thresholds for the fuzzy path (tuned against the score
 # formula above: score = raw_weighted_credit / len(query_tokens)).
 CONFIDENCE_SCORE_THRESHOLD = 1.2  # UMBRAL
-CONFIDENCE_MARGIN_THRESHOLD = 0.5  # MARGEN (gap between top1 and top2)
+CONFIDENCE_MARGIN_THRESHOLD = 0.5  # MARGEN absoluto (gap entre top1 y top2)
+# Margen RELATIVO: para navegar directo, el 2º mejor debe quedar claramente
+# por debajo del 1º (<=75%). Si están proporcionalmente cerca es ambiguo
+# (ej. "subsidio" que aplica a varias secretarías) -> se muestra lista.
+CONFIDENCE_RELATIVE_MARGIN = 0.75
 
 MAX_CHOOSE_RESULTS = 5
 MIN_CHOOSE_RESULTS = 2
@@ -646,12 +650,35 @@ class NavigationService:
         top1_score = nonzero[0][1]
         top2_score = nonzero[1][1] if len(nonzero) > 1 else 0.0
 
-        if top1_score >= CONFIDENCE_SCORE_THRESHOLD and (top1_score - top2_score) >= CONFIDENCE_MARGIN_THRESHOLD:
+        # Navegar directo solo cuando el mejor resultado es fuerte Y claramente
+        # por encima del segundo, tanto en gap absoluto como en proporción.
+        clearly_ahead = (
+            (top1_score - top2_score) >= CONFIDENCE_MARGIN_THRESHOLD
+            and top2_score <= CONFIDENCE_RELATIVE_MARGIN * top1_score
+        )
+        if top1_score >= CONFIDENCE_SCORE_THRESHOLD and clearly_ahead:
             return "navigate", [cls._to_result(nonzero[0][0], nonzero[0][1])], None
 
-        choices = nonzero[: max(MIN_CHOOSE_RESULTS, MAX_CHOOSE_RESULTS)][:MAX_CHOOSE_RESULTS]
+        choices = nonzero[:MAX_CHOOSE_RESULTS]
         results = [cls._to_result(item, score) for item, score in choices]
-        return "choose", results, None
+        return "choose", results, cls._clarifying_question(choices)
+
+    @staticmethod
+    def _clarifying_question(
+        choices: List[Tuple[Dict[str, Any], float]]
+    ) -> Optional[str]:
+        """Build a short clarifying question from the ambiguous top results."""
+        if not choices:
+            return None
+        secretarias: List[str] = []
+        for item, _ in choices:
+            sec = item.get("secretaria")
+            if sec and sec not in secretarias:
+                secretarias.append(sec)
+        if len(secretarias) > 1:
+            listado = ", ".join(secretarias[:-1]) + " o " + secretarias[-1]
+            return f"Encontré opciones en varias áreas. ¿Cuál te interesa: {listado}?"
+        return "Encontré varias opciones. ¿Cuál de estos trámites necesitas?"
 
     @staticmethod
     def _to_result(item: Dict[str, Any], score: float) -> Dict[str, Any]:
