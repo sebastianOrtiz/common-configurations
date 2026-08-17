@@ -28,6 +28,16 @@ frappe.ui.form.on('Service Portal', {
 			frm.add_custom_button(__('🧭 Generar catálogo de navegación'), function() {
 				build_navigation_catalog(frm);
 			});
+
+			// Show "Ver catálogo de navegación" only when one has been generated.
+			// Portal Navigation Catalog autonames by portal, so its name === frm.doc.name.
+			frappe.db.exists('Portal Navigation Catalog', frm.doc.name).then((exists) => {
+				if (exists) {
+					frm.add_custom_button(__('📖 Ver catálogo de navegación'), function() {
+						frappe.set_route('Form', 'Portal Navigation Catalog', frm.doc.name);
+					});
+				}
+			});
 		}
 	},
 	require_auth: function(frm) {
@@ -147,8 +157,17 @@ function build_navigation_catalog(frm) {
 							<p>${__('Herramientas cubiertas')}: <strong>${summary.tool_count}</strong></p>
 							<p>${__('Ítems navegables')}: <strong>${summary.item_count}</strong></p>
 							<p>${__('Enriquecido con IA')}: ${ai_line}</p>
-						`
+						`,
+						primary_action: {
+							label: __('Ver catálogo'),
+							action: function() {
+								frappe.set_route('Form', 'Portal Navigation Catalog', summary.portal);
+							}
+						}
 					});
+
+					// Re-render toolbar so the "Ver catálogo de navegación" button appears now.
+					frm.refresh();
 				},
 				error: function() {
 					frappe.dom.unfreeze();
