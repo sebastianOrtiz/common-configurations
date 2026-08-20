@@ -1,0 +1,115 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-18 00:00:00.000000",
+ "description": "Almacén transversal de keywords/descripciones de navegación. Se asocia (Dynamic Link) a cualquier elemento navegable de un Service Portal (trámites, tools, etc.) para reusar el enriquecimiento con IA entre portales sin re-generarlo.",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "reference_doctype",
+  "reference_name",
+  "column_break_ref",
+  "title_snapshot",
+  "source_fingerprint",
+  "keywords_section",
+  "manual_keywords",
+  "ai_keywords",
+  "ai_description"
+ ],
+ "fields": [
+  {
+   "description": "Tipo del elemento navegable al que pertenecen estos keywords (ej: Logbook Procedure, Service Portal Tool)",
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Reference Doctype",
+   "options": "DocType",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "description": "Registro concreto al que pertenecen estos keywords",
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "column_break_ref",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Título del elemento en la última generación (solo para legibilidad al listar)",
+   "fieldname": "title_snapshot",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title Snapshot",
+   "read_only": 1
+  },
+  {
+   "description": "Huella (hash) de los campos de origen usados para enriquecer. Si el origen cambia, el fingerprint cambia y se vuelve a enriquecer.",
+   "fieldname": "source_fingerprint",
+   "fieldtype": "Data",
+   "label": "Source Fingerprint",
+   "read_only": 1
+  },
+  {
+   "fieldname": "keywords_section",
+   "fieldtype": "Section Break",
+   "label": "Keywords"
+  },
+  {
+   "description": "Keywords/sinónimos editados manualmente. SIEMPRE tienen prioridad y nunca se sobreescriben al regenerar con IA. Separados por coma.",
+   "fieldname": "manual_keywords",
+   "fieldtype": "Small Text",
+   "label": "Manual Keywords"
+  },
+  {
+   "description": "Keywords/sinónimos generados por IA (regenerables). Separados por coma.",
+   "fieldname": "ai_keywords",
+   "fieldtype": "Small Text",
+   "label": "AI Keywords",
+   "read_only": 1
+  },
+  {
+   "description": "Descripción corta generada por IA de qué es el trámite.",
+   "fieldname": "ai_description",
+   "fieldtype": "Small Text",
+   "label": "AI Description",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Portal Navigation Keyword",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

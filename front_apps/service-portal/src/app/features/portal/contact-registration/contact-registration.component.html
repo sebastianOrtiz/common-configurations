@@ -80,12 +80,11 @@
 
         <p class="step-description">Ingresa tu número de documento para conectarte</p>
 
-        <!-- Voice assistant for login (feature flagged) -->
         @if (isVoiceAssistantAvailable) {
-          <button type="button" class="btn-voice-assistant" (click)="startVoiceLoginAssistant()">
-            <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
-            Iniciar sesión con voz
-          </button>
+          <p class="voice-assistant-hint">
+            <app-icon name="Mic" [size]="16" [strokeWidth]="2"></app-icon>
+            Puedes usar el asistente de voz (botón flotante) para iniciar sesión.
+          </p>
         }
 
         <!-- Error Alert -->
@@ -168,12 +167,11 @@
           Volver
         </button>
 
-        <!-- Voice assistant: llena el formulario por voz (feature flagged) -->
         @if (isVoiceAssistantAvailable) {
-          <button type="button" class="btn-voice-assistant" (click)="startVoiceAssistant()">
-            <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
-            Llenar con asistente de voz
-          </button>
+          <p class="voice-assistant-hint">
+            <app-icon name="Mic" [size]="16" [strokeWidth]="2"></app-icon>
+            Puedes usar el asistente de voz (botón flotante) para llenar este formulario.
+          </p>
         }
 
         <!-- Error Alert -->
@@ -305,6 +303,3 @@
     }
   </div>
 </div>
-
-<!-- Voice assistant overlay (feature flagged via SettingsService) -->
-<app-voice-assistant></app-voice-assistant>

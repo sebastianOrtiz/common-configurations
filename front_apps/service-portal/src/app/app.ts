@@ -1,10 +1,11 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { FrappeApiService } from './core/services/frappe-api.service';
+import { AssistantBubbleComponent } from './shared/components/assistant-bubble/assistant-bubble.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, AssistantBubbleComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

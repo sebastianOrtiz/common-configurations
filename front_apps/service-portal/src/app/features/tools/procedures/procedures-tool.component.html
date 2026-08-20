@@ -132,10 +132,10 @@
           </div>
 
           @if (isVoiceAssistantAvailable) {
-            <button type="button" class="btn-voice-assistant" (click)="startVoiceAssistant()">
-              <app-icon name="Mic" [size]="18" [strokeWidth]="2"></app-icon>
-              Llenar con asistente de voz
-            </button>
+            <p class="voice-assistant-hint">
+              <app-icon name="Mic" [size]="16" [strokeWidth]="2"></app-icon>
+              Puedes usar el asistente de voz (botón flotante) para describir tu caso.
+            </p>
           }
 
           <div class="form-group">
@@ -194,9 +194,6 @@
   }
 
 </div>
-
-<!-- Voice Assistant (modal flotante, feature flagged) -->
-<app-voice-assistant></app-voice-assistant>
 
 <!-- Modal: Confirmation (internal procedure created) -->
 @if (view() === 'confirm' && createdEntry()) {

@@ -5,6 +5,37 @@
   margin-bottom: 2rem;
 }
 
+// Hosted by the global assistant bubble: render as a floating panel above the
+// FAB instead of taking up inline space in the page layout.
+:host.embedded {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  left: auto;
+  width: 360px;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+  margin-bottom: 0;
+  z-index: 999;
+  animation: voiceNavSlideUp 0.25s ease-out;
+
+  .voice-nav-card {
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+  }
+
+  @media (max-width: 480px) {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+}
+
+@keyframes voiceNavSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .voice-nav-card {
   background: linear-gradient(135deg, var(--voice-nav-color) 0%, color-mix(in srgb, var(--voice-nav-color) 70%, #1a1a2e) 100%);
   border-radius: 1.25rem;
@@ -119,6 +150,20 @@
   margin: 0 0 1rem;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.voice-nav-choice-listening {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.875rem;
+  font-size: 0.9rem;
+  opacity: 0.9;
+
+  em {
+    font-style: italic;
+    opacity: 0.85;
+  }
 }
 
 .voice-nav-results-grid {

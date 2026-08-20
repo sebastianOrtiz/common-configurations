@@ -10,17 +10,18 @@
  * OR if the user is not logged in (always treated as anonymous).
  */
 
-import { Component, OnInit, Input, signal, computed, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, effect, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
+import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
-import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 
 interface PQRType {
   name: string;
@@ -51,18 +52,17 @@ type ViewState = 'list' | 'form' | 'confirm';
 @Component({
   selector: 'app-pqr-tool',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, VoiceInputComponent, VoiceAssistantComponent],
+  imports: [CommonModule, FormsModule, IconComponent, VoiceInputComponent],
   templateUrl: './pqr-tool.component.html',
   styleUrls: ['./pqr-tool.component.scss']
 })
-export class PqrToolComponent implements OnInit {
+export class PqrToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
-
-  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
+  private assistantContext = inject(AssistantContextService);
 
   /**
    * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
@@ -106,6 +106,30 @@ export class PqrToolComponent implements OnInit {
       !this.loading()
     );
   });
+
+  constructor() {
+    // Keep the global assistant bubble's `fill_form` action in sync with the
+    // active view: only offered while filling out subject/description for
+    // the selected PQR type. The "search" action is global, so citizens can
+    // still search another trámite by voice at any time.
+    effect(() => {
+      const currentView = this.view();
+      const type = this.selectedType();
+      if (currentView === 'form' && type) {
+        this.assistantContext.setFormContext({
+          title: 'Nueva PQR',
+          prompts: this.buildPqrVoicePrompts(type.label),
+          onComplete: (answers) => this.applyPqrSurveyAnswers(answers),
+        });
+      } else {
+        this.assistantContext.clearFormContext();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.clearFormContext();
+  }
 
   ngOnInit(): void {
     const portal = this.selectedPortal();
@@ -233,13 +257,14 @@ export class PqrToolComponent implements OnInit {
     return this.settingsService.isVoiceAssistantEnabled();
   }
 
-  protected async startVoiceAssistant(): Promise<void> {
-    if (!this.voiceAssistant) return;
-
-    const typeLabel = this.selectedType()?.label?.toLowerCase() || 'PQR';
-    const canAskAnonymous = !this.isAnonymousUser() && this.allowAnonymous();
-
-    const prompts = [
+  /**
+   * Prompts for the guided PQR survey, run by the global assistant bubble.
+   * Includes the anonymous yes/no question only when it's actually offered
+   * to this citizen (logged-in users where the tool allows anonymous PQRs).
+   */
+  private buildPqrVoicePrompts(typeLabelRaw: string): VoicePrompt[] {
+    const typeLabel = typeLabelRaw?.toLowerCase() || 'PQR';
+    const prompts: VoicePrompt[] = [
       this.promptBuilder.text({
         key: 'subject',
         label: 'asunto',
@@ -256,7 +281,7 @@ export class PqrToolComponent implements OnInit {
       }),
     ];
 
-    if (canAskAnonymous) {
+    if (this.canAskAnonymous()) {
       prompts.push(
         this.promptBuilder.yesNo({
           key: 'is_anonymous',
@@ -266,15 +291,19 @@ export class PqrToolComponent implements OnInit {
       );
     }
 
-    try {
-      const answers = await this.voiceAssistant.startSurvey(prompts);
-      if (answers['subject']) this.subject.set(answers['subject']);
-      if (answers['description']) this.description.set(answers['description']);
-      if (canAskAnonymous && answers['is_anonymous'] !== undefined) {
-        this.sendAsAnonymous.set(answers['is_anonymous'] === '1');
-      }
-    } catch {
-      // Cancelado por el usuario
+    return prompts;
+  }
+
+  private canAskAnonymous(): boolean {
+    return !this.isAnonymousUser() && this.allowAnonymous();
+  }
+
+  /** `onComplete` for the guided PQR survey. */
+  private applyPqrSurveyAnswers(answers: Record<string, string>): void {
+    if (answers['subject']) this.subject.set(answers['subject']);
+    if (answers['description']) this.description.set(answers['description']);
+    if (this.canAskAnonymous() && answers['is_anonymous'] !== undefined) {
+      this.sendAsAnonymous.set(answers['is_anonymous'] === '1');
     }
   }
 

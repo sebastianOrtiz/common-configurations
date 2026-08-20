@@ -22,6 +22,7 @@
 
 import {
   Component,
+  Input,
   computed,
   inject,
   signal,
@@ -66,6 +67,15 @@ export class VoiceAssistantComponent implements OnDestroy {
 
   @Output() surveyComplete = new EventEmitter<Record<string, string>>();
   @Output() surveyCancelled = new EventEmitter<void>();
+
+  /**
+   * When true, this component is hosted by the global assistant bubble
+   * (`AssistantBubbleComponent`) rather than embedded inline in a page.
+   * The component has never rendered its own floating launcher button (it's
+   * always been driven externally via `startSurvey()`), so this flag is
+   * mostly a documented contract for consistency with `VoiceNavigationComponent`.
+   */
+  @Input() embedded = false;
 
   /** Whole-feature visibility (only shown if enabled in settings AND browser supports STT) */
   readonly featureAvailable = computed(() => {
@@ -610,6 +620,18 @@ export class VoiceAssistantComponent implements OnDestroy {
     this.rejectSurvey = null;
     // Auto-close after a short delay
     setTimeout(() => this.open.set(false), 1500);
+  }
+
+  /** Public: lets the global assistant bubble know whether the panel is currently showing. */
+  readonly isOpen = this.open.asReadonly();
+
+  /**
+   * Public entry point for the global assistant bubble: cancels the
+   * in-progress survey (if any) and closes the panel. Used e.g. when the
+   * user navigates to another route mid-survey so no panel is left dangling.
+   */
+  cancelSurvey(): void {
+    if (this.open()) this.cancel();
   }
 
   protected cancel(): void {

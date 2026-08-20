@@ -10,6 +10,7 @@ secretaría/tool it lives under.
 from .endpoints import (
     build_navigation_catalog,
     get_navigation_catalog,
+    interpret_command,
     navigation_build_status,
     resolve_navigation,
 )
@@ -17,6 +18,7 @@ from .endpoints import (
 __all__ = [
     "build_navigation_catalog",
     "get_navigation_catalog",
+    "interpret_command",
     "navigation_build_status",
     "resolve_navigation",
 ]

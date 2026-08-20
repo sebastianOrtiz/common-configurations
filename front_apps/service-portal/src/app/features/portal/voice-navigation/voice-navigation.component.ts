@@ -16,7 +16,7 @@
  * Only rendered when `SettingsService.isVoiceAssistantEnabled()` is true.
  */
 
-import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
+import { Component, HostBinding, Input, OnDestroy, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -66,6 +66,20 @@ export class VoiceNavigationComponent implements OnDestroy {
   private ttsService = inject(TtsService);
   private router = inject(Router);
 
+  /**
+   * When true, this component is hosted by the global assistant bubble
+   * (`AssistantBubbleComponent`) instead of being embedded inline in a page:
+   * it no longer renders its own idle "¿Qué necesitas?" launcher card, only
+   * the floating status/results panel once `startVoiceSearch()` is triggered
+   * externally. Also switches the host to `position: fixed` (see SCSS).
+   */
+  @Input() embedded = false;
+
+  @HostBinding('class.embedded')
+  get isEmbeddedHost(): boolean {
+    return this.embedded;
+  }
+
   // UI state
   protected state = signal<NavState>('idle');
   protected interimText = signal<string>('');
@@ -73,6 +87,8 @@ export class VoiceNavigationComponent implements OnDestroy {
   protected results = signal<NavigationResult[]>([]);
   protected clarifyingQuestion = signal<string | null>(null);
   protected errorMessage = signal<string | null>(null);
+  /** True while listening for the user's spoken pick among the "choose" options. */
+  protected choiceListening = signal<boolean>(false);
 
   /** Guards against a stale STT/API resolution landing after the user cancelled or restarted. */
   private requestId = 0;
@@ -87,6 +103,19 @@ export class VoiceNavigationComponent implements OnDestroy {
   /** Same accessor pattern used across the portal (procedures-tool, pqr-tool, etc.) */
   protected get isVoiceAssistantAvailable(): boolean {
     return this.settingsService.isVoiceAssistantEnabled();
+  }
+
+  /** Public: lets the global assistant bubble know whether a panel is currently showing. */
+  readonly isActive = computed(() => this.state() !== 'idle');
+
+  /**
+   * Public entry point for the global assistant bubble: closes any open
+   * panel (listening/searching/choose/none/error) and returns to idle.
+   * Used e.g. when the user navigates to another route mid-search so no
+   * panel is left dangling.
+   */
+  closePanel(): void {
+    this.resetToIdle();
   }
 
   /**
@@ -151,7 +180,7 @@ export class VoiceNavigationComponent implements OnDestroy {
       .subscribe({
         next: (response) => {
           if (myId !== this.requestId) return;
-          this.handleResponse(response?.message);
+          this.handleResponse(response?.message, myId);
         },
         error: (err) => {
           if (myId !== this.requestId) return;
@@ -162,7 +191,7 @@ export class VoiceNavigationComponent implements OnDestroy {
       });
   }
 
-  private handleResponse(data?: ResolveNavigationResponse): void {
+  private handleResponse(data: ResolveNavigationResponse | undefined, myId: number): void {
     if (!data) {
       this.errorMessage.set('Respuesta inesperada del servidor.');
       this.state.set('error');
@@ -181,10 +210,13 @@ export class VoiceNavigationComponent implements OnDestroy {
         break;
       }
       case 'choose': {
-        this.results.set(data.results || []);
+        const results = data.results || [];
+        this.results.set(results);
         this.clarifyingQuestion.set(data.clarifying_question);
-        if (data.clarifying_question) this.speak(data.clarifying_question);
         this.state.set('choose');
+        // Read the options aloud AND then listen for a spoken pick, so a
+        // citizen who can't read the screen can still choose by voice.
+        void this.presentChoices(results, data.clarifying_question, myId);
         break;
       }
       case 'none':
@@ -192,6 +224,149 @@ export class VoiceNavigationComponent implements OnDestroy {
         this.state.set('none');
         break;
     }
+  }
+
+  /**
+   * Speak the clarifying question + an enumerated read-out of the options,
+   * then open the mic to capture the user's spoken choice.
+   */
+  private async presentChoices(
+    results: NavigationResult[],
+    question: string | null,
+    myId: number
+  ): Promise<void> {
+    if (!results.length) return;
+    const intro = question || 'Encontré varias opciones.';
+    const list = results
+      .map((r, i) => `Opción ${i + 1}: ${r.title}${r.secretaria ? `, en ${r.secretaria}` : ''}.`)
+      .join(' ');
+    await this.speakAsync(`${intro} ${list} Dime el número de la opción, o toca una en la pantalla.`);
+    if (myId !== this.requestId) return; // user tapped a card / cancelled while speaking
+    await this.listenForChoice(results, myId);
+  }
+
+  /**
+   * Listen for the user's spoken choice among the "choose" options and act on
+   * it. Matches a number ("dos", "la segunda", "2") or the trámite/secretaría
+   * name. One retry with a hint; after that the user can just tap a card.
+   */
+  private async listenForChoice(
+    results: NavigationResult[],
+    myId: number,
+    retries = 0
+  ): Promise<void> {
+    if (myId !== this.requestId) return;
+    this.choiceListening.set(true);
+    this.interimText.set('');
+
+    try {
+      const raw = await this.sttService.listenOnce(this.language(), (t) => {
+        if (myId === this.requestId) this.interimText.set(t);
+      });
+      if (myId !== this.requestId) return;
+      this.choiceListening.set(false);
+
+      const norm = this.normalizeText(raw || '');
+      if (!norm) {
+        if (retries < 1) {
+          await this.speakAsync('No te escuché. Dime el número de la opción.');
+          if (myId !== this.requestId) return;
+          await this.listenForChoice(results, myId, retries + 1);
+        }
+        return;
+      }
+
+      // Control words
+      if (/\b(cancelar|cancela|salir|nada|ninguna|ninguno)\b/.test(norm)) {
+        this.resetToIdle();
+        return;
+      }
+      if (/\b(otra vez|de nuevo|buscar de nuevo|repetir|nueva busqueda)\b/.test(norm)) {
+        void this.startVoiceSearch();
+        return;
+      }
+
+      const idx = this.matchChoice(norm, results);
+      if (idx >= 0) {
+        await this.speakAsync(`Te llevo a ${results[idx].title}.`);
+        if (myId !== this.requestId) return;
+        this.navigateToResult(results[idx]);
+        return;
+      }
+
+      // No match → one hint + retry, then let the user tap.
+      if (retries < 1) {
+        await this.speakAsync('No entendí cuál. Dime el número de la opción, o toca una en la pantalla.');
+        if (myId !== this.requestId) return;
+        await this.listenForChoice(results, myId, retries + 1);
+      }
+    } catch {
+      if (myId !== this.requestId) return;
+      this.choiceListening.set(false);
+      // Stay on the choose screen; the user can tap a card.
+    }
+  }
+
+  /**
+   * Resolve a spoken choice to an option index (0-based), or -1 if none.
+   * Understands digits, number words and ordinals (1..MAX_CHOOSE), and falls
+   * back to matching the trámite/secretaría name.
+   */
+  private matchChoice(norm: string, results: NavigationResult[]): number {
+    const wordToNum: Record<string, number> = {
+      uno: 1, primero: 1, primera: 1, primer: 1,
+      dos: 2, segundo: 2, segunda: 2,
+      tres: 3, tercero: 3, tercera: 3, tercer: 3,
+      cuatro: 4, cuarto: 4, cuarta: 4,
+      cinco: 5, quinto: 5, quinta: 5,
+    };
+
+    // Digit anywhere in the phrase ("la 2", "opcion 3").
+    const digit = norm.match(/\b([1-9])\b/);
+    if (digit) {
+      const n = parseInt(digit[1], 10);
+      if (n >= 1 && n <= results.length) return n - 1;
+    }
+
+    // Number/ordinal words.
+    for (const [word, n] of Object.entries(wordToNum)) {
+      if (n <= results.length && new RegExp(`\\b${word}\\b`).test(norm)) {
+        return n - 1;
+      }
+    }
+
+    // Name / secretaría overlap: pick the option sharing the most query tokens.
+    const tokens = norm.split(/\s+/).filter((t) => t.length >= 4);
+    let bestIdx = -1;
+    let bestScore = 0;
+    results.forEach((r, i) => {
+      const hay = this.normalizeText(`${r.title} ${r.secretaria}`);
+      let score = 0;
+      tokens.forEach((t) => {
+        if (hay.includes(t)) score++;
+      });
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+    });
+    return bestScore > 0 ? bestIdx : -1;
+  }
+
+  /** lowercase + strip accents, for robust spoken-choice matching. */
+  private normalizeText(s: string): string {
+    return (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim();
+  }
+
+  /** Awaitable speak so we can sequence "read options → listen for pick". */
+  private speakAsync(text: string): Promise<void> {
+    if (!text || !this.ttsService.isSupported()) return Promise.resolve();
+    const settings = this.settingsService.settings().voice_assistant;
+    return this.ttsService.speak(text, settings.language, settings.gender).catch(() => {});
   }
 
   /**
@@ -222,6 +397,7 @@ export class VoiceNavigationComponent implements OnDestroy {
     this.results.set([]);
     this.clarifyingQuestion.set(null);
     this.errorMessage.set(null);
+    this.choiceListening.set(false);
   }
 
   private speak(text: string): void {

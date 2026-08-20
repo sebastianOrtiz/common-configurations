@@ -8,19 +8,19 @@
  * Now includes MFA via OTP (SMS/WhatsApp) when enabled in OTP Settings.
  */
 
-import { Component, Input, OnInit, signal, inject } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, effect, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { PortalService, UserContactWithToken } from '../../../core/services/portal.service';
 import { StateService } from '../../../core/services/state.service';
 import { OtpService } from '../../../core/services/otp.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
 import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-verification/otp-verification.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
-import { VoiceAssistantComponent, VoicePrompt } from '../../../shared/components/voice-assistant/voice-assistant.component';
+import { VoicePrompt } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { SettingsService } from '../../../core/services/settings.service';
-import { ViewChild } from '@angular/core';
 
 // Registration step types - now includes 'otp' for OTP verification
 type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
@@ -28,19 +28,18 @@ type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
 @Component({
   selector: 'app-contact-registration',
   standalone: true,
-  imports: [CommonModule, FormsModule, OtpVerificationComponent, IconComponent, VoiceAssistantComponent],
+  imports: [CommonModule, FormsModule, OtpVerificationComponent, IconComponent],
   templateUrl: './contact-registration.component.html',
   styleUrls: ['./contact-registration.component.scss']
 })
-export class ContactRegistrationComponent implements OnInit {
+export class ContactRegistrationComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private portalService = inject(PortalService);
   private stateService = inject(StateService);
   private otpService = inject(OtpService);
+  private assistantContext = inject(AssistantContextService);
   protected settingsService = inject(SettingsService);
-
-  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
 
   /**
    * Optional override for post-auth navigation. When the component is
@@ -85,6 +84,39 @@ export class ContactRegistrationComponent implements OnInit {
   protected selectedPortal = this.stateService.selectedPortal;
   protected referrerPortal = this.stateService.referrerPortal;
 
+  constructor() {
+    // Keep the global assistant bubble's `fill_form` action in sync with the
+    // active step. `login`/`register` build the prompts from the dynamic
+    // DocType fields (only available once `fields()` finishes loading),
+    // so this runs as a reactive effect instead of a one-shot ngOnInit call.
+    effect(() => {
+      const step = this.currentStep();
+      const fieldsList = this.fields();
+
+      if (step === 'login') {
+        this.assistantContext.setFormContext({
+          title: 'Iniciar sesión',
+          prompts: this.buildLoginVoicePrompts(),
+          onComplete: (answers) => this.applyLoginSurveyAnswers(answers),
+        });
+      } else if (step === 'register' && fieldsList.length > 0) {
+        this.assistantContext.setFormContext({
+          title: 'Registro',
+          prompts: this.buildRegisterVoicePrompts(fieldsList),
+          onComplete: (answers) => this.applyRegisterSurveyAnswers(answers),
+        });
+      } else {
+        // 'initial' (no form yet — the global "login" action already covers
+        // jumping here from elsewhere), 'otp', or 'register' before fields load.
+        this.assistantContext.clearFormContext();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.clearFormContext();
+  }
+
   ngOnInit(): void {
     // Check if user already has a contact
     if (this.stateService.userContact()) {
@@ -101,6 +133,15 @@ export class ContactRegistrationComponent implements OnInit {
     // would see "Error de sesión" when submitting because selectedPortal()
     // is null until the home view loads it.
     this.ensurePortalLoaded();
+
+    // If we were redirected here because a stale/invalid token was rejected
+    // (only one active token per user: a newer login/SSO invalidates older
+    // ones), explain why instead of dropping the user on a bare form.
+    if (this.route.snapshot.queryParamMap.get('reason') === 'session_expired') {
+      this.error.set(
+        'Tu sesión expiró o se inició sesión en otro lugar. Por favor vuelve a ingresar.'
+      );
+    }
 
     // Load User Contact DocType fields
     this.loadFields();
@@ -560,6 +601,11 @@ export class ContactRegistrationComponent implements OnInit {
 
   // ============================================================
   // Voice Assistant integration (MVP, no AI)
+  //
+  // The actual survey is now driven by the global assistant bubble
+  // (AssistantBubbleComponent), which reads the `form` context registered
+  // in the constructor's effect() above. These methods only build the
+  // VoicePrompt[] and apply the resulting answers — no ViewChild needed.
   // ============================================================
 
   /** Convenience getter for the template */
@@ -568,17 +614,15 @@ export class ContactRegistrationComponent implements OnInit {
   }
 
   /**
-   * Build prompts from the dynamic fields and run the voice assistant.
-   * The user dictates each field; on completion the form is auto-filled.
+   * Build prompts from the dynamic fields. The user dictates each field;
+   * on completion (via `applyRegisterSurveyAnswers`) the form is auto-filled.
    */
-  async startVoiceAssistant(): Promise<void> {
-    if (!this.voiceAssistant) return;
-
-    const visibleFields = this.fields().filter(
+  private buildRegisterVoicePrompts(fieldsList: DocField[]): VoicePrompt[] {
+    const visibleFields = fieldsList.filter(
       (f) => !f.hidden && !f.read_only && f.fieldtype !== 'Check'
     );
 
-    const prompts: VoicePrompt[] = visibleFields.map((f) => {
+    return visibleFields.map((f) => {
       const label = f.label || f.fieldname;
       const isOptional = !f.reqd;
       let question = `¿Cuál es tu ${label.toLowerCase()}?`;
@@ -626,24 +670,19 @@ export class ContactRegistrationComponent implements OnInit {
         confirmTemplate: (val) => `Entendí ${val} para ${label.toLowerCase()}. ¿Es correcto? Di sí o no.`,
       };
     });
+  }
 
-    try {
-      const answers = await this.voiceAssistant.startSurvey(prompts);
-      // Merge answers into formData
-      this.formData.update((current) => ({ ...current, ...answers }));
-    } catch (err) {
-      // User cancelled — silent, no error to show
-    }
+  /** `onComplete` for the register-step survey: merges the dictated answers into the form. */
+  private applyRegisterSurveyAnswers(answers: Record<string, string>): void {
+    this.formData.update((current) => ({ ...current, ...answers }));
   }
 
   /**
-   * Voice assistant for the login step: asks only for the document number
-   * and triggers the same `onConnect()` flow used by the form.
+   * Prompts for the login step: asks only for the document number.
+   * `applyLoginSurveyAnswers` triggers the same `onConnect()` flow used by the form.
    */
-  async startVoiceLoginAssistant(): Promise<void> {
-    if (!this.voiceAssistant) return;
-
-    const prompts: VoicePrompt[] = [
+  private buildLoginVoicePrompts(): VoicePrompt[] {
+    return [
       {
         key: 'document',
         question:
@@ -653,18 +692,15 @@ export class ContactRegistrationComponent implements OnInit {
           `Entendí ${val}. ¿Es correcto tu número de documento? Di sí o no.`,
       },
     ];
+  }
 
-    try {
-      const answers = await this.voiceAssistant.startSurvey(prompts);
-      if (answers['document']) {
-        // Merge into formData (login form uses formData()['document'])
-        this.formData.update((current) => ({ ...current, document: answers['document'] }));
-        // Slight delay so the user sees the field filled before submit
-        setTimeout(() => this.onConnect(), 200);
-      }
-    } catch (err) {
-      // User cancelled
-    }
+  /** `onComplete` for the login-step survey: fills the document field and submits. */
+  private applyLoginSurveyAnswers(answers: Record<string, string>): void {
+    if (!answers['document']) return;
+    // Merge into formData (login form uses formData()['document'])
+    this.formData.update((current) => ({ ...current, document: answers['document'] }));
+    // Slight delay so the user sees the field filled before submit
+    setTimeout(() => this.onConnect(), 200);
   }
 }
 

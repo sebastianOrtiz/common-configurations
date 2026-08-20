@@ -1,8 +1,9 @@
-@if (isVoiceAssistantAvailable) {
+@if (isVoiceAssistantAvailable && (!embedded || isActive())) {
   <div class="voice-nav-card" [class.expanded]="state() !== 'idle'">
 
-    <!-- IDLE: prompt + mic button -->
-    @if (state() === 'idle') {
+    <!-- IDLE: prompt + mic button (launcher) — hidden when embedded in the global bubble,
+         which hosts its own launcher and just calls startVoiceSearch() programmatically. -->
+    @if (!embedded && state() === 'idle') {
       <div class="voice-nav-prompt">
         <div class="voice-nav-text">
           <h2>¿Qué necesitas?</h2>
@@ -52,6 +53,15 @@
       <div class="voice-nav-results">
         @if (clarifyingQuestion()) {
           <p class="voice-nav-clarify">{{ clarifyingQuestion() }}</p>
+        }
+        @if (choiceListening()) {
+          <p class="voice-nav-choice-listening">
+            <span class="voice-nav-pulse"></span>
+            <span>
+              Escuchando tu elección…
+              @if (interimText()) { <em>"{{ interimText() }}"</em> }
+            </span>
+          </p>
         }
         <div class="voice-nav-results-grid">
           @for (result of results(); track result.id) {

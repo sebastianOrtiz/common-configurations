@@ -1,0 +1,69 @@
+@if (available()) {
+  <div class="assistant-bubble-root">
+    <!-- Hosted engines: embedded = no launcher of their own, only their panel -->
+    <app-voice-assistant [embedded]="true"></app-voice-assistant>
+    <app-voice-navigation [embedded]="true"></app-voice-navigation>
+
+    <!-- Generic help menu — populated dynamically from the actions available right now -->
+    @if (menuOpen) {
+      <div class="assistant-menu-overlay" (click)="closeMenu()"></div>
+      <div class="assistant-menu" role="menu" aria-label="Menú del asistente de voz">
+        <p class="assistant-menu-greeting">
+          Hola, soy tu asistente de voz. ¿En qué te puedo ayudar?
+        </p>
+        <div class="assistant-menu-actions">
+          @for (action of availableActions(); track action.id) {
+            @if (action.id !== 'help') {
+              <button type="button" class="assistant-menu-item" (click)="runMenuAction(action)">
+                <app-icon [name]="menuActionIcon(action)" [size]="18" [strokeWidth]="2"></app-icon>
+                <span>{{ action.description }}</span>
+              </button>
+            }
+          }
+          @if (availableActions().length <= 1) {
+            <p class="assistant-menu-empty">
+              No hay acciones disponibles en esta página todavía.
+            </p>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- The single, always-present FAB -->
+    <div class="assistant-fab-wrap" [class.speaking]="showWave()">
+      <!-- Pulsing rings while speaking/listening (visual echo of the sound) -->
+      @if (showWave()) {
+        <span class="assistant-ring assistant-ring-1" aria-hidden="true"></span>
+        <span class="assistant-ring assistant-ring-2" aria-hidden="true"></span>
+      }
+
+      <button
+        type="button"
+        class="assistant-fab"
+        [class.active]="menuOpen || isAnyPanelOpen()"
+        [class.wave]="showWave()"
+        (click)="onBubbleClick()"
+        [attr.aria-label]="
+          menuOpen || isAnyPanelOpen() ? 'Cerrar asistente de voz' : 'Abrir asistente de voz'
+        "
+        [attr.aria-expanded]="menuOpen || isAnyPanelOpen()"
+        title="Asistente de voz"
+      >
+        @if (showWave()) {
+          <!-- Animated sound wave (equalizer) synced to speech/listening -->
+          <span class="assistant-wave" aria-hidden="true">
+            <span class="assistant-wave-bar"></span>
+            <span class="assistant-wave-bar"></span>
+            <span class="assistant-wave-bar"></span>
+            <span class="assistant-wave-bar"></span>
+            <span class="assistant-wave-bar"></span>
+          </span>
+        } @else if (menuOpen || isAnyPanelOpen()) {
+          <app-icon name="X" [size]="26" [strokeWidth]="2"></app-icon>
+        } @else {
+          <app-icon name="Mic" [size]="26" [strokeWidth]="2"></app-icon>
+        }
+      </button>
+    </div>
+  </div>
+}

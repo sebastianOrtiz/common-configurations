@@ -127,12 +127,22 @@ function build_navigation_catalog(frm) {
 				description: __(
 					'Requiere tener habilitado el Modo IA del asistente de voz en Common Configurations Settings, con una Configuración de IA válida. Si no está configurado, el catálogo se genera igual, solo que sin enriquecer.'
 				)
+			},
+			{
+				fieldname: 'force_regen',
+				fieldtype: 'Check',
+				label: __('Forzar regeneración (ignorar caché)'),
+				default: 0,
+				depends_on: 'use_ai',
+				description: __(
+					'Por defecto solo se generan con IA los elementos nuevos o que cambiaron, reusando el resto desde el almacén de keywords. Marca esta opción para regenerar TODOS los elementos con IA e ignorar el fingerprint (más lento y consume más tokens).'
+				)
 			}
 		],
 		primary_action_label: __('Generar'),
 		primary_action: function(values) {
 			dialog.hide();
-			start_catalog_build(frm, values.use_ai ? 1 : 0);
+			start_catalog_build(frm, values.use_ai ? 1 : 0, values.force_regen ? 1 : 0);
 		}
 	});
 
@@ -142,7 +152,7 @@ function build_navigation_catalog(frm) {
 // Kicks off the (background) catalog build and shows a live, NON-blocking
 // progress bar. Progress is polled from the server (does not depend on
 // realtime/socketio), so it works reliably in any setup.
-function start_catalog_build(frm, use_ai) {
+function start_catalog_build(frm, use_ai, force) {
 	const portal = frm.doc.name;
 	let finished = false;
 	let poll_timer = null;
@@ -186,7 +196,7 @@ function start_catalog_build(frm, use_ai) {
 
 	frappe.call({
 		method: 'common_configurations.api.navigation.build_navigation_catalog',
-		args: { portal_name: portal, use_ai: use_ai },
+		args: { portal_name: portal, use_ai: use_ai, force: force ? 1 : 0 },
 		error: function() { if (!finished) { stop(); frappe.hide_progress(); } }
 	});
 

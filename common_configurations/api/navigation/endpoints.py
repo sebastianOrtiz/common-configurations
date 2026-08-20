@@ -115,8 +115,66 @@ def resolve_navigation(
         frappe.throw(_("Error resolving navigation query"))
 
 
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def interpret_command(
+    transcript: str,
+    portal_name: str,
+    actions: str,
+    honeypot: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    AI fallback of the assistant's hybrid voice-command router: map a spoken
+    command to ONE of the actions the client currently offers.
+
+    The client tries fast local rule-matching first and only calls this when
+    that isn't confident. Any AI failure returns a low-confidence null action
+    so the client degrades gracefully.
+
+    Requires a valid X-User-Contact-Token.
+    Rate limited: 30 requests per minute per IP.
+
+    Args:
+        transcript: The citizen's spoken command.
+        portal_name: The portal_name identifier of a Service Portal.
+        actions: JSON-encoded list of available actions, each shaped
+            `{"id": str, "description": str, "sample_phrases": [str, ...]}`.
+        honeypot: Anti-bot field (must be empty).
+
+    Returns:
+        dict: {action_id, args, confidence, spoken_reply}
+    """
+    check_rate_limit("interpret_command", limit=30, seconds=60)
+    check_honeypot(honeypot)
+
+    user_contact = get_current_user_contact()
+    if not user_contact:
+        frappe.throw(_("Authentication required"), frappe.AuthenticationError)
+
+    transcript = sanitize_string(transcript, 500)
+    if not transcript:
+        frappe.throw(_("Command is required"))
+
+    portal_name = sanitize_string(portal_name, 140)
+    if not portal_name:
+        frappe.throw(_("Portal name is required"))
+
+    try:
+        parsed_actions = json.loads(actions) if actions else []
+    except (ValueError, TypeError):
+        parsed_actions = []
+    if not isinstance(parsed_actions, list):
+        parsed_actions = []
+
+    try:
+        return NavigationService.interpret_command(transcript, parsed_actions)
+    except Exception as e:
+        frappe.log_error(f"Error interpreting command for {portal_name}: {str(e)}")
+        # Never hard-fail the assistant — degrade to "no match".
+        return {"action_id": None, "args": {}, "confidence": "low", "spoken_reply": None}
+
+
 @frappe.whitelist(methods=["POST"])
-def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any]:
+def build_navigation_catalog(portal_name: str, use_ai: int = 1, force: int = 0) -> Dict[str, Any]:
     """
     Build (or rebuild) the FULL navigation catalog of a Service Portal —
     every enabled tool, plus every sub-item its registered
@@ -132,6 +190,10 @@ def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any
         use_ai: Truthy to enrich the catalog with AI-generated keywords
             (requires `enable_voice_assistant_ai` + a configured AI model
             in Common Configurations Settings — silently skipped otherwise).
+        force: Truthy to ignore the per-element fingerprint cache and
+            re-generate keywords for every item, overwriting the stored
+            `Portal Navigation Keyword` records (otherwise only new or
+            changed elements are enriched, reusing the rest).
 
     Returns:
         dict: {portal, item_count, tool_count, built_with_ai, enriched}
@@ -161,6 +223,7 @@ def build_navigation_catalog(portal_name: str, use_ai: int = 1) -> Dict[str, Any
         timeout=1800,
         portal_name=portal_name,
         use_ai=int(use_ai or 0),
+        force=int(force or 0),
         user=frappe.session.user,
     )
     return {"queued": True, "portal": portal_name}
@@ -187,7 +250,9 @@ def navigation_build_status(portal_name: str) -> Dict[str, Any]:
     return out
 
 
-def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None:
+def _build_and_persist_catalog(
+    portal_name: str, use_ai: int, user: str, force: int = 0
+) -> None:
     """
     Background worker: build + (optionally) AI-enrich + persist the Portal
     Navigation Catalog. Writes progress/done/error to cache (polled by the
@@ -218,7 +283,7 @@ def _build_and_persist_catalog(portal_name: str, use_ai: int, user: str) -> None
                 )
 
             items, used_ai = NavigationService.enrich_catalog_with_ai(
-                items, progress=_progress
+                items, progress=_progress, force=bool(force)
             )
 
         existing_name = frappe.db.exists("Portal Navigation Catalog", {"portal": portal_name})

@@ -4,13 +4,21 @@
  * Displays user's scheduled appointments
  */
 
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { Appointment } from '../../../core/models/appointment.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+
+/**
+ * Unique scope id for this tool's voice actions. Any string is valid as
+ * long as it's unique per active scope — `registerActions`/`unregister`
+ * key their Map entry by it.
+ */
+const ASSISTANT_SCOPE_ID = 'my-appointments-tool';
 
 @Component({
   selector: 'app-my-appointments-tool',
@@ -19,10 +27,11 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
   templateUrl: './my-appointments-tool.component.html',
   styleUrls: ['./my-appointments-tool.component.scss']
 })
-export class MyAppointmentsToolComponent implements OnInit {
+export class MyAppointmentsToolComponent implements OnInit, OnDestroy {
   private meetSchedulingService = inject(MeetSchedulingService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  private assistantContext = inject(AssistantContextService);
 
   // UI State
   protected loading = signal<boolean>(false);
@@ -38,9 +47,57 @@ export class MyAppointmentsToolComponent implements OnInit {
   protected selectedPortal = this.stateService.selectedPortal;
   protected isAnonymousUser = this.stateService.isAnonymousUser;
 
+  // ============================================================
+  // Voice Command Layer — per-tool action registry (Fase 2 seed).
+  //
+  // Besides the GLOBAL voice actions (navigate between tools, go back/home,
+  // search, log in, fill the active form), a tool can register its own
+  // autonomous actions here. This is the reference example other tools
+  // should copy:
+  //
+  //   1. Pick a unique `scopeId` (a plain string constant is enough).
+  //   2. Call `registerActions(scopeId, [...])` once — in the constructor
+  //      (static actions, as below) or inside an `effect()`/`ngOnInit` if
+  //      the action's availability/labels depend on reactive state.
+  //   3. Call `unregister(scopeId)` in `ngOnDestroy` — mandatory, or the
+  //      action leaks into every other page.
+  //
+  // The `run` callback executes autonomously: no confirmation step beyond
+  // the bubble's own spoken acknowledgement.
+  // ============================================================
+  constructor() {
+    this.assistantContext.registerActions(ASSISTANT_SCOPE_ID, [
+      {
+        id: 'appointments.new',
+        description: 'Agendar una nueva cita',
+        samplePhrases: ['nueva cita', 'agendar cita', 'quiero una cita', 'pedir una cita', 'sacar una cita'],
+        run: () => this.goToScheduling(),
+      },
+    ]);
+  }
+
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;
     this.loadUserAppointments();
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.unregister(ASSISTANT_SCOPE_ID);
+  }
+
+  /** "Nueva cita" — jumps straight to this portal's meet_scheduling tool, if configured. */
+  private goToScheduling(): void {
+    const portal = this.selectedPortal();
+    if (!portal) return;
+    const schedulingTool = portal.tools.find(
+      (t) => t.tool_type === 'meet_scheduling' && t.is_enabled
+    );
+    if (schedulingTool) {
+      this.router.navigate(['/portal', portal.portal_name, 'tool', 'meet_scheduling', schedulingTool.name]);
+    } else {
+      // No scheduling tool configured on this portal — go home instead of a dead end.
+      this.router.navigate(['/portal', portal.portal_name]);
+    }
   }
 
   /**

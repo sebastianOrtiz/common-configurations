@@ -6,7 +6,7 @@
  * - External procedures: show an info modal and register a Procedure Request automatically
  */
 
-import { Component, OnInit, OnDestroy, Input, signal, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, effect, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -14,9 +14,9 @@ import { Subscription } from 'rxjs';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
-import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import {
   AttachmentUploaderComponent,
@@ -52,7 +52,6 @@ type ViewState = 'list' | 'form' | 'confirm' | 'external';
     CommonModule,
     FormsModule,
     VoiceInputComponent,
-    VoiceAssistantComponent,
     IconComponent,
     AttachmentUploaderComponent,
   ],
@@ -66,8 +65,8 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
+  private assistantContext = inject(AssistantContextService);
 
-  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
   @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
   /**
@@ -139,6 +138,25 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   private lastAutoOpenedProcedure: string | null = null;
   private queryParamsSubscription?: Subscription;
 
+  constructor() {
+    // Keep the global assistant bubble's `fill_form` action in sync with the
+    // active view: only offered while filling out the internal-procedure
+    // description (guided survey). The "search" action is global, so
+    // citizens can still search another trámite by voice at any time.
+    effect(() => {
+      const currentView = this.view();
+      if (currentView === 'form') {
+        this.assistantContext.setFormContext({
+          title: 'Describir trámite',
+          prompts: this.promptBuilder.guidedRequestSurvey(),
+          onComplete: (answers) => this.applyGuidedSurveyAnswers(answers),
+        });
+      } else {
+        this.assistantContext.clearFormContext();
+      }
+    });
+  }
+
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;
 
@@ -174,6 +192,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.queryParamsSubscription?.unsubscribe();
+    this.assistantContext.clearFormContext();
   }
 
   /**
@@ -354,21 +373,15 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Guides the citizen through 5 fixed questions (qué/cómo/para qué/contexto/
-   * cuándo) and joins the answers into the `user_context` textarea so they
-   * can review everything before radicando el trámite.
+   * `onComplete` for the guided survey (qué/cómo/para qué/contexto/cuándo),
+   * run by the global assistant bubble. Joins the answers into the
+   * `user_context` textarea so the citizen can review everything before
+   * radicando el trámite.
    */
-  async startVoiceAssistant(): Promise<void> {
-    if (!this.voiceAssistant) return;
-
-    try {
-      const answers = await this.voiceAssistant.startSurvey(this.promptBuilder.guidedRequestSurvey());
-      const context = this.promptBuilder.buildGuidedRequestContext(answers);
-      if (context) {
-        this.userContext.set(context);
-      }
-    } catch {
-      // Cancelado por el usuario
+  private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
+    const context = this.promptBuilder.buildGuidedRequestContext(answers);
+    if (context) {
+      this.userContext.set(context);
     }
   }
 }

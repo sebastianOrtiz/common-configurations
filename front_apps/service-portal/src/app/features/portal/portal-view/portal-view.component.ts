@@ -12,12 +12,11 @@ import { StateService } from '../../../core/services/state.service';
 import { ServicePortal, ServicePortalTool } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { AnnouncementZoneComponent } from '../../../shared/components/announcement-zone/announcement-zone.component';
-import { VoiceNavigationComponent } from '../voice-navigation/voice-navigation.component';
 
 @Component({
   selector: 'app-portal-view',
   standalone: true,
-  imports: [CommonModule, IconComponent, AnnouncementZoneComponent, VoiceNavigationComponent],
+  imports: [CommonModule, IconComponent, AnnouncementZoneComponent],
   templateUrl: './portal-view.component.html',
   styleUrls: ['./portal-view.component.scss']
 })
@@ -36,6 +35,11 @@ export class PortalViewComponent implements OnInit {
   protected enabledTools = signal<ServicePortalTool[]>([]);
 
   ngOnInit(): void {
+    // No assistant context to register here: the "search" voice action is
+    // GLOBAL (computed by AssistantContextService from the selected portal),
+    // so it's already available on this page — and everywhere else — without
+    // any per-page registration.
+
     // Subscribe to route param changes so the component reloads
     // when navigating between portals (Angular reuses the same instance)
     this.route.paramMap.subscribe(params => {

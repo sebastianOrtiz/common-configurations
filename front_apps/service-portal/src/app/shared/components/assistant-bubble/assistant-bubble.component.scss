@@ -1,0 +1,191 @@
+:host {
+  display: contents;
+}
+
+.assistant-bubble-root {
+  // Wrapper is just a positioning anchor; the FAB itself is fixed.
+  position: relative;
+}
+
+.assistant-fab-wrap {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  width: 60px;
+  height: 60px;
+  z-index: 1000;
+
+  @media (max-width: 480px) {
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    width: 54px;
+    height: 54px;
+  }
+}
+
+.assistant-fab {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.4);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    transform: scale(1.06);
+    box-shadow: 0 12px 32px rgba(37, 99, 235, 0.5);
+  }
+
+  &:focus-visible {
+    outline: 3px solid #93c5fd;
+    outline-offset: 3px;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #475569 0%, #334155 100%);
+    box-shadow: 0 10px 28px rgba(51, 65, 85, 0.4);
+  }
+
+  // While speaking/listening, a warmer gradient so the wave reads as "alive".
+  &.wave {
+    background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    box-shadow: 0 10px 30px rgba(79, 70, 229, 0.55);
+  }
+}
+
+// Pulsing rings radiating from the FAB — a visual echo of the sound.
+.assistant-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(79, 70, 229, 0.5);
+  pointer-events: none;
+  animation: assistantRing 1.6s ease-out infinite;
+}
+
+.assistant-ring-2 {
+  animation-delay: 0.8s;
+}
+
+// Animated equalizer bars inside the FAB, synced to speech/listening.
+.assistant-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 24px;
+}
+
+.assistant-wave-bar {
+  width: 3px;
+  height: 22px;
+  border-radius: 2px;
+  background: #ffffff;
+  transform: scaleY(0.4);
+  transform-origin: center;
+  animation: assistantWave 0.9s ease-in-out infinite;
+
+  &:nth-child(1) { animation-delay: 0s; }
+  &:nth-child(2) { animation-delay: 0.15s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
+  &:nth-child(4) { animation-delay: 0.45s; }
+  &:nth-child(5) { animation-delay: 0.6s; }
+}
+
+@keyframes assistantRing {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+@keyframes assistantWave {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.25); }
+}
+
+// Respect users who prefer reduced motion: keep the state legible, drop the motion.
+@media (prefers-reduced-motion: reduce) {
+  .assistant-ring { display: none; }
+  .assistant-wave-bar { animation: none; transform: scaleY(0.9); }
+}
+
+.assistant-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  background: transparent;
+}
+
+.assistant-menu {
+  position: fixed;
+  right: 1.25rem;
+  bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  width: 300px;
+  max-width: calc(100vw - 2rem);
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+  padding: 1rem 1.125rem 1.125rem;
+  z-index: 999;
+  animation: assistantMenuSlideUp 0.2s ease-out;
+
+  @media (max-width: 480px) {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+  }
+}
+
+.assistant-menu-greeting {
+  margin: 0 0 0.875rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.assistant-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.assistant-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.7rem 0.875rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1d4ed8;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+}
+
+.assistant-menu-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+@keyframes assistantMenuSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -5,16 +5,16 @@
  * without needing to create an Appointment first.
  */
 
-import { Component, OnInit, Input, signal, inject, ViewChild } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, effect, signal, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
-import { VoiceAssistantComponent } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import {
   AttachmentUploaderComponent,
@@ -37,21 +37,20 @@ interface CreatedEntry {
     CommonModule,
     FormsModule,
     VoiceInputComponent,
-    VoiceAssistantComponent,
     IconComponent,
     AttachmentUploaderComponent,
   ],
   templateUrl: './create-logbook-tool.component.html',
   styleUrls: ['./create-logbook-tool.component.scss']
 })
-export class CreateLogbookToolComponent implements OnInit {
+export class CreateLogbookToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
+  private assistantContext = inject(AssistantContextService);
 
-  @ViewChild(VoiceAssistantComponent) voiceAssistant?: VoiceAssistantComponent;
   @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
 
   /**
@@ -78,6 +77,28 @@ export class CreateLogbookToolComponent implements OnInit {
 
   // Config
   private logbookAvailability = '';
+
+  constructor() {
+    // This tool is a single always-visible form (no list/detail views), so the
+    // global assistant bubble just needs the `fill_form` action registered
+    // whenever there's actually a form to fill (authenticated citizen,
+    // config resolved OK).
+    effect(() => {
+      if (!this.isAnonymousUser() && !this.error()) {
+        this.assistantContext.setFormContext({
+          title: 'Describir solicitud',
+          prompts: this.promptBuilder.guidedRequestSurvey(),
+          onComplete: (answers) => this.applyGuidedSurveyAnswers(answers),
+        });
+      } else {
+        this.assistantContext.clearFormContext();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.clearFormContext();
+  }
 
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;
@@ -196,21 +217,15 @@ export class CreateLogbookToolComponent implements OnInit {
   }
 
   /**
-   * Guides the citizen through 5 fixed questions (qué/cómo/para qué/contexto/
-   * cuándo) and joins the answers into the `user_context` textarea so they
-   * can review everything before submitting.
+   * `onComplete` for the guided survey (qué/cómo/para qué/contexto/cuándo),
+   * run by the global assistant bubble. Joins the answers into the
+   * `user_context` textarea so the citizen can review everything before
+   * submitting.
    */
-  async startVoiceAssistant(): Promise<void> {
-    if (!this.voiceAssistant) return;
-
-    try {
-      const answers = await this.voiceAssistant.startSurvey(this.promptBuilder.guidedRequestSurvey());
-      const context = this.promptBuilder.buildGuidedRequestContext(answers);
-      if (context) {
-        this.userContext.set(context);
-      }
-    } catch {
-      // Cancelado por el usuario
+  private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
+    const context = this.promptBuilder.buildGuidedRequestContext(answers);
+    if (context) {
+      this.userContext.set(context);
     }
   }
 }

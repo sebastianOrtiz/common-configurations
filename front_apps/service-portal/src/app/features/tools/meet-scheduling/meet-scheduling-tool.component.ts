@@ -4,12 +4,13 @@
  * Provides appointment scheduling functionality
  */
 
-import { Component, OnInit, Input, signal, computed, inject } from '@angular/core';
+import { Component, OnDestroy, OnInit, Input, signal, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MeetSchedulingService } from '../../../core/services/meet-scheduling.service';
 import { StateService } from '../../../core/services/state.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { Appointment, AvailableSlot } from '../../../core/models/appointment.model';
@@ -36,10 +37,39 @@ interface CalendarDay {
   templateUrl: './meet-scheduling-tool.component.html',
   styleUrls: ['./meet-scheduling-tool.component.scss']
 })
-export class MeetSchedulingToolComponent implements OnInit {
+export class MeetSchedulingToolComponent implements OnInit, OnDestroy {
   private meetSchedulingService = inject(MeetSchedulingService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  private assistantContext = inject(AssistantContextService);
+
+  constructor() {
+    // Expose "llename el formulario" to the global assistant only while the
+    // pre-confirm modal is open — that's when the fillable text field (the
+    // appointment reason) is on screen. The calendar/slot pick is inherently
+    // visual, so voice-fill maps to the motivo, not the date/time.
+    effect(() => {
+      if (this.showPreConfirmModal()) {
+        this.assistantContext.setFormContext({
+          title: 'Motivo de la cita',
+          prompts: [
+            {
+              key: 'motivo',
+              question: '¿Cuál es el motivo o el detalle de tu cita?',
+              optional: true,
+            },
+          ],
+          onComplete: (answers) => this.appointmentContext.set(answers['motivo'] || ''),
+        });
+      } else {
+        this.assistantContext.clearFormContext();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.clearFormContext();
+  }
 
   /**
    * Service Portal Tool docname. Set by ToolRouterComponent from the :toolName
