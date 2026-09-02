@@ -83,6 +83,8 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
 
   // UI state
   protected view = signal<ViewState>('list');
+  /** Label of THIS tool instance (the secretaría), so the header shows where you are — not the generic "Trámites". */
+  protected toolLabel = signal<string>('Trámites');
   protected loading = signal<boolean>(false);
   protected loadingProcedures = signal<boolean>(false);
   protected error = signal<string | null>(null);
@@ -171,6 +173,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
     }
 
     this.resolvedToolName = tool.name || '';
+    this.toolLabel.set(tool.label || 'Trámites');
 
     if (!(tool as any).logbook_procedures_config) {
       this.error.set('Esta herramienta no tiene una configuración de trámites asignada');

@@ -1,4 +1,4 @@
-@if (featureAvailable() && open()) {
+@if (!headless && featureAvailable() && open()) {
   <div class="va-overlay" (click)="cancel()"></div>
 
   <aside class="va-panel" role="dialog" aria-label="Asistente de voz">

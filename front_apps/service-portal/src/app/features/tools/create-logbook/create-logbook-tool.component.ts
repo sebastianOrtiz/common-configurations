@@ -68,6 +68,8 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
   protected loading = signal<boolean>(false);
   protected error = signal<string | null>(null);
   protected userContext = signal<string>('');
+  /** Label of THIS tool instance (the secretaría), so the header shows where you are. */
+  protected toolLabel = signal<string>('Crear Bitácora');
   protected showConfirmModal = signal<boolean>(false);
   protected createdEntry = signal<CreatedEntry | null>(null);
 
@@ -107,6 +109,10 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
     const tool = this.toolName
       ? portal?.tools.find(t => String(t.name) === String(this.toolName))
       : portal?.tools.find(t => t.tool_type === 'create_logbook');
+
+    if (tool) {
+      this.toolLabel.set((tool as any).label || 'Crear Bitácora');
+    }
 
     if (tool && (tool as any).logbook_availability) {
       this.logbookAvailability = (tool as any).logbook_availability;

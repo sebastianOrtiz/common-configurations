@@ -4,15 +4,22 @@
  * The single, always-present floating voice-assistant entry point for the
  * whole Service Portal. Mounted once in `AppComponent`.
  *
- * Tapping it starts a free-form COMMAND flow: the bubble asks what the
- * citizen needs, listens once, and hands the transcript to
- * `CommandRouterService.interpret()` together with every currently
- * `VoiceAction` registered in `AssistantContextService.availableActions()`
- * (global navigation actions + the active page's form, if any + whatever a
- * tool registered for itself). Depending on the resolved action:
+ * Tapping it on a page that exposes a form (`AssistantContextService.formContext()`)
+ * jumps straight into a guided, low-friction voice fill: field by field,
+ * minimal confirmation, no big dialog — just the FAB (with its sound wave)
+ * plus a small compact card drawn by THIS component from `VoiceAssistantComponent`'s
+ * public UI signals (`currentQuestion`, `progressLabel`, `isListening`,
+ * `interim`). The engine itself is hosted `headless`, so it renders nothing.
+ *
+ * On a page without a form, tapping starts a free-form COMMAND flow instead:
+ * the bubble asks what the citizen needs, listens once, and hands the
+ * transcript to `CommandRouterService.interpret()` together with every
+ * currently `VoiceAction` registered in `AssistantContextService.availableActions()`
+ * (global navigation actions + whatever a tool registered for itself).
+ * Depending on the resolved action:
  *
  * - `builtin: 'search'`    → hosts `VoiceNavigationComponent` and runs `startVoiceSearch()`.
- * - `builtin: 'fill_form'` → hosts `VoiceAssistantComponent` and runs `startSurvey()`.
+ * - `builtin: 'fill_form'` → runs `startFormFill()` (same guided-fill path as the direct tap).
  * - `id === 'help'`        → opens the generic help menu (read aloud).
  * - any other action       → speaks the confirmation and calls `action.run()`.
  * - no action resolved     → apologizes and falls back to the help menu.
@@ -21,7 +28,7 @@
  * this bubble is the only microphone button on screen at any time.
  */
 
-import { Component, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationStart } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -53,7 +60,10 @@ export class AssistantBubbleComponent {
   private commandRouter = inject(CommandRouterService);
   private router = inject(Router);
 
-  @ViewChild(VoiceAssistantComponent) private voiceAssistant?: VoiceAssistantComponent;
+  // `protected` (not `private`): the compact form-fill card in the template
+  // reads `voiceAssistant`'s public UI signals directly (currentQuestion,
+  // progressLabel, isListening, interim, isOpen, cancelSurvey).
+  @ViewChild(VoiceAssistantComponent) protected voiceAssistant?: VoiceAssistantComponent;
   @ViewChild(VoiceNavigationComponent) private voiceNavigation?: VoiceNavigationComponent;
 
   /** Gated purely by settings + browser STT support — never by route. */
@@ -78,6 +88,12 @@ export class AssistantBubbleComponent {
   /** True while listening for the citizen's free-form command (distinct from the search/form engines' own listening). */
   protected readonly listening = signal<boolean>(false);
 
+  /** Live transcript while listening for a command, so the feedback is uniform with the search/survey engines. */
+  protected readonly interimCommand = signal<string>('');
+
+  /** Last `fillRequest` value acted on, so the effect only fires on new requests. */
+  private lastFillRequest = 0;
+
   constructor() {
     // Never leave a panel (or the generic menu) dangling after a route change.
     this.router.events
@@ -86,6 +102,16 @@ export class AssistantBubbleComponent {
         takeUntilDestroyed()
       )
       .subscribe(() => this.closeEverything());
+
+    // A page can ask us to start filling the current form (e.g. after the
+    // login page's guided branch routes to login/register and sets that form).
+    effect(() => {
+      const req = this.assistantContext.fillRequest();
+      if (req > 0 && req !== this.lastFillRequest) {
+        this.lastFillRequest = req;
+        void this.startFormFill();
+      }
+    });
   }
 
   /** True while either engine's panel is actively showing something to the user. */
@@ -93,9 +119,32 @@ export class AssistantBubbleComponent {
     () => !!this.voiceAssistant?.isOpen() || !!this.voiceNavigation?.isActive()
   );
 
-  /** Show the animated sound wave while speaking, listening for a command, OR while a voice panel is active. */
-  protected readonly showWave = computed(
-    () => this.speaking() || this.listening() || this.isAnyPanelOpen()
+  /**
+   * Only the voice-navigation (search) panel replaces the FAB with its own
+   * full UI. The guided form-fill survey now lives INSIDE the bubble (FAB +
+   * compact card), so it must never hide the FAB — the wave and the compact
+   * card are the only feedback the user gets while it runs.
+   */
+  protected readonly hideFab = computed(() => !!this.voiceNavigation?.isActive());
+
+  /**
+   * Show the animated sound wave while ANY voice activity is happening:
+   * the bubble speaking/listening, a hosted engine panel, OR a page-driven
+   * flow (login guided branch) reporting through `externalVoice`.
+   */
+  protected readonly showWave = computed(() => {
+    const ext = this.assistantContext.externalVoice();
+    return this.speaking() || this.listening() || this.isAnyPanelOpen() || ext.speaking || ext.listening;
+  });
+
+  /** Whether to show the "Escuchando…" panel (bubble command flow OR a page-driven flow). */
+  protected readonly showListening = computed(
+    () => this.listening() || this.assistantContext.externalVoice().listening
+  );
+
+  /** Live transcript to display — from the command flow or a page-driven flow. */
+  protected readonly currentInterim = computed(
+    () => this.interimCommand() || this.assistantContext.externalVoice().interim
   );
 
   /** Monotonic token so a superseded utterance/command flow never clears a newer one's state. */
@@ -156,6 +205,24 @@ export class AssistantBubbleComponent {
       return; // already listening for a command — ignore the extra tap
     }
 
+    // A page can designate a PRIMARY action for the tap (e.g. the login page:
+    // "¿ya tienes cuenta o necesitas registrarte?"). It wins over the default.
+    const primary = this.assistantContext.primaryAction();
+    if (primary) {
+      void primary.run?.();
+      return;
+    }
+
+    // Pages that expose a form go straight into guided voice fill — no
+    // "¿qué quieres?" detour. Tapping the bubble on a form page IS filling
+    // the form, field by field, right inside the bubble.
+    if (this.assistantContext.formContext()) {
+      void this.startFormFill();
+      return;
+    }
+
+    // Pages without a form fall back to the free-form command flow (rules +
+    // AI): navigate, search, go back, etc.
     void this.runCommandFlow();
   }
 
@@ -163,20 +230,26 @@ export class AssistantBubbleComponent {
   private async runCommandFlow(): Promise<void> {
     const mySeq = ++this.commandSeq;
 
-    await this.say('Dime qué quieres hacer.');
+    await this.say(this.commandGreeting());
     if (mySeq !== this.commandSeq) return;
 
+    this.interimCommand.set('');
     this.listening.set(true);
     let transcript = '';
     try {
       transcript = await this.sttService.listenOnce(
         this.settingsService.settings().voice_assistant.language,
-        () => {}
+        (t) => {
+          if (mySeq === this.commandSeq) this.interimCommand.set(t);
+        }
       );
     } catch {
       /* best-effort — treated as silence below */
     } finally {
-      if (mySeq === this.commandSeq) this.listening.set(false);
+      if (mySeq === this.commandSeq) {
+        this.listening.set(false);
+        this.interimCommand.set('');
+      }
     }
     if (mySeq !== this.commandSeq) return;
 
@@ -210,14 +283,7 @@ export class AssistantBubbleComponent {
     }
 
     if (action.builtin === 'fill_form') {
-      const formCtx = this.assistantContext.formContext();
-      if (!formCtx) return;
-      try {
-        const answers = await this.voiceAssistant?.startSurvey(formCtx.prompts);
-        if (answers) formCtx.onComplete(answers);
-      } catch {
-        /* user cancelled the survey — nothing to do */
-      }
+      await this.startFormFill();
       return;
     }
 
@@ -228,6 +294,26 @@ export class AssistantBubbleComponent {
 
     await this.say(spokenReply || 'Listo, un momento.');
     await action.run?.(args);
+  }
+
+  /** Context-aware opening line: mentions filling the form when there is one to fill. */
+  private commandGreeting(): string {
+    if (this.assistantContext.formContext()) {
+      return '¿Qué quieres? Puedo llenar este formulario, o llevarte a otra parte.';
+    }
+    return '¿Qué quieres hacer? Puedo buscar un trámite, navegar, o ayudarte.';
+  }
+
+  /** Run the active page's form-fill survey (the single "assistant = form filler" flow on form pages). */
+  private async startFormFill(): Promise<void> {
+    const formCtx = this.assistantContext.formContext();
+    if (!formCtx) return;
+    try {
+      const answers = await this.voiceAssistant?.startSurvey(formCtx.prompts);
+      if (answers) formCtx.onComplete(answers);
+    } catch {
+      /* user cancelled the survey — nothing to do */
+    }
   }
 
   /** Tap handler for a menu item — same execution path as a spoken command. */

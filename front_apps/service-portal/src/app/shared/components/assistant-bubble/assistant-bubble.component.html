@@ -1,7 +1,11 @@
 @if (available()) {
   <div class="assistant-bubble-root">
-    <!-- Hosted engines: embedded = no launcher of their own, only their panel -->
-    <app-voice-assistant [embedded]="true"></app-voice-assistant>
+    <!-- Hosted engines: embedded = no launcher of their own.
+         voice-assistant is headless + autoAccept: it drives the guided
+         form-fill survey with minimal confirmation but renders no UI of its
+         own — the compact card below draws its feedback from its public
+         signals. voice-navigation still renders its own search panel. -->
+    <app-voice-assistant [embedded]="true" [headless]="true" [autoAccept]="true"></app-voice-assistant>
     <app-voice-navigation [embedded]="true"></app-voice-navigation>
 
     <!-- Generic help menu — populated dynamically from the actions available right now -->
@@ -29,7 +33,52 @@
       </div>
     }
 
-    <!-- The single, always-present FAB -->
+    <!-- Live "listening for a command" feedback — uniform with the search/survey engines -->
+    @if (showListening()) {
+      <div class="assistant-listening" role="status" aria-live="polite">
+        <span class="assistant-listening-pulse" aria-hidden="true"></span>
+        <span class="assistant-listening-text">
+          Escuchando…
+          @if (currentInterim()) { <em>"{{ currentInterim() }}"</em> }
+        </span>
+      </div>
+    }
+
+    <!-- Compact guided form-fill card: question + progress + live transcript,
+         drawn from the headless voice-assistant engine's public signals.
+         Lives ABOVE the FAB — never a full-screen dialog. -->
+    @if (voiceAssistant?.isOpen()) {
+      <div class="assistant-formfill" role="status" aria-live="polite">
+        @if (voiceAssistant?.progressLabel(); as progress) {
+          <span class="assistant-formfill-progress">{{ progress }}</span>
+        }
+        @if (voiceAssistant?.currentQuestion(); as question) {
+          <p class="assistant-formfill-question">{{ question }}</p>
+        }
+        @if (voiceAssistant?.isListening()) {
+          <div class="assistant-formfill-listening">
+            <span class="assistant-listening-pulse" aria-hidden="true"></span>
+            <span class="assistant-listening-text">
+              Escuchando…
+              @if (voiceAssistant?.interim(); as interim) { <em>"{{ interim }}"</em> }
+            </span>
+          </div>
+        }
+        <button
+          type="button"
+          class="assistant-formfill-cancel"
+          (click)="voiceAssistant?.cancelSurvey()"
+        >
+          Cancelar
+        </button>
+      </div>
+    }
+
+    <!-- The single mic FAB — stays visible during the compact form-fill (its
+         wave IS the feedback for that flow); hidden only while the search
+         panel is open, so there is never more than one full panel + FAB on
+         screen at once. -->
+    @if (!hideFab()) {
     <div class="assistant-fab-wrap" [class.speaking]="showWave()">
       <!-- Pulsing rings while speaking/listening (visual echo of the sound) -->
       @if (showWave()) {
@@ -65,5 +114,6 @@
         }
       </button>
     </div>
+    }
   </div>
 }

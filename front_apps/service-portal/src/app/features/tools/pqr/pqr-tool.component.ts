@@ -89,6 +89,8 @@ export class PqrToolComponent implements OnInit, OnDestroy {
   // Form state
   protected subject = signal<string>('');
   protected description = signal<string>('');
+  /** Label of THIS tool instance (the secretaría), so the header shows where you are. */
+  protected toolLabel = signal<string>('PQRs');
   protected sendAsAnonymous = signal<boolean>(false);
 
   // Result state
@@ -143,6 +145,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     }
 
     this.resolvedToolName = (tool as any).name;
+    this.toolLabel.set((tool as any).label || 'PQRs');
     this.loadTypes();
   }
 

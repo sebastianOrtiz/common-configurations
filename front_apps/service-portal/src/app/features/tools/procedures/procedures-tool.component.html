@@ -10,10 +10,10 @@
     } @else if (view() === 'form' || view() === 'external') {
       <button class="btn-back" (click)="backToList()">
         <app-icon name="ChevronLeft" [size]="20" [strokeWidth]="2"></app-icon>
-        Trámites
+        {{ toolLabel() }}
       </button>
     }
-    <h1>Trámites</h1>
+    <h1>{{ toolLabel() }}</h1>
   </div>
 
   <!-- Auth Required -->

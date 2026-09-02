@@ -101,6 +101,17 @@ export class CommandRouterService {
       if (action) return { action, args: {} };
     }
 
+    // Authentication intent ("autenticarme", "quiero entrar", "iniciar sesión"...).
+    // Checked before the generic "abre/ve a X" and "busca X" rules so phrases
+    // like "quiero entrar" don't get mis-routed to a tool or a search.
+    if (
+      /\b(autenticar|autenticarme|identificarme|iniciar sesion|loguear|loguearme|registrarme|crear cuenta)\b/.test(norm) ||
+      /^(entrar|acceder|ingresar|quiero entrar|quiero acceder|quiero ingresar)$/.test(norm)
+    ) {
+      const action = this.byId(actions, 'login');
+      if (action) return { action, args: {} };
+    }
+
     // "abre PQR" / "ve a mis citas" / "llevame al inicio de sesion" ...
     const openMatch = norm.match(
       /^(abrir|abre|ir a|ir|ve a|ve|vamos a|vamos|entra a|entra|llevame a|llevame|muestrame|quiero ir a|quiero ir)\s+(.+)/
@@ -121,7 +132,10 @@ export class CommandRouterService {
     }
 
     // "llename el formulario" / "ayudame con este formulario" ...
-    if (/\b(llename|lename|completar formulario|ayudame con (el|este) formulario|llenar formulario)\b/.test(norm)) {
+    if (
+      /\b(llename|lename|llenar|llena|llenalo|llenarlo|completar|completa|completalo|formulario)\b/.test(norm) ||
+      /\bayudame (a llenar|con (el|este) formulario)\b/.test(norm)
+    ) {
       const action = actions.find((a) => a.builtin === 'fill_form');
       if (action) return { action, args: {} };
     }
@@ -171,8 +185,8 @@ export class CommandRouterService {
    * single-token phrases) to count as a confident match.
    */
   private matchBySamplePhrases(norm: string, actions: VoiceAction[]): VoiceAction | null {
-    const transcriptTokens = new Set(this.tokenize(norm));
-    if (!transcriptTokens.size) return null;
+    const transcriptTokens = this.tokenize(norm);
+    if (!transcriptTokens.length) return null;
 
     let best: VoiceAction | null = null;
     let bestScore = 0;
@@ -182,7 +196,7 @@ export class CommandRouterService {
         const phraseNorm = this.normalize(phrase);
         if (!phraseNorm) continue;
 
-        if (phraseNorm.length >= MIN_TOKEN_LENGTH && norm.includes(phraseNorm)) {
+        if (phraseNorm.length >= MIN_TOKEN_LENGTH && this.containsWholePhrase(norm, phraseNorm)) {
           return action; // exact phrase spoken — highest confidence, short-circuit
         }
 
@@ -191,7 +205,7 @@ export class CommandRouterService {
 
         let score = 0;
         for (const token of phraseTokens) {
-          if (transcriptTokens.has(token)) score++;
+          if (this.tokenMatches(token, transcriptTokens)) score++;
         }
 
         const required = Math.min(2, phraseTokens.length);
@@ -203,6 +217,34 @@ export class CommandRouterService {
     }
 
     return best;
+  }
+
+  /**
+   * A phrase token matches a transcript token if they're equal or (both ≥4
+   * chars) one contains the other — handles plural/singular ("peticion" vs
+   * "peticiones", "queja" vs "quejas") without loose substring false hits.
+   */
+  private tokenMatches(phraseToken: string, transcriptTokens: string[]): boolean {
+    for (const t of transcriptTokens) {
+      if (t === phraseToken) return true;
+      if (
+        phraseToken.length >= MIN_TOKEN_LENGTH &&
+        t.length >= MIN_TOKEN_LENGTH &&
+        (t.includes(phraseToken) || phraseToken.includes(t))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Whole-word/phrase containment (not a raw substring), so "ayuda" does NOT
+   * match inside "ayudame". Works for multi-word phrases ("mis citas") too.
+   */
+  private containsWholePhrase(haystack: string, phrase: string): boolean {
+    const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s)${escaped}(\\s|$)`).test(haystack);
   }
 
   private tokenize(text: string): string[] {

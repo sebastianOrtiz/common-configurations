@@ -77,6 +77,24 @@ export class VoiceAssistantComponent implements OnDestroy {
    */
   @Input() embedded = false;
 
+  /**
+   * When true, the component renders nothing of its own — no floating
+   * dialog panel. Used by `AssistantBubbleComponent`, which draws its own
+   * compact "filling" UI from the public signals below (`uiState`,
+   * `currentQuestion`, `progressLabel`, `interim`, `isListening`).
+   */
+  @Input() headless = false;
+
+  /**
+   * When true, runs the survey in low-friction mode:
+   * - No spoken greeting: starts directly on the first question.
+   * - No per-field confirmation ("¿es correcto? sí/no"): every prompt is
+   *   treated as if it had `skipConfirmation: true`.
+   * - No final review screen: the survey completes right after the last
+   *   field is captured, with a short "Listo" instead of the full summary.
+   */
+  @Input() autoAccept = false;
+
   /** Whole-feature visibility (only shown if enabled in settings AND browser supports STT) */
   readonly featureAvailable = computed(() => {
     return (
@@ -123,6 +141,31 @@ export class VoiceAssistantComponent implements OnDestroy {
   });
 
   /**
+   * Public read-only signals — let a host component (the assistant bubble)
+   * draw its own compact UI without reaching into internal state.
+   */
+
+  /** Current internal state of the engine ('idle' | 'greeting' | 'asking' | ...). */
+  readonly uiState = this.state.asReadonly();
+
+  /** The question currently being asked, or '' when there isn't one. */
+  readonly currentQuestion = computed(() => this.currentPrompt()?.question ?? '');
+
+  /** Live transcript while listening. */
+  readonly interim = this.interimText.asReadonly();
+
+  /** "Campo X de Y" label, or '' when there's no active survey. */
+  readonly progressLabel = computed(() => {
+    const total = this._prompts().length;
+    if (!total) return '';
+    const current = Math.min(this.currentIndex() + 1, total);
+    return `Campo ${current} de ${total}`;
+  });
+
+  /** True while actively listening for the user's voice. */
+  readonly isListening = computed(() => this.uiState() === 'listening');
+
+  /**
    * Run a guided survey. Resolves with the answers when finished,
    * rejects if the user cancels.
    */
@@ -141,7 +184,13 @@ export class VoiceAssistantComponent implements OnDestroy {
     return new Promise((resolve, reject) => {
       this.resolveSurvey = resolve;
       this.rejectSurvey = reject;
-      void this.runGreeting();
+      if (this.autoAccept) {
+        // Low-friction mode: skip the spoken introduction and go straight
+        // to the first question.
+        void this.askCurrent();
+      } else {
+        void this.runGreeting();
+      }
     });
   }
 
@@ -216,7 +265,15 @@ export class VoiceAssistantComponent implements OnDestroy {
         this.capturedValue.set(sanitized);
 
         // Binary prompts (yes/no) skip the redundant read-back confirmation.
-        if (prompt.skipConfirmation) {
+        // In autoAccept mode EVERY prompt behaves as skipConfirmation: never
+        // listen for a "sí/no" — accept immediately, with only an optional
+        // brief spoken read-back of the captured value.
+        if (prompt.skipConfirmation || this.autoAccept) {
+          if (this.autoAccept) {
+            // Brief spoken read-back of the captured value — never a
+            // yes/no question, and never awaited (don't block the flow).
+            void this.say(sanitized);
+          }
           await this.acceptCurrent();
           return;
         }
@@ -484,6 +541,13 @@ export class VoiceAssistantComponent implements OnDestroy {
 
   private async finish(): Promise<void> {
     if (this.aborted) return;
+
+    if (this.autoAccept) {
+      // Low-friction mode: no review screen — complete right away.
+      await this.completeSurvey();
+      return;
+    }
+
     // Enter review state: show captured answers and allow editing
     this.state.set('reviewing');
     await this.say(
@@ -611,7 +675,9 @@ export class VoiceAssistantComponent implements OnDestroy {
   private async completeSurvey(): Promise<void> {
     this.state.set('summary');
     await this.say(
-      'Perfecto. Llenamos el formulario con tus datos. Por favor revísalos antes de enviar.'
+      this.autoAccept
+        ? 'Listo.'
+        : 'Perfecto. Llenamos el formulario con tus datos. Por favor revísalos antes de enviar.'
     );
     this.state.set('done');
     this.surveyComplete.emit({ ...this.answers });

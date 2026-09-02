@@ -16,6 +16,8 @@ import { PortalService, UserContactWithToken } from '../../../core/services/port
 import { StateService } from '../../../core/services/state.service';
 import { OtpService } from '../../../core/services/otp.service';
 import { AssistantContextService } from '../../../core/services/assistant-context.service';
+import { TtsService } from '../../../core/services/voice/tts.service';
+import { SttService } from '../../../core/services/voice/stt.service';
 import { UserContact, DocField, OTPSettings } from '../../../core/models/service-portal.model';
 import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-verification/otp-verification.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -39,6 +41,8 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
   private stateService = inject(StateService);
   private otpService = inject(OtpService);
   private assistantContext = inject(AssistantContextService);
+  private tts = inject(TtsService);
+  private stt = inject(SttService);
   protected settingsService = inject(SettingsService);
 
   /**
@@ -94,20 +98,33 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
       const fieldsList = this.fields();
 
       if (step === 'login') {
+        this.assistantContext.clearPrimaryAction();
         this.assistantContext.setFormContext({
           title: 'Iniciar sesión',
           prompts: this.buildLoginVoicePrompts(),
           onComplete: (answers) => this.applyLoginSurveyAnswers(answers),
         });
       } else if (step === 'register' && fieldsList.length > 0) {
+        this.assistantContext.clearPrimaryAction();
         this.assistantContext.setFormContext({
           title: 'Registro',
           prompts: this.buildRegisterVoicePrompts(fieldsList),
           onComplete: (answers) => this.applyRegisterSurveyAnswers(answers),
         });
+      } else if (step === 'initial') {
+        // Don't assume the citizen is authenticated: on the login landing the
+        // assistant ASKS whether they already have an account or need to
+        // register, then routes accordingly.
+        this.assistantContext.clearFormContext();
+        this.assistantContext.setPrimaryAction({
+          id: 'auth.guide',
+          description: 'Ayudarte a iniciar sesión o registrarte',
+          samplePhrases: ['iniciar sesion', 'registrarme', 'autenticarme', 'entrar', 'ayudame a entrar'],
+          run: () => this.guidedAuth(),
+        });
       } else {
-        // 'initial' (no form yet — the global "login" action already covers
-        // jumping here from elsewhere), 'otp', or 'register' before fields load.
+        // 'otp', or 'register' before fields load.
+        this.assistantContext.clearPrimaryAction();
         this.assistantContext.clearFormContext();
       }
     });
@@ -115,6 +132,96 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.assistantContext.clearFormContext();
+    this.assistantContext.clearPrimaryAction();
+  }
+
+  // ============================================================
+  // Guided authentication (spoken branch on the login landing)
+  // ============================================================
+
+  /**
+   * Ask the citizen whether they already have an account (→ login) or are new
+   * (→ register), then route and hand off to the assistant to fill that form.
+   * Uses TTS/STT directly (a yes/no branch doesn't fit the field-filling survey).
+   */
+  private async guidedAuth(): Promise<void> {
+    const voice = this.settingsService.settings().voice_assistant;
+    // Report speak/listen to the bubble so the wave + "Escuchando…" + live
+    // transcript show for this page-driven flow, exactly like the command flow.
+    const say = async (text: string) => {
+      this.assistantContext.reportVoiceSpeaking();
+      try {
+        await this.tts.speak(text, voice.language, voice.gender);
+      } catch {
+        /* best-effort */
+      }
+    };
+
+    if (!this.stt.isSupported()) {
+      // No speech recognition: send them to login and let them choose on screen.
+      this.goToLogin();
+      return;
+    }
+
+    try {
+      await say(
+        '¿Ya tienes una cuenta registrada? Di "iniciar sesión" si ya estás registrado, o "registrarme" si eres nuevo.'
+      );
+
+      this.assistantContext.reportVoiceListening('');
+      let answer = '';
+      try {
+        answer = await this.stt.listenOnce(voice.language, (t) =>
+          this.assistantContext.reportVoiceListening(t)
+        );
+      } catch {
+        answer = '';
+      }
+
+      const norm = (answer || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const wantsRegister = /\b(registrar|registrarme|registro|nuevo|nueva|crear|primera vez|no tengo|aun no|todavia no|no)\b/.test(norm);
+      const wantsLogin = /\b(iniciar|sesion|login|entrar|ingresar|acceder|si|ya|tengo|registrado|cuenta)\b/.test(norm);
+
+      if (wantsRegister && !wantsLogin) {
+        await say('De acuerdo, te ayudo a registrarte.');
+        this.startRegisterFlow();
+      } else if (wantsLogin && !wantsRegister) {
+        await say('Perfecto, te ayudo a iniciar sesión.');
+        this.startLoginFlow();
+      } else {
+        await say('No estoy seguro. Por favor elige en la pantalla si quieres iniciar sesión o registrarte.');
+      }
+    } finally {
+      // Hand feedback back to the bubble (the survey, if any, drives its own).
+      this.assistantContext.reportVoiceIdle();
+    }
+  }
+
+  /** Route to the login step, register its form, and let the assistant fill it. */
+  private startLoginFlow(): void {
+    this.goToLogin();
+    this.assistantContext.clearPrimaryAction();
+    this.assistantContext.setFormContext({
+      title: 'Iniciar sesión',
+      prompts: this.buildLoginVoicePrompts(),
+      onComplete: (answers) => this.applyLoginSurveyAnswers(answers),
+    });
+    this.assistantContext.requestFill();
+  }
+
+  /** Route to the register step, register its form, and let the assistant fill it. */
+  private startRegisterFlow(): void {
+    this.goToRegister();
+    this.assistantContext.clearPrimaryAction();
+    const fieldsList = this.fields();
+    if (fieldsList.length > 0) {
+      this.assistantContext.setFormContext({
+        title: 'Registro',
+        prompts: this.buildRegisterVoicePrompts(fieldsList),
+        onComplete: (answers) => this.applyRegisterSurveyAnswers(answers),
+      });
+      this.assistantContext.requestFill();
+    }
   }
 
   ngOnInit(): void {

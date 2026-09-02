@@ -105,6 +105,56 @@ export class AssistantContextService {
     this._formContext.set(null);
   }
 
+  // A page can ask the assistant bubble to immediately start filling the
+  // CURRENT formContext (e.g. after a guided branch routes login→register and
+  // sets the next form) — used for seamless multi-step voice flows. The bubble
+  // watches this counter; set the next formContext BEFORE calling requestFill().
+  private _fillRequest = signal(0);
+  readonly fillRequest = this._fillRequest.asReadonly();
+
+  /** Ask the bubble to start filling the current formContext right now. */
+  requestFill(): void {
+    this._fillRequest.update((v) => v + 1);
+  }
+
+  // Optional per-page PRIMARY action: when set, tapping the bubble runs THIS
+  // instead of the default (fill form / command flow). Used by the login page
+  // so the tap asks "¿ya tienes cuenta o necesitas registrarte?" and routes,
+  // instead of assuming the citizen is already authenticated.
+  private _primaryAction = signal<VoiceAction | null>(null);
+  readonly primaryAction = this._primaryAction.asReadonly();
+
+  setPrimaryAction(action: VoiceAction): void {
+    this._primaryAction.set(action);
+  }
+
+  clearPrimaryAction(): void {
+    this._primaryAction.set(null);
+  }
+
+  // Voice-activity channel for page-driven voice flows (e.g. the login page's
+  // guided "¿ya tienes cuenta?" branch, which speaks/listens on its own). The
+  // bubble mirrors this so the wave + "Escuchando…" + live transcript show for
+  // those flows too — same instant feedback as the bubble's own command flow.
+  private _externalVoice = signal<{ speaking: boolean; listening: boolean; interim: string }>({
+    speaking: false,
+    listening: false,
+    interim: '',
+  });
+  readonly externalVoice = this._externalVoice.asReadonly();
+
+  reportVoiceSpeaking(): void {
+    this._externalVoice.set({ speaking: true, listening: false, interim: '' });
+  }
+
+  reportVoiceListening(interim = ''): void {
+    this._externalVoice.set({ speaking: false, listening: true, interim });
+  }
+
+  reportVoiceIdle(): void {
+    this._externalVoice.set({ speaking: false, listening: false, interim: '' });
+  }
+
   // ============================================================
   // Per-scope action registry (Fase 2 extensibility).
   // ============================================================
@@ -166,7 +216,19 @@ export class AssistantContextService {
       actions.push({
         id: 'login',
         description: 'Iniciar sesión o registrarme',
-        samplePhrases: ['iniciar sesion', 'registrarme', 'ingresar', 'iniciar sesion o registrarme'],
+        samplePhrases: [
+          'iniciar sesion',
+          'iniciar sesion o registrarme',
+          'autenticarme',
+          'autenticar',
+          'identificarme',
+          'acceder',
+          'entrar',
+          'ingresar',
+          'loguearme',
+          'registrarme',
+          'crear cuenta',
+        ],
         run: () => void this.router.navigate(['/portal', portal.portal_name, 'register']),
       });
     }
@@ -238,14 +300,19 @@ export class AssistantContextService {
     if (formCtx) {
       result.push({
         id: 'fill_form',
-        description: `Llenar el formulario: ${formCtx.title}`,
+        description: `Llenar por voz el formulario de esta página (${formCtx.title})`,
         samplePhrases: [
           'llename el formulario',
           'llename',
           'lename el formulario',
+          'llenar',
+          'llenalo',
           'completar formulario',
+          'completalo',
+          'ayudame a llenar',
           'ayudame con el formulario',
           'ayudame con este formulario',
+          'llenar el formulario',
         ],
         builtin: 'fill_form',
       });
