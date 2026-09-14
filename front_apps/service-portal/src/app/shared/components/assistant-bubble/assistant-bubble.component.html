@@ -55,6 +55,9 @@
         @if (voiceAssistant?.currentQuestion(); as question) {
           <p class="assistant-formfill-question">{{ question }}</p>
         }
+        @if (ttsDegraded()) {
+          <p class="assistant-formfill-hint">🔇 Sin audio en este navegador — guíate por el texto de arriba.</p>
+        }
         @if (voiceAssistant?.isListening()) {
           <div class="assistant-formfill-listening">
             <span class="assistant-listening-pulse" aria-hidden="true"></span>

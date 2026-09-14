@@ -250,6 +250,38 @@
           </div>
         </div>
 
+        <!-- SLA Progress -->
+        <div class="detail-section sla-section">
+          <h3>
+            <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Avance del trámite
+          </h3>
+
+          @if (isResolved(entryDetail.status)) {
+            <div class="sla-resolved">
+              <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>Resuelto</span>
+            </div>
+          } @else if (entryDetail.estimated_end_date) {
+            <div class="sla-progress" [attr.data-sla]="getSlaBarStatus(entryDetail.estimated_end_date, entryDetail.status)">
+              <div class="sla-progress-bar" role="progressbar"
+                   [attr.aria-valuenow]="getSlaProgressPercent(entryDetail.start_date, entryDetail.estimated_end_date)"
+                   aria-valuemin="0" aria-valuemax="100"
+                   [attr.aria-label]="'Avance del trámite: ' + getSlaStatusText(entryDetail.estimated_end_date, entryDetail.status)">
+                <div class="sla-progress-fill"
+                     [style.width.%]="getSlaProgressPercent(entryDetail.start_date, entryDetail.estimated_end_date)"></div>
+              </div>
+              <div class="sla-progress-labels">
+                <span>{{ formatDate(entryDetail.start_date) }}</span>
+                <span class="sla-status-text">{{ getSlaStatusText(entryDetail.estimated_end_date, entryDetail.status) }}</span>
+                <span>{{ formatDate(entryDetail.estimated_end_date) }}</span>
+              </div>
+            </div>
+          } @else {
+            <p class="sla-no-date">Aún no se ha definido una fecha estimada de resolución para este caso.</p>
+          }
+        </div>
+
         <!-- Description -->
         @if (entryDetail.description) {
           <div class="detail-section">
@@ -312,20 +344,30 @@
           </div>
         }
 
-        <!-- Actions -->
-        @if (entryDetail.actions && entryDetail.actions.length > 0) {
-          <div class="detail-section">
-            <h3>
-              <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h4l3-9 4 18 3-9h4"/></svg>
-              Actualizaciones ({{ entryDetail.actions.length }})
-            </h3>
-            <div class="timeline">
-              @for (action of entryDetail.actions; track $index) {
-                <div class="timeline-item">
-                  <div class="timeline-marker"></div>
+        <!-- Timeline (actions) -->
+        <div class="detail-section">
+          <h3>
+            <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h4l3-9 4 18 3-9h4"/></svg>
+            Línea de tiempo del caso ({{ sortedActions().length }})
+          </h3>
+
+          @if (sortedActions().length > 0) {
+            <div class="timeline" role="list">
+              @for (action of sortedActions(); track $index; let first = $first) {
+                <div class="timeline-item" role="listitem">
+                  <span
+                    class="timeline-marker"
+                    [class.timeline-marker-latest]="first"
+                    [attr.data-marker]="first ? getStatusColor(entryDetail.status) : null"
+                  ></span>
                   <div class="timeline-content">
                     <div class="timeline-header">
-                      <span class="timeline-type">{{ action.action_type }}</span>
+                      <span class="timeline-type">
+                        {{ action.action_type }}
+                        @if (first) {
+                          <span class="timeline-latest-badge">Más reciente</span>
+                        }
+                      </span>
                       <span class="timeline-date">{{ formatDate(action.date) }}</span>
                     </div>
                     <p class="timeline-description">{{ action.description }}</p>
@@ -339,8 +381,13 @@
                 </div>
               }
             </div>
-          </div>
-        }
+          } @else {
+            <div class="timeline-empty">
+              <svg class="icon-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <p>Todavía no hay actualizaciones registradas para este caso. En cuanto tu responsable registre un avance, lo verás aquí.</p>
+            </div>
+          }
+        </div>
 
         <!-- Involved Parties -->
         @if (entryDetail.parties && entryDetail.parties.length > 0) {

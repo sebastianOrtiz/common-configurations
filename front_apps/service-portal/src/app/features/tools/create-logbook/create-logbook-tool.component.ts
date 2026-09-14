@@ -230,8 +230,13 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
    */
   private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
     const context = this.promptBuilder.buildGuidedRequestContext(answers);
-    if (context) {
-      this.userContext.set(context);
-    }
+    if (!context) return;
+
+    this.userContext.set(context);
+    // Radicar automatically after the guided fill (the citizen asked the
+    // assistant to place the solicitud, not just fill the field). On success
+    // the view changes and the form context is cleared, so a later tap won't
+    // re-ask the same questions.
+    setTimeout(() => this.submitEntry(), 250);
   }
 }

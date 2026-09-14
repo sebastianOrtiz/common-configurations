@@ -265,15 +265,13 @@ export class VoiceAssistantComponent implements OnDestroy {
         this.capturedValue.set(sanitized);
 
         // Binary prompts (yes/no) skip the redundant read-back confirmation.
-        // In autoAccept mode EVERY prompt behaves as skipConfirmation: never
-        // listen for a "sí/no" — accept immediately, with only an optional
-        // brief spoken read-back of the captured value.
+        // In autoAccept mode EVERY prompt behaves as skipConfirmation: accept
+        // immediately with NO extra speech. (We deliberately don't read the
+        // value back: on the last field it would be speaking right as the form
+        // submits and navigates, and a spoken utterance cancelled mid-flight by
+        // an SPA navigation is what wedges Chrome's speech engine for the rest
+        // of the session.)
         if (prompt.skipConfirmation || this.autoAccept) {
-          if (this.autoAccept) {
-            // Brief spoken read-back of the captured value — never a
-            // yes/no question, and never awaited (don't block the flow).
-            void this.say(sanitized);
-          }
           await this.acceptCurrent();
           return;
         }
@@ -673,18 +671,20 @@ export class VoiceAssistantComponent implements OnDestroy {
   }
 
   private async completeSurvey(): Promise<void> {
-    this.state.set('summary');
-    await this.say(
-      this.autoAccept
-        ? 'Listo.'
-        : 'Perfecto. Llenamos el formulario con tus datos. Por favor revísalos antes de enviar.'
-    );
+    // Resolve (fill + submit the form) FIRST, independent of TTS. Speaking is
+    // best-effort: never make completion wait on it, or a flaky SpeechSynthesis
+    // that never fires `onend` would hang the whole flow (form never fills).
     this.state.set('done');
     this.surveyComplete.emit({ ...this.answers });
     this.resolveSurvey?.({ ...this.answers });
     this.resolveSurvey = null;
     this.rejectSurvey = null;
-    // Auto-close after a short delay
+
+    // NO spoken line here: completion is immediately followed by the form
+    // submitting and (for login) navigating. A TTS utterance cancelled
+    // mid-flight by that SPA navigation is exactly what wedges Chrome's speech
+    // engine until the browser is restarted. The visible card already shows
+    // the result; staying silent here keeps the engine healthy.
     setTimeout(() => this.open.set(false), 1500);
   }
 

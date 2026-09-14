@@ -161,6 +161,28 @@ export class VoiceNavigationComponent implements OnDestroy {
     }
   }
 
+  /**
+   * Search a query the caller ALREADY captured (e.g. the assistant bubble's
+   * command flow heard "busca licencia" → query = "licencia"), skipping the
+   * microphone entirely so the citizen isn't asked to speak the same thing
+   * twice. Falls back to listening only if no query is given.
+   */
+  runQuery(query: string): void {
+    const clean = (query || '').trim();
+    if (!clean) {
+      void this.startVoiceSearch();
+      return;
+    }
+    const myId = ++this.requestId;
+    this.errorMessage.set(null);
+    this.interimText.set('');
+    this.results.set([]);
+    this.clarifyingQuestion.set(null);
+    this.choiceListening.set(false);
+    this.transcript.set(clean);
+    this.search(clean, myId);
+  }
+
   private search(query: string, myId: number): void {
     const portal = this.stateService.selectedPortal();
     if (!portal) {

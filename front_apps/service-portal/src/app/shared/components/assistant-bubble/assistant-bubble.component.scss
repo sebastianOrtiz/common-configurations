@@ -287,6 +287,13 @@
   color: #f8fafc;
 }
 
+.assistant-formfill-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #fcd34d;
+  line-height: 1.3;
+}
+
 // Reuses .assistant-listening-pulse / .assistant-listening-text (visual
 // style only — no position rules there, so they're safe to nest here).
 .assistant-formfill-listening {

@@ -134,6 +134,16 @@ export class MyLogbookToolComponent implements OnInit {
       || e.status === 'Completed' || e.status === 'Archived')
   );
 
+  /** Acciones del caso seleccionado, ordenadas de la más reciente a la más antigua. */
+  protected sortedActions = computed<LogbookAction[]>(() => {
+    const actions = this.selectedEntry()?.actions;
+    if (!actions || actions.length === 0) return [];
+
+    return [...actions].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+  });
+
   async ngOnInit() {
     if (this.isAnonymousUser()) {
       this.loading.set(false);
@@ -274,6 +284,50 @@ export class MyLogbookToolComponent implements OnInit {
   protected isOverdue(endDate: string | undefined, status: string): boolean {
     const daysRemaining = this.getDaysRemaining(endDate, status);
     return daysRemaining !== null && daysRemaining < 0;
+  }
+
+  // ============================================================
+  // SLA (barra de avance del trámite)
+  // ============================================================
+
+  /** El caso ya llegó a un estado final (no aplica SLA/plazo, se considera resuelto). */
+  protected isResolved(status: string): boolean {
+    return status === 'Completado' || status === 'Archivado'
+      || status === 'Completed' || status === 'Archived';
+  }
+
+  /** % del plazo transcurrido entre start_date y estimated_end_date respecto a hoy (0-100). */
+  protected getSlaProgressPercent(startDate: string | undefined, endDate: string | undefined): number {
+    if (!startDate || !endDate) return 0;
+
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    const now = Date.now();
+
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 100;
+
+    const percent = ((now - start) / (end - start)) * 100;
+    return Math.min(100, Math.max(0, Math.round(percent)));
+  }
+
+  /** Texto legible del estado del plazo, reusando getDaysRemaining/isOverdue. */
+  protected getSlaStatusText(endDate: string | undefined, status: string): string {
+    if (this.isOverdue(endDate, status)) return 'Vencido';
+
+    const days = this.getDaysRemaining(endDate, status);
+    if (days === null) return '';
+    if (days === 0) return 'Vence hoy';
+    if (days === 1) return 'Falta 1 día';
+    return `Faltan ${days} días`;
+  }
+
+  /** Estado visual de la barra de SLA, para colorearla igual que los badges de deadline. */
+  protected getSlaBarStatus(endDate: string | undefined, status: string): 'ok' | 'urgent' | 'overdue' {
+    if (this.isOverdue(endDate, status)) return 'overdue';
+
+    const days = this.getDaysRemaining(endDate, status);
+    if (days !== null && days <= 7) return 'urgent';
+    return 'ok';
   }
 
   // ============================================================

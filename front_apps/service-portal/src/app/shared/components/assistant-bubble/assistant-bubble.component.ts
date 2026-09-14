@@ -74,6 +74,9 @@ export class AssistantBubbleComponent {
   /** Every action the active page/tool + global navigation currently offer. */
   protected readonly availableActions = this.assistantContext.availableActions;
 
+  /** True when the browser speech engine looks wedged (no audio) — show a "follow the text" hint. */
+  protected readonly ttsDegraded = this.ttsService.degraded;
+
   /** Generic help menu — opened on "ayuda", on a failed match, or by tapping while idle after a re-tap. */
   protected menuOpen = false;
 
@@ -278,7 +281,14 @@ export class AssistantBubbleComponent {
     spokenReply?: string | null
   ): Promise<void> {
     if (action.builtin === 'search') {
-      await this.voiceNavigation?.startVoiceSearch();
+      // If the command already carried what to look for ("busca licencia"),
+      // search that directly — don't reopen the mic and make them say it again.
+      const query = (args.query || '').trim();
+      if (query) {
+        this.voiceNavigation?.runQuery(query);
+      } else {
+        await this.voiceNavigation?.startVoiceSearch();
+      }
       return;
     }
 

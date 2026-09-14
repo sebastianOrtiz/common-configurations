@@ -383,8 +383,14 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
    */
   private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
     const context = this.promptBuilder.buildGuidedRequestContext(answers);
-    if (context) {
-      this.userContext.set(context);
-    }
+    if (!context) return;
+
+    this.userContext.set(context);
+    // The citizen asked the assistant to PLACE the trámite, not just fill the
+    // field — so radicar automatically after the guided fill. On success the
+    // view switches to 'confirm', which clears the form context (see the
+    // effect) so a later tap won't re-ask the same questions. Small delay so
+    // the textarea visibly shows the answer before it submits.
+    setTimeout(() => this.submitEntry(), 250);
   }
 }

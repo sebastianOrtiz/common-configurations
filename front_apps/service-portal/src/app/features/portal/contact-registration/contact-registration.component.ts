@@ -80,6 +80,9 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
 
   // Existing contact (for updates) - may include auth token
   private existingContact: UserContactWithToken | null = null;
+  // True while the current login attempt was started by the voice assistant,
+  // so onConnect can guide the citizen by voice on failure.
+  private loginViaVoice = false;
   // Pending contact for OTP verification (user found but needs OTP)
   private pendingOtpContact: UserContactWithToken | null = null;
 
@@ -472,30 +475,96 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
         if (contact) {
           const portalRequiresMfa = portal?.enable_mfa_otp !== false;
           if (contact.requires_otp && contact.otp_settings && portalRequiresMfa) {
-            // Store contact and settings for OTP verification
+            // Store contact and settings for OTP verification (handled on screen)
+            this.loginViaVoice = false;
             this.pendingOtpContact = contact;
             this.otpSettings.set(contact.otp_settings);
             this.otpDocument.set(document);
             this.currentStep.set('otp');
           } else if (contact.auth_token) {
             // OTP not required - proceed with auth token
+            this.loginViaVoice = false;
             this.stateService.setUserContact(contact, contact.auth_token);
             this.navigateAfterAuth(portal.portal_name);
           } else {
             // No token and no OTP - something is wrong
             this.error.set('Error de autenticacion. Por favor intenta de nuevo.');
+            this.handleVoiceLoginError('Hubo un problema al iniciar sesión.');
           }
         } else {
           // Contact not found
           this.error.set('No se encontro un usuario registrado con ese numero de documento. Por favor verifica los datos o registrate como nuevo usuario.');
+          this.handleVoiceLoginError(
+            'No encontré ningún usuario registrado con ese número de documento.'
+          );
         }
       },
       error: (err) => {
         console.error('Error connecting:', err);
         this.error.set(err.message || 'Error al buscar el usuario. Por favor intenta de nuevo.');
         this.loading.set(false);
+        this.handleVoiceLoginError('Tuve un problema al buscar tu usuario.');
       }
     });
+  }
+
+  /**
+   * When a VOICE-initiated login fails (unknown/incorrect document), tell the
+   * citizen out loud and offer to either try again (re-enter the document) or
+   * register as a new user — then guide whichever they choose. No-op for
+   * manual form submits (the on-screen error already covers those).
+   */
+  private async handleVoiceLoginError(reason: string): Promise<void> {
+    if (!this.loginViaVoice) return;
+    this.loginViaVoice = false; // consume the flag; re-set on the next voice attempt
+
+    const voice = this.settingsService.settings().voice_assistant;
+    const say = async (text: string) => {
+      this.assistantContext.reportVoiceSpeaking();
+      try {
+        await this.tts.speak(text, voice.language, voice.gender);
+      } catch {
+        /* best-effort */
+      }
+    };
+
+    if (!this.stt.isSupported()) {
+      // No speech recognition: leave the on-screen error + buttons to guide them.
+      return;
+    }
+
+    try {
+      await say(
+        `${reason} ¿Quieres revisar el número e intentar de nuevo, o registrarte como nuevo usuario? ` +
+          'Di "intentar de nuevo" o "registrarme".'
+      );
+
+      this.assistantContext.reportVoiceListening('');
+      let answer = '';
+      try {
+        answer = await this.stt.listenOnce(voice.language, (t) =>
+          this.assistantContext.reportVoiceListening(t)
+        );
+      } catch {
+        answer = '';
+      }
+
+      const norm = (answer || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+      const wantsRegister = /\b(registrar|registrarme|registro|nuevo|nueva|crear cuenta|primera vez)\b/.test(norm);
+      const wantsRetry = /\b(intentar|reintentar|de nuevo|otra vez|revisar|corregir|reintento|volver a intentar|si)\b/.test(norm);
+
+      if (wantsRegister && !wantsRetry) {
+        await say('De acuerdo, te ayudo a registrarte.');
+        this.startRegisterFlow();
+      } else if (wantsRetry) {
+        await say('De acuerdo, revisemos el número. Dime tu documento de nuevo.');
+        this.startLoginFlow();
+      } else {
+        await say('Puedes revisar el número en la pantalla e intentar de nuevo, o registrarte.');
+      }
+    } finally {
+      this.assistantContext.reportVoiceIdle();
+    }
   }
 
   /**
@@ -806,6 +875,9 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
     if (!answers['document']) return;
     // Merge into formData (login form uses formData()['document'])
     this.formData.update((current) => ({ ...current, document: answers['document'] }));
+    // Mark this as a voice-initiated login so onConnect can guide the citizen
+    // by voice if it fails (wrong/unknown document → retry or register).
+    this.loginViaVoice = true;
     // Slight delay so the user sees the field filled before submit
     setTimeout(() => this.onConnect(), 200);
   }

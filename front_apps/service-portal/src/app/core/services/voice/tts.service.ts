@@ -7,11 +7,23 @@
  * directly, so we infer it from known voice names).
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class TtsService {
   private synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
+
+  /**
+   * How many consecutive utterances failed to actually START speaking. The
+   * browser/OS speech engine can wedge (no audio at all until the OS/browser
+   * is restarted — not fixable from JS). We can't prevent that, but we detect
+   * it so the UI can degrade gracefully (rely on the on-screen text) instead
+   * of stalling in silence.
+   */
+  private noStartStreak = 0;
+
+  /** True once TTS looks wedged (2+ utterances never started). The UI can show a hint. */
+  readonly degraded = signal<boolean>(false);
 
   constructor() {
     if (this.synth) {
@@ -25,7 +37,20 @@ export class TtsService {
   }
 
   cancel(): void {
-    this.synth?.cancel();
+    if (!this.synth) return;
+    try {
+      this.synth.cancel();
+    } catch {
+      /* ignore */
+    }
+    // Some Chrome builds leave the engine stuck "paused" after a cancel(),
+    // which silently mutes every later utterance. A resume() right after keeps
+    // it healthy.
+    try {
+      this.synth.resume();
+    } catch {
+      /* ignore */
+    }
   }
 
   /**
@@ -41,24 +66,84 @@ export class TtsService {
     gender: 'female' | 'male' = 'female'
   ): Promise<void> {
     return new Promise((resolve) => {
-      if (!this.synth || !text) {
+      const synth = this.synth;
+      if (!synth || !text) {
         resolve();
         return;
       }
 
-      this.synth.cancel();
+      // Resolve exactly once. SpeechSynthesis is flaky: `onend` sometimes never
+      // fires, which would otherwise hang any `await speak(...)` forever and
+      // freeze a guided voice flow. A duration-based safety timeout guarantees
+      // the promise always settles.
+      let settled = false;
+      let noStartWatch: ReturnType<typeof setTimeout> | null = null;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (noStartWatch) clearTimeout(noStartWatch);
+        resolve();
+      };
+      // ~120ms per char, clamped to a sane [4s, 20s] window.
+      const maxMs = Math.min(20000, Math.max(4000, text.length * 120));
+      const timer = setTimeout(finish, maxMs);
 
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = language;
-      utter.rate = 1;
-      utter.pitch = 1;
+      const startSpeaking = () => {
+        if (settled) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = language;
+        utter.rate = 1;
+        utter.pitch = 1;
+        utter.volume = 1;
 
-      const chosen = this.pickBestVoice(language, gender);
-      if (chosen) utter.voice = chosen;
+        const chosen = this.pickBestVoice(language, gender);
+        if (chosen) utter.voice = chosen;
 
-      utter.onend = () => resolve();
-      utter.onerror = () => resolve();
-      this.synth.speak(utter);
+        utter.onstart = () => {
+          // Real audio started: engine is healthy again.
+          this.noStartStreak = 0;
+          this.degraded.set(false);
+          if (noStartWatch) clearTimeout(noStartWatch);
+        };
+        utter.onend = () => finish();
+        utter.onerror = () => finish();
+
+        // Watchdog: if speech never actually STARTS within ~1s, the engine is
+        // wedged — don't stall the flow in silence, resolve and let the visible
+        // card carry the guidance. Track the streak so the UI can warn.
+        noStartWatch = setTimeout(() => {
+          if (settled) return;
+          this.noStartStreak += 1;
+          if (this.noStartStreak >= 2) this.degraded.set(true);
+          finish();
+        }, 1500);
+
+        synth.speak(utter);
+
+        // Chrome/macOS: the engine can start "paused" (no audio). A single
+        // resume() right after speak() nudges it awake. We deliberately do NOT
+        // keep pausing/resuming on an interval — that churn is itself a known
+        // way to wedge the engine.
+        try {
+          synth.resume();
+        } catch {
+          /* not all engines implement resume */
+        }
+      };
+
+      // Key macOS/Chrome fix: calling `cancel()` and then `speak()` in the SAME
+      // tick makes the new utterance cancel itself — `onend` fires instantly and
+      // NO audio plays. So only cancel when something is actually speaking, and
+      // give the engine a short beat to settle before the new utterance. When
+      // nothing is speaking (the common case, incl. the first line), speak
+      // synchronously so it stays inside the user-gesture that unlocks audio.
+      if (synth.speaking || synth.pending) {
+        synth.cancel();
+        setTimeout(startSpeaking, 150);
+      } else {
+        startSpeaking();
+      }
     });
   }
 
@@ -125,8 +210,12 @@ export class TtsService {
     const isNatural = (v: SpeechSynthesisVoice) =>
       /natural|neural|premium|enhanced|wavenet|online/i.test(v.name);
 
-    // Gender-matched tiers (preferred)
+    // Gender-matched tiers (preferred). Local (offline) voices go first: they
+    // play reliably, whereas network voices (Google/online) sometimes fail
+    // SILENTLY — no audio and no error — which reads as "the assistant went mute".
     const genderTiers: Array<(v: SpeechSynthesisVoice) => boolean> = [
+      (v) => matchLang(v) && matchGender(v) && v.localService,
+      (v) => matchBase(v) && matchGender(v) && v.localService,
       (v) => matchLang(v) && matchGender(v) && isGoogle(v),
       (v) => matchBase(v) && matchGender(v) && isGoogle(v),
       (v) => matchLang(v) && matchGender(v) && isMicrosoftNatural(v),
@@ -142,8 +231,10 @@ export class TtsService {
       if (found) return found;
     }
 
-    // Fall back ignoring gender if no gender match exists
+    // Fall back ignoring gender if no gender match exists (local first, again).
     const fallbackTiers: Array<(v: SpeechSynthesisVoice) => boolean> = [
+      (v) => matchLang(v) && v.localService,
+      (v) => matchBase(v) && v.localService,
       (v) => matchLang(v) && isGoogle(v),
       (v) => matchBase(v) && isGoogle(v),
       (v) => matchLang(v) && isMicrosoftNatural(v),

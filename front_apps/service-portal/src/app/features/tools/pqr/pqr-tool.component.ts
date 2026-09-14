@@ -308,6 +308,11 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     if (this.canAskAnonymous() && answers['is_anonymous'] !== undefined) {
       this.sendAsAnonymous.set(answers['is_anonymous'] === '1');
     }
+    // Submit automatically after the guided fill (the citizen asked the
+    // assistant to place the PQR, not just fill the fields). submitPQR() guards
+    // itself with canSubmit(), so it no-ops if something's missing. On success
+    // the view changes and the form context clears, so a later tap won't re-ask.
+    setTimeout(() => void this.submitPQR(), 250);
   }
 
   private extractErrorMessage(err: any, fallback: string): string {

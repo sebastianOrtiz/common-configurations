@@ -573,47 +573,170 @@
   color: #374151;
 }
 
+// SLA Progress
+.sla-section {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+}
+
+.sla-resolved {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #065f46;
+  font-weight: 600;
+  font-size: 1rem;
+
+  svg {
+    color: #10b981;
+  }
+}
+
+.sla-no-date {
+  color: #6b7280;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.sla-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sla-progress-bar {
+  width: 100%;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.sla-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: #667eea;
+  transition: width var(--transition-base, 0.3s ease);
+
+  [data-sla="urgent"] & {
+    background: #f97316;
+  }
+
+  [data-sla="overdue"] & {
+    background: #ef4444;
+  }
+}
+
+.sla-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+
+  .sla-status-text {
+    font-weight: 600;
+    color: #4338ca;
+
+    [data-sla="urgent"] & {
+      color: #c2410c;
+    }
+
+    [data-sla="overdue"] & {
+      color: #991b1b;
+    }
+  }
+}
+
 // Timeline
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
 .timeline-item {
+  position: relative;
   display: flex;
   gap: 1rem;
+  padding-bottom: 1.5rem;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 14px;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+
+    &::before {
+      display: none;
+    }
+  }
 }
 
 .timeline-marker {
+  position: relative;
+  z-index: 1;
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #667eea;
+  background: #cbd5e0;
+  box-shadow: 0 0 0 3px rgba(203, 213, 224, 0.35);
   margin-top: 0.375rem;
   flex-shrink: 0;
+
+  &.timeline-marker-latest {
+    width: 14px;
+    height: 14px;
+    margin-top: 0.3125rem;
+  }
+
+  &[data-marker="blue"] { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+  &[data-marker="orange"] { background: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25); }
+  &[data-marker="yellow"] { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25); }
+  &[data-marker="purple"] { background: #8b5cf6; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25); }
+  &[data-marker="green"] { background: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25); }
+  &[data-marker="gray"] { background: #6b7280; box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.25); }
+  &[data-marker="red"] { background: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25); }
 }
 
 .timeline-content {
   flex: 1;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #f3f4f6;
-
-  &:last-child {
-    border-bottom: none;
-  }
 }
 
 .timeline-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
 .timeline-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   font-weight: 600;
   color: #111827;
+}
+
+.timeline-latest-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  color: #4338ca;
+  background: #e0e7ff;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
 }
 
 .timeline-date {
@@ -641,6 +764,28 @@
   background: #f3f4f6;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.timeline-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  color: #6b7280;
+
+  svg {
+    flex-shrink: 0;
+    color: #9ca3af;
+    margin-top: 0.125rem;
+  }
+
+  p {
+    margin: 0;
+    line-height: 1.6;
+  }
 }
 
 // Dates List
