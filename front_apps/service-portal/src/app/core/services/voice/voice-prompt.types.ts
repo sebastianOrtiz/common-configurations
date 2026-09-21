@@ -32,4 +32,12 @@ export interface VoicePrompt {
    * "sí/no" would be ambiguous.
    */
   skipConfirmation?: boolean;
+  /**
+   * For Select-backed prompts: the canonical list of valid options (as
+   * stored in the DocType). Lets the assistant offer "¿Quisiste decir X o
+   * Y?" suggestions (via `suggestSelectMatches`) when `sanitize` rejects the
+   * spoken answer, instead of just repeating the question. Unset for
+   * non-Select prompts.
+   */
+  selectOptions?: string[];
 }

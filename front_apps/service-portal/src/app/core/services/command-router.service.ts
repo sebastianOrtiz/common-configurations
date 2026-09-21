@@ -124,13 +124,6 @@ export class CommandRouterService {
       if (toolMatch) return { action: toolMatch, args: {} };
     }
 
-    // "busca licencia de construccion" / "necesito renovar mi licencia" ...
-    const searchMatch = norm.match(/^(buscar|busca|necesito|quiero|encontrar|donde)\s+(.+)/);
-    if (searchMatch) {
-      const action = actions.find((a) => a.builtin === 'search');
-      if (action) return { action, args: { query: searchMatch[2].trim() } };
-    }
-
     // "llename el formulario" / "ayudame con este formulario" ...
     if (
       /\b(llename|lename|llenar|llena|llenalo|llenarlo|completar|completa|completalo|formulario)\b/.test(norm) ||
@@ -140,8 +133,29 @@ export class CommandRouterService {
       if (action) return { action, args: {} };
     }
 
-    // Generic catch-all: overlap the transcript against every action's samplePhrases.
-    const generic = this.matchBySamplePhrases(norm, actions);
+    // Tool sample-phrase match BEFORE the generic "busca/quiero X" search
+    // catch-all: a phrase that names a tool by one of its samplePhrases
+    // (e.g. "quiero poner una queja" → pqr's "queja" synonym) must resolve
+    // to that tool, not get shadowed by the leading verb "quiero" below.
+    const toolPhraseMatch = this.matchBySamplePhrases(
+      norm,
+      actions.filter((a) => a.id.startsWith('tool.'))
+    );
+    if (toolPhraseMatch) return { action: toolPhraseMatch, args: {} };
+
+    // "busca licencia de construccion" / "necesito renovar mi licencia" ...
+    const searchMatch = norm.match(/^(buscar|busca|necesito|quiero|encontrar|donde)\s+(.+)/);
+    if (searchMatch) {
+      const action = actions.find((a) => a.builtin === 'search');
+      if (action) return { action, args: { query: searchMatch[2].trim() } };
+    }
+
+    // Generic catch-all: overlap the transcript against every remaining
+    // action's samplePhrases (non-tool actions: nav.*, help, fill_form...).
+    const generic = this.matchBySamplePhrases(
+      norm,
+      actions.filter((a) => !a.id.startsWith('tool.'))
+    );
     if (generic) return { action: generic, args: {} };
 
     return null;

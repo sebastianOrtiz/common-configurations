@@ -1,0 +1,18 @@
+[
+ {
+  "allow_in_quick_entry": 0,
+  "allow_on_submit": 0,
+  "description": "Conjunto de preguntas configurables que reemplaza el campo de texto libre de contexto para esta herramienta",
+  "doctype": "Custom Field",
+  "dt": "Service Portal Tool",
+  "fieldname": "question_set",
+  "fieldtype": "Link",
+  "hidden": 0,
+  "insert_after": "is_enabled",
+  "label": "Conjunto de preguntas",
+  "module": "Common Configurations",
+  "name": "Service Portal Tool-question_set",
+  "options": "Portal Question Set",
+  "reqd": 0
+ }
+]

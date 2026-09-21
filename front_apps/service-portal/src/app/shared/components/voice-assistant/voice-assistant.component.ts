@@ -36,6 +36,7 @@ import { SttService } from '../../../core/services/voice/stt.service';
 import { SoundService } from '../../../core/services/voice/sound.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
+import { sanitizeSelectMatch, suggestSelectMatches } from '../../../core/services/voice/sanitizers';
 import { IconComponent } from '../icon/icon.component';
 
 // Re-export so existing consumers (e.g. contact-registration) keep working
@@ -67,6 +68,13 @@ export class VoiceAssistantComponent implements OnDestroy {
 
   @Output() surveyComplete = new EventEmitter<Record<string, string>>();
   @Output() surveyCancelled = new EventEmitter<void>();
+  /**
+   * Emitted instead of `surveyCancelled` when the citizen asks, mid-survey,
+   * to leave the form for somewhere else ("volver al inicio", "buscar otra
+   * cosa") rather than just cancel/dismiss it. Lets the host (the assistant
+   * bubble) route the citizen there instead of silently closing the panel.
+   */
+  @Output() surveyExit = new EventEmitter<{ intent: 'home' | 'search'; transcript: string }>();
 
   /**
    * When true, this component is hosted by the global assistant bubble
@@ -239,6 +247,14 @@ export class VoiceAssistantComponent implements OnDestroy {
 
       // Control commands take precedence
       const command = this.detectControlCommand(text);
+      if (command === 'exit_home') {
+        this.exit('home', text);
+        return;
+      }
+      if (command === 'exit_search') {
+        this.exit('search', text);
+        return;
+      }
       if (command === 'back') {
         await this.goToPrevious();
         return;
@@ -287,6 +303,19 @@ export class VoiceAssistantComponent implements OnDestroy {
       } else {
         // No valid match → don't enter "confirming" state, ask again
         this.capturedValue.set('');
+
+        // For Select prompts, offer the closest option(s) ("¿Quisiste decir
+        // X o Y?") instead of just repeating — much faster than reciting the
+        // whole option list again, especially for long lists (veredas, etc.)
+        if (prompt?.selectOptions?.length && text) {
+          const suggestions = suggestSelectMatches(text, prompt.selectOptions, 2);
+          if (suggestions.length) {
+            this._lastValidationError = null;
+            await this.offerSelectSuggestions(prompt, suggestions);
+            return;
+          }
+        }
+
         let message: string;
         if (this._lastValidationError) {
           message = this._lastValidationError;
@@ -305,6 +334,95 @@ export class VoiceAssistantComponent implements OnDestroy {
       this.errorMessage.set(err?.message || 'Error de reconocimiento de voz');
       this.state.set('error');
     }
+  }
+
+  /**
+   * Ask "¿Quisiste decir X [o Y]?" for a Select prompt whose spoken answer
+   * didn't confidently sanitize, and listen for the citizen's reply:
+   * - A plain "sí"/confirmation (only offered when there's a single
+   *   suggestion) accepts it.
+   * - Naming one of the suggested options (or something close to it) picks
+   *   that one.
+   * - Anything else (including "no") falls back to repeating the question.
+   * Control commands (exit/back/cancel) still take precedence, same as the
+   * main listening flow.
+   */
+  private async offerSelectSuggestions(prompt: VoicePrompt, suggestions: string[]): Promise<void> {
+    if (this.aborted) return;
+    const question =
+      suggestions.length > 1
+        ? `No estoy seguro. ¿Quisiste decir ${suggestions[0]} o ${suggestions[1]}?`
+        : `No estoy seguro. ¿Quisiste decir ${suggestions[0]}?`;
+    await this.say(question);
+    if (this.aborted) return;
+
+    this.state.set('listening');
+    this.interimText.set('');
+    this.sound.beepStart();
+
+    let raw = '';
+    try {
+      raw = await this.stt.listenOnce(this.language(), (t) => this.interimText.set(t));
+    } catch (err: any) {
+      if (this.aborted) return;
+      this.errorMessage.set(err?.message || 'Error de reconocimiento de voz');
+      this.state.set('error');
+      return;
+    }
+    if (this.aborted) return;
+    this.sound.beepEnd();
+
+    const command = this.detectControlCommand(raw || '');
+    if (command === 'exit_home') {
+      this.exit('home', raw || '');
+      return;
+    }
+    if (command === 'exit_search') {
+      this.exit('search', raw || '');
+      return;
+    }
+    if (command === 'back') {
+      await this.goToPrevious();
+      return;
+    }
+    if (command === 'cancel') {
+      this.cancel();
+      return;
+    }
+
+    const norm = this.normalizeText(raw || '');
+    const yesPattern = /\b(si|sii+|sip|claro|correcto|confirmo|afirmativo|ok|okay|vale|de acuerdo|yes|yep|acepto)\b/;
+
+    // Single suggestion + plain "sí" → accept it. Otherwise, try to match
+    // whatever the citizen said against the suggested options themselves
+    // (they may just repeat/confirm one of the names).
+    let picked: string | null = null;
+    if (suggestions.length === 1 && yesPattern.test(norm)) {
+      picked = suggestions[0];
+    } else {
+      picked = sanitizeSelectMatch(raw || '', suggestions);
+    }
+
+    if (picked) {
+      this.capturedValue.set(picked);
+      if (prompt.skipConfirmation || this.autoAccept) {
+        await this.acceptCurrent();
+        return;
+      }
+      this.state.set('confirming');
+      const confirmText =
+        prompt.confirmTemplate?.(picked) ||
+        `Entendí: ${picked}. ¿Es correcto? Di sí para continuar o no para repetir.`;
+      await this.say(confirmText);
+      if (this.aborted) return;
+      await this.captureConfirmation();
+      return;
+    }
+
+    // Neither suggestion matched — fall back to repeating the original question.
+    await this.say('De acuerdo, repetimos la pregunta.');
+    if (this.aborted) return;
+    await this.askCurrent();
   }
 
   private applySanitizer(text: string): string | null {
@@ -363,6 +481,14 @@ export class VoiceAssistantComponent implements OnDestroy {
 
       // Control commands also work during confirmation
       const command = this.detectControlCommand(raw || '');
+      if (command === 'exit_home') {
+        this.exit('home', raw || '');
+        return;
+      }
+      if (command === 'exit_search') {
+        this.exit('search', raw || '');
+        return;
+      }
       if (command === 'back') {
         await this.goToPrevious();
         return;
@@ -445,15 +571,33 @@ export class VoiceAssistantComponent implements OnDestroy {
    * Detect control commands the user can use at any point in the survey.
    * Returns null if not a control command (so the text is treated as an answer).
    *
-   * - back: "atrás", "volver", "anterior", "regresa"
-   * - cancel: "cancelar", "salir", "terminar"
+   * - exit_home / exit_search: leave the form entirely — "volver al inicio",
+   *   "menú", "buscar otra cosa"... Checked FIRST (before cancel and back) so
+   *   these more specific, multi-intent phrases aren't swallowed by the
+   *   bare-word "cancelar"/"salir"/"volver" patterns below. This is also what
+   *   lets "volver al inicio" (exit) read differently from a plain
+   *   "volver"/"atrás" (still just "previous field").
+   * - cancel: "cancelar", "sal del asistente", "terminar" — dismiss the panel.
+   * - back: "atrás", "volver", "anterior", "regresa" — previous field.
    * - repeat: "repetir", "repite", "otra vez", "no entendí" (cuando el asistente preguntó)
    */
-  private detectControlCommand(text: string): 'back' | 'cancel' | 'repeat' | null {
+  private detectControlCommand(
+    text: string
+  ): 'back' | 'cancel' | 'repeat' | 'exit_home' | 'exit_search' | null {
     const norm = this.normalizeText(text || '');
     if (!norm) return null;
 
-    // Order matters: more specific patterns first
+    // "Ir al inicio / menú" — leave the form and go to the portal home.
+    if (/\b(al inicio|volver al inicio|menu principal|inicio|menu)\b/.test(norm)) {
+      return 'exit_home';
+    }
+    // "Buscar otra cosa" — leave the form and start a new voice search.
+    if (
+      /\b(buscar otra cosa|buscar otro|salir del formulario|cancelar y buscar)\b/.test(norm)
+    ) {
+      return 'exit_search';
+    }
+
     if (/\b(cancelar|cancela|salir|sal del asistente|terminar|abortar|adios)\b/.test(norm)) {
       return 'cancel';
     }
@@ -579,6 +723,14 @@ export class VoiceAssistantComponent implements OnDestroy {
 
       // Universal control commands
       const command = this.detectControlCommand(raw || '');
+      if (command === 'exit_home') {
+        this.exit('home', raw || '');
+        return;
+      }
+      if (command === 'exit_search') {
+        this.exit('search', raw || '');
+        return;
+      }
       if (command === 'cancel') {
         this.cancel();
         return;
@@ -713,6 +865,27 @@ export class VoiceAssistantComponent implements OnDestroy {
     // 4. Notify caller and clear promise handles
     this.surveyCancelled.emit();
     this.rejectSurvey?.(new Error('Cancelado por el usuario'));
+    this.resolveSurvey = null;
+    this.rejectSurvey = null;
+  }
+
+  /**
+   * Abort the survey the same way `cancel()` does, but because the citizen
+   * asked to go somewhere specific ("volver al inicio", "buscar otra cosa")
+   * rather than just dismiss the form. Emits `surveyExit` (NOT
+   * `surveyCancelled`) so the host can route them there instead of just
+   * closing the panel. The spoken text that triggered it is never treated as
+   * a field answer.
+   */
+  private exit(intent: 'home' | 'search', transcript: string): void {
+    this.aborted = true;
+    this.tts.cancel();
+    this.open.set(false);
+    this.state.set('idle');
+    this.interimText.set('');
+    this.capturedValue.set('');
+    this.surveyExit.emit({ intent, transcript });
+    this.rejectSurvey?.(new Error('Formulario abandonado por el usuario'));
     this.resolveSurvey = null;
     this.rejectSurvey = null;
   }

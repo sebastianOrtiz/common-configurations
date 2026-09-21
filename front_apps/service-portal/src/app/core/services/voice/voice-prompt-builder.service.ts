@@ -106,6 +106,13 @@ export class VoicePromptBuilder {
   }
 
   /**
+   * Maximum number of Select options read aloud in full. Beyond this, reciting
+   * every option (e.g. dozens of veredas) is slower than just asking the
+   * citizen to name theirs and matching it against the list.
+   */
+  private static readonly SELECT_ENUMERATE_LIMIT = 6;
+
+  /**
    * Build a prompt for a Select field with explicit options.
    */
   select(opts: {
@@ -114,12 +121,17 @@ export class VoicePromptBuilder {
     options: string[];
     optional?: boolean;
   }): VoicePrompt {
+    const question =
+      opts.options.length > VoicePromptBuilder.SELECT_ENUMERATE_LIMIT
+        ? `¿Cuál es tu ${opts.label.toLowerCase()}? Dime el nombre y lo busco.`
+        : `Selecciona tu ${opts.label.toLowerCase()}. Las opciones son: ${opts.options.join(', ')}.`;
     return {
       key: opts.key,
-      question: `Selecciona tu ${opts.label.toLowerCase()}. Las opciones son: ${opts.options.join(', ')}.`,
+      question,
       sanitize: (v) => sanitizeSelectMatch(v, opts.options),
       optional: opts.optional,
       confirmTemplate: (val) => `Seleccionaste ${val}. ¿Es correcto? Di sí o no.`,
+      selectOptions: opts.options,
     };
   }
 
@@ -236,6 +248,18 @@ export class VoicePromptBuilder {
     contexto_adicional: 'Contexto adicional',
     cuando_lo_quiere: '¿Cuándo lo quieres?',
   };
+
+  /**
+   * Build a survey (ordered `VoicePrompt[]`) from an arbitrary set of field
+   * descriptors — e.g. a trámite's own custom `questions` array returned by
+   * the backend (`get_procedures`'s `questions`, one Voice Prompt per
+   * question via `fromField`). Complements `guidedRequestSurvey()`, the
+   * fixed 5-question fallback used when a trámite/tool defines no questions
+   * of its own.
+   */
+  surveyFromFields(fields: SimpleField[]): VoicePrompt[] {
+    return fields.map((f) => this.fromField(f));
+  }
 
   /**
    * Build the 5-question guided survey used across radicación flows

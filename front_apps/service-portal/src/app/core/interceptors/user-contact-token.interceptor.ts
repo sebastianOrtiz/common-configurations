@@ -1,9 +1,9 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 
 import { StateService } from '../services/state.service';
+import { SessionService } from '../services/session.service';
 import { USER_CONTACT_AUTH_HEADER } from '../services/frappe-api.service';
 
 /**
@@ -31,7 +31,7 @@ import { USER_CONTACT_AUTH_HEADER } from '../services/frappe-api.service';
  */
 export const userContactTokenInterceptor: HttpInterceptorFn = (req, next) => {
   const state = inject(StateService);
-  const router = inject(Router);
+  const session = inject(SessionService);
   const token = state.getAuthToken();
   const sameOrigin = isSameOrigin(req.url);
 
@@ -53,7 +53,7 @@ export const userContactTokenInterceptor: HttpInterceptorFn = (req, next) => {
         err instanceof HttpErrorResponse &&
         isAuthFailure(err)
       ) {
-        forceReauth(state, router);
+        session.endSession('session_expired');
       }
       return throwError(() => err);
     })
@@ -74,31 +74,6 @@ function isAuthFailure(err: HttpErrorResponse): boolean {
   const excType =
     typeof body === 'string' ? body : (body as { exc_type?: string } | null)?.exc_type;
   return typeof excType === 'string' && excType.includes('AuthenticationError');
-}
-
-/**
- * Deauthorize the current User Contact and route to the portal's login /
- * registration. Guards against concurrent 401s: the first handler clears the
- * token, so any others see no token and skip.
- */
-function forceReauth(state: StateService, router: Router): void {
-  if (!state.getAuthToken()) {
-    return; // already handled by a previous failing request
-  }
-
-  const portal = state.selectedPortal();
-  // Clear only the User Contact auth; keep the selected portal so the login
-  // page has its context and the user returns to the same portal.
-  state.clearUserContact();
-
-  const portalName = portal?.portal_name;
-  if (portalName) {
-    router.navigate(['/portal', portalName, 'register'], {
-      queryParams: { reason: 'session_expired' },
-    });
-  } else {
-    router.navigate(['/portals']);
-  }
 }
 
 /**

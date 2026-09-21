@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { FrappeApiService } from './core/services/frappe-api.service';
+import { IdleService } from './core/services/idle.service';
 import { AssistantBubbleComponent } from './shared/components/assistant-bubble/assistant-bubble.component';
 
 @Component({
@@ -11,10 +12,15 @@ import { AssistantBubbleComponent } from './shared/components/assistant-bubble/a
 })
 export class App implements OnInit {
   private frappeApi = inject(FrappeApiService);
+  private idleService = inject(IdleService);
 
   ngOnInit(): void {
     // Fetch CSRF token on app initialization
     // This is required for website routes that don't inject the token automatically
     this.frappeApi.fetchCsrfToken().subscribe();
+
+    // Arm the inactivity-logout watcher (no-op while no authenticated,
+    // non-anonymous User Contact is present — see IdleService).
+    this.idleService.start();
   }
 }

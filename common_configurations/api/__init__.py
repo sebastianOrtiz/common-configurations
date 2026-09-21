@@ -50,6 +50,7 @@ from . import external
 from . import hub
 from . import settings
 from . import config
+from . import questions
 from . import shared
 
 # Re-export shared utilities at package level
@@ -83,6 +84,7 @@ __all__ = [
     "external",
     "hub",
     "config",
+    "questions",
     "shared",
     # Shared utilities
     "check_rate_limit",

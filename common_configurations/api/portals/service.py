@@ -8,6 +8,8 @@ import frappe
 from frappe import _
 from typing import Dict, Any, Optional, List
 
+from ..questions import resolve_questions
+
 
 class PortalService:
     """
@@ -74,6 +76,7 @@ class PortalService:
             "custom_css": portal.custom_css,
             "require_auth": portal.require_auth,
             "enable_mfa_otp": portal.enable_mfa_otp,
+            "idle_timeout_minutes": portal.get("idle_timeout_minutes") or 0,
             "announcement_rotation_seconds": getattr(
                 portal, "announcement_rotation_seconds", 0
             ) or 0,
@@ -121,6 +124,8 @@ class PortalService:
                 "logbook_procedures_config": getattr(tool, "logbook_procedures_config", None),
                 "pqr_type_set": getattr(tool, "pqr_type_set", None),
                 "pqr_allow_anonymous": getattr(tool, "pqr_allow_anonymous", None),
+                "question_set": getattr(tool, "question_set", None) or None,
+                "questions": resolve_questions(getattr(tool, "question_set", None)),
             }
 
             # Inline quick links data so the frontend doesn't need a second API call

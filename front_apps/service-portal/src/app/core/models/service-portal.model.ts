@@ -2,6 +2,8 @@
  * Service Portal Models
  */
 
+import { PortalQuestion } from './portal-question.model';
+
 export interface ServicePortal {
   name: string;
   portal_name: string;
@@ -16,6 +18,12 @@ export interface ServicePortal {
   // Auth
   require_auth?: boolean;
   enable_mfa_otp?: boolean;
+  /**
+   * Minutes of inactivity before an authenticated (non-anonymous) User
+   * Contact is automatically logged out (see `IdleService`). `> 0` to
+   * override; unset or `0` falls back to the front-end default (15 min).
+   */
+  idle_timeout_minutes?: number;
 
   // Styles
   primary_color?: string;
@@ -62,6 +70,12 @@ export interface ServicePortalTool {
   button_color?: string;
   display_order: number;
   is_enabled: boolean;
+
+  // Configurable questions (tool-level `question_set`, resolved server-side).
+  // Shared by every tool that supports the "questions/answers" model
+  // (procedures, PQR, ...). See `core/models/portal-question.model.ts`.
+  question_set?: string | null;
+  questions?: PortalQuestion[];
 
   // Custom fields (depends on tool_type)
   // For meet_scheduling:

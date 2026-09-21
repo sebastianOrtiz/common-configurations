@@ -28,7 +28,7 @@
  * this bubble is the only microphone button on screen at any time.
  */
 
-import { Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationStart } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -51,7 +51,7 @@ import { VoiceNavigationComponent } from '../../../features/portal/voice-navigat
   templateUrl: './assistant-bubble.component.html',
   styleUrls: ['./assistant-bubble.component.scss'],
 })
-export class AssistantBubbleComponent {
+export class AssistantBubbleComponent implements AfterViewInit {
   private settingsService = inject(SettingsService);
   private sttService = inject(SttService);
   private ttsService = inject(TtsService);
@@ -115,6 +115,38 @@ export class AssistantBubbleComponent {
         void this.startFormFill();
       }
     });
+  }
+
+  /**
+   * `VoiceAssistantComponent.surveyExit` is a plain `@Output` (not bound in
+   * the template — this component drives the survey imperatively via
+   * `startSurvey()`), so we subscribe to it directly once the ViewChild
+   * resolves, same lifecycle timing needed for any `@ViewChild` output.
+   */
+  ngAfterViewInit(): void {
+    this.voiceAssistant?.surveyExit.subscribe(({ intent, transcript }) => {
+      void this.handleSurveyExit(intent, transcript);
+    });
+  }
+
+  /**
+   * The citizen asked, mid form-fill, to leave for somewhere else ("volver
+   * al inicio", "buscar otra cosa") instead of just cancelling. Delegate to
+   * `executeAction` with the matching global action — same execution path a
+   * spoken command or menu tap would use — so behavior stays one code path.
+   */
+  private async handleSurveyExit(intent: 'home' | 'search', _transcript: string): Promise<void> {
+    if (intent === 'home') {
+      const homeAction = this.availableActions().find((a) => a.id === 'nav.home');
+      if (homeAction) await this.executeAction(homeAction, {});
+      return;
+    }
+
+    // 'search': the transcript is the control phrase itself ("buscar otra
+    // cosa"), not a usable query, so open the search engine's mic instead of
+    // searching for the literal command text.
+    const searchAction = this.availableActions().find((a) => a.builtin === 'search');
+    if (searchAction) await this.executeAction(searchAction, {});
   }
 
   /** True while either engine's panel is actively showing something to the user. */

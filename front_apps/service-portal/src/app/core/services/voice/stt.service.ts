@@ -8,7 +8,8 @@
  * Browser support: Chrome/Edge yes, Safari partial, Firefox no.
  */
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { IdleService } from '../idle.service';
 
 // Cross-browser handle (Webkit prefix in Chrome/Edge)
 declare global {
@@ -20,6 +21,8 @@ declare global {
 
 @Injectable({ providedIn: 'root' })
 export class SttService {
+  private idleService = inject(IdleService);
+
   private getCtor(): any {
     if (typeof window === 'undefined') return null;
     return window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -66,6 +69,11 @@ export class SttService {
       };
 
       recognition.onresult = (event: any) => {
+        // Speaking counts as activity for the idle-logout timer even though
+        // it generates no pointer/keyboard DOM events (IdleService throttles
+        // internally, so calling this on every partial result is cheap).
+        this.idleService.notifyActivity();
+
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;

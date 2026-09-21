@@ -23,6 +23,7 @@ import { OtpVerificationComponent, RegistrationVerifiedResult } from './otp-veri
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { VoicePrompt } from '../../../shared/components/voice-assistant/voice-assistant.component';
 import { SettingsService } from '../../../core/services/settings.service';
+import { sanitizeSelectMatch as sanitizeSelectMatchShared } from '../../../core/services/voice/sanitizers';
 
 // Registration step types - now includes 'otp' for OTP verification
 type RegistrationStep = 'initial' | 'login' | 'register' | 'otp';
@@ -804,25 +805,23 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
       let question = `¿Cuál es tu ${label.toLowerCase()}?`;
       let sanitize: ((v: string) => string | null) | undefined;
       let minLength: number | undefined;
+      let selectOptions: string[] | undefined;
 
       // Customize question + sanitizer per fieldtype
       if (f.fieldtype === 'Select' && f.options) {
         const options = (f.options as string).split('\n').filter((o) => o.trim());
-        question = `Selecciona tu ${label.toLowerCase()}. Las opciones son: ${options.join(', ')}.`;
-        // Normalize: lowercase + strip diacritics (tildes) so "cédula" matches "Cedula"
-        const norm = (s: string) =>
-          s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-        sanitize = (v: string) => {
-          const target = norm(v);
-          if (!target) return null;
-          const exact = options.find((o) => norm(o) === target);
-          if (exact) return exact;
-          const partial = options.find((o) => {
-            const oNorm = norm(o);
-            return oNorm.includes(target) || target.includes(oNorm);
-          });
-          return partial || null;
-        };
+        selectOptions = options;
+        // Beyond a handful of options (e.g. veredas), reading every one aloud
+        // is slower than just asking for the name and matching it — same
+        // threshold as `VoicePromptBuilder.select()`.
+        question =
+          options.length > 6
+            ? `¿Cuál es tu ${label.toLowerCase()}? Dime el nombre y lo busco.`
+            : `Selecciona tu ${label.toLowerCase()}. Las opciones son: ${options.join(', ')}.`;
+        // Delegate to the shared sanitizer (sanitizers.ts) instead of
+        // reimplementing exact/partial matching here, so this form inherits
+        // the same accent/punctuation normalization and fuzzy token match.
+        sanitize = (v: string) => sanitizeSelectMatchShared(v, options);
       } else if (f.fieldname === 'document' || (f.label || '').toLowerCase().includes('documento')) {
         question = `¿Cuál es tu número de ${label.toLowerCase()}? Por favor díctalo dígito por dígito.`;
         sanitize = (v: string) => sanitizeDigits(v);
@@ -844,6 +843,7 @@ export class ContactRegistrationComponent implements OnInit, OnDestroy {
         optional: isOptional,
         minLength,
         confirmTemplate: (val) => `Entendí ${val} para ${label.toLowerCase()}. ¿Es correcto? Di sí o no.`,
+        selectOptions,
       };
     });
   }

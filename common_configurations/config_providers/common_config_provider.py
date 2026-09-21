@@ -2,7 +2,8 @@
 CommonConfigProvider — the config provider for common_configurations itself.
 
 Owns manifest key "common_configurations", covering: external_links,
-quick_links, announcements, announcement_sets, tool_types, settings, portals.
+quick_links, announcements, announcement_sets, question_sets, tool_types,
+settings, portals.
 
 Naming keys (verified against each doctype's `autoname` before designing this
 provider — see class docstring below): External Link, Portal Quick Links,
@@ -56,6 +57,7 @@ EXTERNAL_LINK_DOCTYPE = "External Link"
 QUICK_LINKS_DOCTYPE = "Portal Quick Links"
 ANNOUNCEMENT_DOCTYPE = "Announcement"
 ANNOUNCEMENT_SET_DOCTYPE = "Announcement Set"
+QUESTION_SET_DOCTYPE = "Portal Question Set"
 TOOL_TYPE_DOCTYPE = "Tool Type"
 SETTINGS_DOCTYPE = "Common Configurations Settings"
 SERVICE_PORTAL_DOCTYPE = "Service Portal"
@@ -65,6 +67,7 @@ REF_NS_EXTERNAL_LINK = "common_configurations.external_link"
 REF_NS_QUICK_LINKS = "common_configurations.quick_links"
 REF_NS_ANNOUNCEMENT = "common_configurations.announcement"
 REF_NS_ANNOUNCEMENT_SET = "common_configurations.announcement_set"
+REF_NS_QUESTION_SET = "common_configurations.question_set"
 REF_NS_TOOL_TYPE = "common_configurations.tool_type"
 
 # Fieldtypes never surfaced through import/export (structural or secret).
@@ -118,6 +121,7 @@ class CommonConfigProvider(ConfigProvider):
         self._import_quick_links(data.get("quick_links") or [], ctx)
         self._import_announcements(data.get("announcements") or [], ctx)
         self._import_announcement_sets(data.get("announcement_sets") or [], ctx)
+        self._import_question_sets(data.get("question_sets") or [], ctx)
         self._import_tool_types(data.get("tool_types") or [], ctx)
         self._import_settings(data.get("settings") or {}, ctx)
         self._import_portals(data.get("portals") or [], ctx)
@@ -224,6 +228,43 @@ class CommonConfigProvider(ConfigProvider):
             )
             ctx.set_ref(REF_NS_ANNOUNCEMENT_SET, title, doc.name)
 
+    def _import_question_sets(self, entries: list[dict], ctx) -> None:
+        fields = _exportable_fields(QUESTION_SET_DOCTYPE, exclude=("questions",))
+        for entry in entries:
+            set_name = entry.get("set_name")
+            if not set_name:
+                ctx.warn("question_sets: entry missing 'set_name', skipped")
+                continue
+
+            item_rows = []
+            for idx, item in enumerate(entry.get("questions") or []):
+                if not item.get("question"):
+                    ctx.warn(
+                        f"question_sets.{set_name}.questions[{idx}]: missing "
+                        f"'question', skipped"
+                    )
+                    continue
+                item_rows.append(
+                    {
+                        "question": item.get("question"),
+                        "answer_key": item.get("answer_key"),
+                        "fieldtype": item.get("fieldtype") or "Small Text",
+                        "options": item.get("options"),
+                        "reqd": item.get("reqd", 1),
+                        "sort_order": item.get("sort_order", 0),
+                    }
+                )
+
+            doc, _action = upsert_doc(
+                QUESTION_SET_DOCTYPE,
+                match={"set_name": set_name},
+                values=_pick(entry, fields),
+                child_tables={"questions": item_rows},
+                ctx=ctx,
+                key=set_name,
+            )
+            ctx.set_ref(REF_NS_QUESTION_SET, set_name, doc.name)
+
     def _import_tool_types(self, entries: list[dict], ctx) -> None:
         fields = _exportable_fields(TOOL_TYPE_DOCTYPE)
         for entry in entries:
@@ -327,6 +368,7 @@ class CommonConfigProvider(ConfigProvider):
             "quick_links": self._export_quick_links(),
             "announcements": self._export_announcements(),
             "announcement_sets": self._export_announcement_sets(),
+            "question_sets": self._export_question_sets(),
             "tool_types": self._export_tool_types(),
             "settings": self._export_settings(),
             "portals": self._export_portals(getattr(ctx, "portal_name", None)),
@@ -374,6 +416,27 @@ class CommonConfigProvider(ConfigProvider):
                     "is_enabled": row.is_enabled,
                 }
                 for row in doc.announcements
+            ]
+            result.append(entry)
+        return result
+
+    def _export_question_sets(self) -> list[dict]:
+        fields = _exportable_fields(QUESTION_SET_DOCTYPE, exclude=("questions",))
+        names = frappe.get_all(QUESTION_SET_DOCTYPE, pluck="name", order_by="name asc")
+        result = []
+        for n in names:
+            doc = frappe.get_doc(QUESTION_SET_DOCTYPE, n)
+            entry = self._doc_as_dict(QUESTION_SET_DOCTYPE, n, fields, doc=doc)
+            entry["questions"] = [
+                {
+                    "question": row.question,
+                    "answer_key": row.answer_key,
+                    "fieldtype": row.fieldtype,
+                    "options": row.options,
+                    "reqd": row.reqd,
+                    "sort_order": row.sort_order,
+                }
+                for row in doc.questions
             ]
             result.append(entry)
         return result
@@ -489,6 +552,33 @@ class CommonConfigProvider(ConfigProvider):
                 },
                 "publishes_ref": {"namespace": REF_NS_ANNOUNCEMENT_SET, "key": "title"},
             },
+            "question_sets": {
+                "type": "list",
+                "doctype": QUESTION_SET_DOCTYPE,
+                "match_on": ["set_name"],
+                "description": "Shared, reusable set of configurable questions "
+                "that a Service Portal Tool (or, in a future phase, any other "
+                "per-item config owned by another app, e.g. a Logbook "
+                "Procedure) can link to instead of a single free-text "
+                "'context' field. Resolved at read time via "
+                "common_configurations.api.questions.resolve_questions().",
+                "fields": {
+                    "set_name": "Data, required, unique — natural docname, "
+                    "also the $ref key.",
+                    "title": "Data — admin-facing label.",
+                    "description": "Small Text.",
+                    "is_active": "Check — inactive sets resolve to [] "
+                    "questions everywhere.",
+                    "questions": "list[{question: str (required), "
+                    "answer_key: str (optional — defaults to "
+                    "frappe.scrub(question) when resolved), "
+                    "fieldtype: 'Data'|'Small Text'|'Select'|'Int'|'Email' "
+                    "(default 'Small Text'), options: str (newline-separated, "
+                    "only for fieldtype='Select'), reqd: 0|1 (default 1), "
+                    "sort_order: int}]",
+                },
+                "publishes_ref": {"namespace": REF_NS_QUESTION_SET, "key": "set_name"},
+            },
             "tool_types": {
                 "type": "list",
                 "doctype": TOOL_TYPE_DOCTYPE,
@@ -571,6 +661,14 @@ class CommonConfigProvider(ConfigProvider):
                     "(tool_type='portal_quick_links'). Plain value = link_group_name.",
                     "quick_link_external": "Link -> External Link "
                     "(tool_type='quick_link'). Plain value = title.",
+                    "question_set": "Link -> Portal Question Set. Applies to "
+                    "ANY tool_type (not tool-specific). Plain value = "
+                    "set_name, or "
+                    '`{"$ref": {"namespace": "common_configurations.question_set", '
+                    '"key": "<set_name>"}}` — both work since Portal Question '
+                    "Set autonames by set_name; $ref is only required when "
+                    "the set is defined elsewhere in the SAME import call "
+                    "and you want import-order independence.",
                     "<any other field>": "For config owned by ANOTHER module's "
                     "provider (e.g. logbook's 'procedures' tool type), use "
                     '`{"$ref": {"namespace": "<app>.<concept>", "key": "<key>"}}` '

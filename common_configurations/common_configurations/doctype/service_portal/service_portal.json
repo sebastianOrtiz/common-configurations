@@ -15,6 +15,7 @@
   "security_section",
   "require_auth",
   "enable_mfa_otp",
+  "idle_timeout_minutes",
   "configuraci\u00f3n_de_registro_section",
   "registration_title",
   "registration_description",
@@ -95,6 +96,13 @@
    "fieldname": "enable_mfa_otp",
    "fieldtype": "Check",
    "label": "Enable MFA OTP"
+  },
+  {
+   "default": "0",
+   "description": "Minutos de inactividad antes de cerrar la sesi\u00f3n del usuario. 0 = usar el valor por defecto del portal (15).",
+   "fieldname": "idle_timeout_minutes",
+   "fieldtype": "Int",
+   "label": "Idle Timeout (minutos)"
   },
   {
    "fieldname": "configuraci\u00f3n_de_registro_section",

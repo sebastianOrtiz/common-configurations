@@ -33,6 +33,8 @@ export interface NavigationResult {
   title: string;
   secretaria: string;
   tool_name: string;
+  /** Portal Tool's `tool_type` (e.g. 'procedures', 'pqr'). Drives the route built by `navigateToResult`. */
+  tool_type: string;
   procedure_name: string;
   type: 'internal' | 'external';
   external_url?: string;
@@ -392,18 +394,28 @@ export class VoiceNavigationComponent implements OnDestroy {
   }
 
   /**
-   * Deep-link straight into the trámite. Used both for direct "navigate"
-   * mode and when the citizen picks a card from the "choose" list.
-   * The target ProceduresToolComponent reads the `procedure` queryParam
-   * and auto-opens it regardless of whether it's internal or external.
+   * Navigate straight to the resolved result. Used both for direct
+   * "navigate" mode and when the citizen picks a card from the "choose" list.
+   *
+   * - `tool_type === 'procedures'` with a `procedure_name`: deep-link into
+   *   the specific trámite via the `procedure` queryParam — the target
+   *   ProceduresToolComponent reads it and auto-opens the card.
+   * - Any other tool_type (e.g. 'pqr'): navigate to the tool itself, same as
+   *   tapping its card on the portal grid (`PortalViewComponent.selectTool`
+   *   / `AssistantContextService.navigateToTool`). No `procedure` queryParam
+   *   — that field only means something for the procedures tool.
    */
   protected navigateToResult(result: NavigationResult): void {
     const portal = this.stateService.selectedPortal();
     if (!portal) return;
 
-    this.router.navigate(['/portal', portal.portal_name, 'tool', 'procedures', result.tool_name], {
-      queryParams: { procedure: result.procedure_name },
-    });
+    if (result.tool_type === 'procedures' && result.procedure_name) {
+      this.router.navigate(['/portal', portal.portal_name, 'tool', 'procedures', result.tool_name], {
+        queryParams: { procedure: result.procedure_name },
+      });
+    } else {
+      this.router.navigate(['/portal', portal.portal_name, 'tool', result.tool_type, result.tool_name]);
+    }
 
     this.resetToIdle();
   }

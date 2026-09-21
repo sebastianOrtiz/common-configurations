@@ -19,7 +19,10 @@ import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
+import { PortalQuestionSurveyService } from '../../../core/services/voice/portal-question-survey.service';
 import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
+import { PortalQuestion, AnsweredQuestion } from '../../../core/models/portal-question.model';
+import { ServicePortalTool } from '../../../core/models/service-portal.model';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 
@@ -31,6 +34,8 @@ interface PQRType {
   icon: string;
   color: string;
   display_order: number;
+  /** Per-type question override (PQR Type's own `question_set`). Preferred over the tool-level `questions` when present. */
+  questions?: PortalQuestion[];
 }
 
 interface ToolTypesResponse {
@@ -62,6 +67,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
+  private questionSurvey = inject(PortalQuestionSurveyService);
   private assistantContext = inject(AssistantContextService);
 
   /**
@@ -92,6 +98,25 @@ export class PqrToolComponent implements OnInit, OnDestroy {
   /** Label of THIS tool instance (the secretaría), so the header shows where you are. */
   protected toolLabel = signal<string>('PQRs');
   protected sendAsAnonymous = signal<boolean>(false);
+
+  /** Tool-level custom questions (this tool's own `question_set`), may be empty. */
+  protected toolQuestions = signal<PortalQuestion[]>([]);
+  /**
+   * Questions actually in effect for the selected type: the type's own
+   * `questions` when it has any (per-type override), otherwise the tool's.
+   */
+  protected effectiveQuestions = computed<PortalQuestion[]>(() => {
+    const type = this.selectedType();
+    if (type?.questions?.length) return type.questions;
+    return this.toolQuestions();
+  });
+  /**
+   * Set by `applyPqrSurveyAnswers` when `effectiveQuestions()` is non-empty:
+   * the answers in the structured shape `create_entry_from_portal`'s
+   * `answers` param expects. Null when there are no custom questions
+   * (falls back to the plain `description` textarea, as before).
+   */
+  private pendingAnswers: AnsweredQuestion[] | null = null;
 
   // Result state
   protected createdPQR = signal<CreatedPQR | null>(null);
@@ -135,17 +160,18 @@ export class PqrToolComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const portal = this.selectedPortal();
-    const tool = this.toolName
-      ? portal?.tools.find((t: any) => String(t.name) === String(this.toolName))
-      : portal?.tools.find((t: any) => t.tool_type === 'pqr');
+    const tool: ServicePortalTool | undefined = this.toolName
+      ? portal?.tools.find((t) => String(t.name) === String(this.toolName))
+      : portal?.tools.find((t) => t.tool_type === 'pqr');
 
     if (!tool) {
       this.error.set('La configuración de PQR no se encontró.');
       return;
     }
 
-    this.resolvedToolName = (tool as any).name;
-    this.toolLabel.set((tool as any).label || 'PQRs');
+    this.resolvedToolName = tool.name || '';
+    this.toolLabel.set(tool.label || 'PQRs');
+    this.toolQuestions.set(tool.questions || []);
     this.loadTypes();
   }
 
@@ -182,6 +208,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     this.selectedType.set(type);
     this.subject.set('');
     this.description.set('');
+    this.pendingAnswers = null;
     // Default: if user is anonymous (not logged in), force anonymous submission
     this.sendAsAnonymous.set(this.isAnonymousUser());
     this.view.set('form');
@@ -191,6 +218,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     this.view.set('list');
     this.selectedType.set(null);
     this.error.set(null);
+    this.pendingAnswers = null;
   }
 
   protected async submitPQR(): Promise<void> {
@@ -204,22 +232,33 @@ export class PqrToolComponent implements OnInit, OnDestroy {
 
     const isAnonymous = this.isAnonymousUser() ? true : this.sendAsAnonymous();
 
+    // Custom questions (tool- or type-level): send the structured `answers`
+    // alongside `description` (kept as a human-readable fallback/summary,
+    // auto-filled by `applyPqrSurveyAnswers`) so the backend composes the
+    // PQR from the structured Q&A. PQRs without custom questions keep
+    // sending only `description`, as before.
+    const payload: Record<string, unknown> = {
+      pqr_type: type.name,
+      subject: this.subject().trim(),
+      description: this.description().trim(),
+      is_anonymous: isAnonymous ? 1 : 0,
+      honeypot: '',
+    };
+    if (this.pendingAnswers?.length) {
+      payload['answers'] = JSON.stringify(this.pendingAnswers);
+    }
+
     try {
       const response = await this.frappeApi.callMethod<CreatedPQR>(
         'pqr_management.api.entries.create_entry_from_portal',
-        {
-          pqr_type: type.name,
-          subject: this.subject().trim(),
-          description: this.description().trim(),
-          is_anonymous: isAnonymous ? 1 : 0,
-          honeypot: '',
-        }
+        payload
       ).toPromise();
 
       const data = response?.message;
       if (data) {
         this.createdPQR.set(data);
         this.view.set('confirm');
+        this.pendingAnswers = null;
       }
     } catch (err: any) {
       console.error('Error submitting PQR:', err);
@@ -235,6 +274,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     this.selectedType.set(null);
     this.subject.set('');
     this.description.set('');
+    this.pendingAnswers = null;
     this.goBack();
   }
 
@@ -262,8 +302,12 @@ export class PqrToolComponent implements OnInit, OnDestroy {
 
   /**
    * Prompts for the guided PQR survey, run by the global assistant bubble.
-   * Includes the anonymous yes/no question only when it's actually offered
-   * to this citizen (logged-in users where the tool allows anonymous PQRs).
+   * `subject` is always asked first (it's a separate required field). Then,
+   * when the tool/type has custom `questions` configured, one prompt per
+   * question (via `PortalQuestionSurveyService`) replaces the generic
+   * `description` prompt. Finally, the anonymous yes/no question is
+   * included only when it's actually offered to this citizen (logged-in
+   * users where the tool allows anonymous PQRs).
    */
   private buildPqrVoicePrompts(typeLabelRaw: string): VoicePrompt[] {
     const typeLabel = typeLabelRaw?.toLowerCase() || 'PQR';
@@ -275,14 +319,22 @@ export class PqrToolComponent implements OnInit, OnDestroy {
         minLength: 3,
         maxLength: 200,
       }),
-      this.promptBuilder.text({
-        key: 'description',
-        label: 'descripción',
-        question:
-          'Cuéntame los detalles del caso. Sé tan específico como quieras: fechas, lugares, personas involucradas y lo que esperas como respuesta.',
-        minLength: 10,
-      }),
     ];
+
+    const customPrompts = this.questionSurvey.buildPrompts(this.effectiveQuestions());
+    if (customPrompts) {
+      prompts.push(...customPrompts);
+    } else {
+      prompts.push(
+        this.promptBuilder.text({
+          key: 'description',
+          label: 'descripción',
+          question:
+            'Cuéntame los detalles del caso. Sé tan específico como quieras: fechas, lugares, personas involucradas y lo que esperas como respuesta.',
+          minLength: 10,
+        }),
+      );
+    }
 
     if (this.canAskAnonymous()) {
       prompts.push(
@@ -301,10 +353,29 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     return !this.isAnonymousUser() && this.allowAnonymous();
   }
 
-  /** `onComplete` for the guided PQR survey. */
+  /**
+   * `onComplete` for the guided PQR survey. When the tool/type has custom
+   * `questions`, keeps the answers structured for `create_entry_from_portal`'s
+   * `answers` param (see `submitPQR`); otherwise falls back to the plain
+   * `description` answer, as before. Either way `description` ends up
+   * showing a human-readable summary so the citizen can review it before
+   * enviando.
+   */
   private applyPqrSurveyAnswers(answers: Record<string, string>): void {
     if (answers['subject']) this.subject.set(answers['subject']);
-    if (answers['description']) this.description.set(answers['description']);
+
+    const questions = this.effectiveQuestions();
+    if (questions.length) {
+      const structured = this.questionSurvey.composeAnswers(questions, answers);
+      if (structured.length) {
+        this.pendingAnswers = structured;
+        this.description.set(this.questionSurvey.composeContextText(structured));
+      }
+    } else if (answers['description']) {
+      this.pendingAnswers = null;
+      this.description.set(answers['description']);
+    }
+
     if (this.canAskAnonymous() && answers['is_anonymous'] !== undefined) {
       this.sendAsAnonymous.set(answers['is_anonymous'] === '1');
     }

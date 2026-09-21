@@ -16,6 +16,9 @@ import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
+import { PortalQuestionSurveyService } from '../../../core/services/voice/portal-question-survey.service';
+import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
+import { PortalQuestion, AnsweredQuestion } from '../../../core/models/portal-question.model';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import {
@@ -31,6 +34,8 @@ interface Procedure {
   procedure_type: 'internal' | 'external';
   external_info?: string;
   external_url?: string;
+  /** Per-trámite custom questions (may be empty/absent — falls back to the generic guided survey). */
+  questions?: PortalQuestion[];
 }
 
 interface CreatedEntry {
@@ -65,6 +70,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
+  private questionSurvey = inject(PortalQuestionSurveyService);
   private assistantContext = inject(AssistantContextService);
 
   @ViewChild(AttachmentUploaderComponent) attachmentUploader?: AttachmentUploaderComponent;
@@ -117,6 +123,14 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
 
   // Form state (internal procedure)
   protected userContext = signal<string>('');
+  /**
+   * Set by `applyGuidedSurveyAnswers` when the selected procedure has custom
+   * `questions`: the answers in the structured shape `create_procedure_entry`
+   * expects for its `answers` param. Null when the procedure has no custom
+   * questions (falls back to the plain `user_context` string, as before).
+   * Reset whenever a new procedure is selected / the form is left.
+   */
+  private pendingAnswers: AnsweredQuestion[] | null = null;
 
   // Attachments (evidence uploaded before submitting)
   protected attachments = signal<UploadedAttachment[]>([]);
@@ -145,18 +159,28 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
     // active view: only offered while filling out the internal-procedure
     // description (guided survey). The "search" action is global, so
     // citizens can still search another trámite by voice at any time.
+    //
+    // Prompts come from the SELECTED procedure's own `questions` (configured
+    // per-trámite by the admin) when it has any; otherwise fall back to the
+    // fixed 5-question guided survey (qué/cómo/para qué/contexto/cuándo).
     effect(() => {
       const currentView = this.view();
+      const procedure = this.selectedProcedure();
       if (currentView === 'form') {
         this.assistantContext.setFormContext({
           title: 'Describir trámite',
-          prompts: this.promptBuilder.guidedRequestSurvey(),
-          onComplete: (answers) => this.applyGuidedSurveyAnswers(answers),
+          prompts: this.buildSurveyPrompts(procedure),
+          onComplete: (answers) => this.applyGuidedSurveyAnswers(procedure, answers),
         });
       } else {
         this.assistantContext.clearFormContext();
       }
     });
+  }
+
+  /** Ordered custom questions from the DB (`sort_order`), or the fixed guided survey when the procedure has none. */
+  private buildSurveyPrompts(procedure: Procedure | null): VoicePrompt[] {
+    return this.questionSurvey.buildPrompts(procedure?.questions) ?? this.promptBuilder.guidedRequestSurvey();
   }
 
   ngOnInit(): void {
@@ -243,6 +267,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   selectProcedure(procedure: Procedure): void {
     this.selectedProcedure.set(procedure);
     this.error.set(null);
+    this.pendingAnswers = null;
 
     if (procedure.procedure_type === 'internal') {
       this.userContext.set('');
@@ -290,13 +315,22 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
 
     const documents = this.attachments().map((a) => ({ file_url: a.file_url, title: a.file_name }));
 
+    // Custom per-trámite questions: send the structured `answers` alongside
+    // `user_context` (kept as a human-readable fallback/summary) so the
+    // backend composes the entry from the structured Q&A. Trámites without
+    // custom questions keep sending only `user_context`, as before.
+    const payload: Record<string, unknown> = {
+      procedure_name: procedure.name,
+      user_context: context.trim(),
+      documents: JSON.stringify(documents),
+    };
+    if (this.pendingAnswers?.length) {
+      payload['answers'] = JSON.stringify(this.pendingAnswers);
+    }
+
     this.frappeApi.callMethod<CreatedEntry>(
       'logbook.api.procedures.create_procedure_entry',
-      {
-        procedure_name: procedure.name,
-        user_context: context.trim(),
-        documents: JSON.stringify(documents),
-      }
+      payload
     ).subscribe({
       next: (response) => {
         if (response?.message) {
@@ -305,6 +339,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
           this.userContext.set('');
           this.attachments.set([]);
           this.attachmentUploader?.reset();
+          this.pendingAnswers = null;
         }
         this.loading.set(false);
       },
@@ -332,6 +367,7 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
     this.userContext.set('');
     this.attachments.set([]);
     this.error.set(null);
+    this.pendingAnswers = null;
   }
 
   // ============================================================
@@ -376,16 +412,32 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * `onComplete` for the guided survey (qué/cómo/para qué/contexto/cuándo),
-   * run by the global assistant bubble. Joins the answers into the
-   * `user_context` textarea so the citizen can review everything before
-   * radicando el trámite.
+   * `onComplete` for the guided survey, run by the global assistant bubble.
+   * When the procedure has its own custom `questions`, keeps the answers
+   * structured for `create_procedure_entry`'s `answers` param (see
+   * `submitEntry`); otherwise falls back to the fixed guided survey
+   * (qué/cómo/para qué/contexto/cuándo) joined into `user_context`, as
+   * before. Either way it fills the `user_context` textarea with a
+   * human-readable summary so the citizen can review it before radicando.
    */
-  private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
-    const context = this.promptBuilder.buildGuidedRequestContext(answers);
-    if (!context) return;
+  private applyGuidedSurveyAnswers(
+    procedure: Procedure | null,
+    answers: Record<string, string>
+  ): void {
+    if (procedure?.questions?.length) {
+      const structured = this.questionSurvey.composeAnswers(procedure.questions, answers);
+      if (!structured.length) return;
 
-    this.userContext.set(context);
+      this.pendingAnswers = structured;
+      this.userContext.set(this.questionSurvey.composeContextText(structured));
+    } else {
+      const context = this.promptBuilder.buildGuidedRequestContext(answers);
+      if (!context) return;
+
+      this.pendingAnswers = null;
+      this.userContext.set(context);
+    }
+
     // The citizen asked the assistant to PLACE the trámite, not just fill the
     // field — so radicar automatically after the guided fill. On success the
     // view switches to 'confirm', which clears the form context (see the

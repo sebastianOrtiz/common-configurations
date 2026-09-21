@@ -14,6 +14,7 @@ import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { AssistantContextService } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
+import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
 import { VoiceInputComponent } from '../../../shared/components/voice-input/voice-input.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import {
@@ -28,6 +29,32 @@ interface CreatedEntry {
   priority: string;
   assigned_to: string;
   start_date: string;
+}
+
+/**
+ * Same shape as `ProceduresToolComponent`'s per-trámite `questions` (backend
+ * contract from `get_procedures`). No `Service Portal Tool` custom field
+ * ships this for `create_logbook` yet (today it only has
+ * `logbook_availability` — see the app's CLAUDE.md), so `resolveToolQuestions()`
+ * below always returns null in production; wired defensively so this
+ * activates automatically the day a backend equivalent config + `answers`
+ * param on `create_entry_from_portal` ships for this tool type, mirroring
+ * `create_procedure_entry`.
+ */
+interface ToolQuestion {
+  answer_key: string;
+  question: string;
+  fieldtype: string;
+  options: string[];
+  reqd: number;
+  sort_order: number;
+}
+
+/** One answered custom question, in the shape `create_entry_from_portal`'s (future) `answers` param would expect. */
+interface AnsweredQuestion {
+  answer_key: string;
+  question: string;
+  answer: string;
 }
 
 @Component({
@@ -80,6 +107,14 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
   // Config
   private logbookAvailability = '';
 
+  /**
+   * Set by `applyGuidedSurveyAnswers` when this tool instance has custom
+   * `questions` (see `ToolQuestion`): the answers in the structured shape a
+   * future `answers` param would expect. Null (today, always) falls back to
+   * the plain `user_context` string, as before.
+   */
+  private pendingAnswers: AnsweredQuestion[] | null = null;
+
   constructor() {
     // This tool is a single always-visible form (no list/detail views), so the
     // global assistant bubble just needs the `fill_form` action registered
@@ -89,13 +124,47 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
       if (!this.isAnonymousUser() && !this.error()) {
         this.assistantContext.setFormContext({
           title: 'Describir solicitud',
-          prompts: this.promptBuilder.guidedRequestSurvey(),
+          prompts: this.buildSurveyPrompts(),
           onComplete: (answers) => this.applyGuidedSurveyAnswers(answers),
         });
       } else {
         this.assistantContext.clearFormContext();
       }
     });
+  }
+
+  /**
+   * Prompts come from THIS tool instance's own `questions` config (mirrors
+   * `ProceduresToolComponent`'s per-trámite `questions`) when configured;
+   * otherwise falls back to the fixed 5-question guided survey
+   * (qué/cómo/para qué/contexto/cuándo).
+   */
+  private buildSurveyPrompts(): VoicePrompt[] {
+    const questions = this.resolveToolQuestions();
+    if (!questions?.length) {
+      return this.promptBuilder.guidedRequestSurvey();
+    }
+    const orderedFields = questions
+      .slice()
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((q) => ({
+        fieldname: q.answer_key,
+        label: q.question,
+        fieldtype: q.fieldtype,
+        options: (q.options || []).join('\n'),
+        reqd: q.reqd,
+      }));
+    return this.promptBuilder.surveyFromFields(orderedFields);
+  }
+
+  /** Reads the resolved Service Portal Tool row's `questions` custom field, if any (see `ToolQuestion`). */
+  private resolveToolQuestions(): ToolQuestion[] | null {
+    const portal = this.selectedPortal();
+    const tool = this.toolName
+      ? portal?.tools.find((t) => String(t.name) === String(this.toolName))
+      : portal?.tools.find((t) => t.tool_type === 'create_logbook');
+    const questions = (tool as any)?.questions;
+    return Array.isArray(questions) && questions.length ? questions : null;
   }
 
   ngOnDestroy(): void {
@@ -145,14 +214,24 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
 
     const documents = this.attachments().map((a) => ({ file_url: a.file_url, title: a.file_name }));
 
+    // Mirrors ProceduresToolComponent: when this tool instance has custom
+    // questions, send the structured `answers` alongside `user_context`.
+    // Today `pendingAnswers` is always null (see `resolveToolQuestions`), so
+    // this stays a no-op until `create_entry_from_portal` grows an `answers`
+    // param — never sends a kwarg the current backend doesn't accept.
+    const payload: Record<string, unknown> = {
+      user_contact: contact.name,
+      user_context: context.trim(),
+      logbook_availability: this.logbookAvailability,
+      documents: JSON.stringify(documents),
+    };
+    if (this.pendingAnswers?.length) {
+      payload['answers'] = JSON.stringify(this.pendingAnswers);
+    }
+
     this.frappeApi.callMethod<CreatedEntry>(
       'logbook.api.entries.create_entry_from_portal',
-      {
-        user_contact: contact.name,
-        user_context: context.trim(),
-        logbook_availability: this.logbookAvailability,
-        documents: JSON.stringify(documents),
-      }
+      payload
     ).subscribe({
       next: (response) => {
         if (response?.message) {
@@ -161,6 +240,7 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
           this.userContext.set('');
           this.attachments.set([]);
           this.attachmentUploader?.reset();
+          this.pendingAnswers = null;
         }
         this.loading.set(false);
       },
@@ -223,16 +303,36 @@ export class CreateLogbookToolComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * `onComplete` for the guided survey (qué/cómo/para qué/contexto/cuándo),
-   * run by the global assistant bubble. Joins the answers into the
-   * `user_context` textarea so the citizen can review everything before
-   * submitting.
+   * `onComplete` for the guided survey, run by the global assistant bubble.
+   * When this tool instance has custom `questions` (see
+   * `resolveToolQuestions`), keeps the answers structured for a future
+   * `answers` param (mirrors `ProceduresToolComponent`); otherwise falls
+   * back to the fixed guided survey (qué/cómo/para qué/contexto/cuándo)
+   * joined into `user_context`, as before. Either way it fills the
+   * `user_context` textarea with a human-readable summary so the citizen can
+   * review it before submitting.
    */
   private applyGuidedSurveyAnswers(answers: Record<string, string>): void {
-    const context = this.promptBuilder.buildGuidedRequestContext(answers);
-    if (!context) return;
+    const questions = this.resolveToolQuestions();
+    if (questions?.length) {
+      const structured: AnsweredQuestion[] = questions
+        .slice()
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .filter((q) => !!answers[q.answer_key])
+        .map((q) => ({ answer_key: q.answer_key, question: q.question, answer: answers[q.answer_key] }));
 
-    this.userContext.set(context);
+      if (!structured.length) return;
+
+      this.pendingAnswers = structured;
+      this.userContext.set(structured.map((a) => `${a.question} ${a.answer}`).join('\n'));
+    } else {
+      const context = this.promptBuilder.buildGuidedRequestContext(answers);
+      if (!context) return;
+
+      this.pendingAnswers = null;
+      this.userContext.set(context);
+    }
+
     // Radicar automatically after the guided fill (the citizen asked the
     // assistant to place the solicitud, not just fill the field). On success
     // the view changes and the form context is cleared, so a later tap won't

@@ -20,6 +20,12 @@ fixtures = [
 	{
 		"doctype": "AI Provider",
 		"filters": [["name", "in", ["OpenAI", "Anthropic", "Google"]]]
+	},
+	{
+		"doctype": "Custom Field",
+		"filters": [["name", "in", [
+			"Service Portal Tool-question_set"
+		]]]
 	}
 ]
 
@@ -145,7 +151,7 @@ portal_navigation_providers = [
 # ------------
 
 # before_install = "common_configurations.install.before_install"
-# after_install = "common_configurations.install.after_install"
+after_install = "common_configurations.install.after_install"
 
 # Uninstallation
 # ------------

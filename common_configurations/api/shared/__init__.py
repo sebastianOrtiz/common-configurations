@@ -48,6 +48,11 @@ from .api_key import (
     require_api_key,
     API_KEY_HEADER,
 )
+from ..questions import (
+    resolve_questions,
+    compose_context,
+    parse_answers,
+)
 
 __all__ = [
     # Rate limiting
@@ -87,4 +92,8 @@ __all__ = [
     "authenticate_api_key",
     "require_api_key",
     "API_KEY_HEADER",
+    # Questions (Portal Question Set helpers)
+    "resolve_questions",
+    "compose_context",
+    "parse_answers",
 ]

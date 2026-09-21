@@ -15,7 +15,17 @@
  * spoken "cédula" against the stored option "Cedula").
  */
 export function normalizeText(s: string): string {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    // Hyphens/underscores/basic punctuation become spaces (not dropped), so
+    // "manzanares-aguabonita" and "manzanares aguabonita" normalize to the
+    // same token stream — matters for STT output vs. DocType option values
+    // written with separators (e.g. veredas like "Manzanares-Aguabonita").
+    .replace(/[-_/.,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -130,10 +140,72 @@ export function sanitizeEmail(input: string): string | null {
   return text || null;
 }
 
+/** Words too short to be meaningful for token-overlap scoring (articles, prepositions...). */
+const SELECT_MATCH_MIN_TOKEN_LENGTH = 3;
+
 /**
- * Match a spoken value against a list of Select options, ignoring case
- * and diacritics. Returns the original option string (preserving the
- * canonical form stored in the DocType) or null if no match.
+ * Classic Levenshtein edit distance between two strings — the "simple
+ * distance" used to tolerate a single mis-heard letter in a token
+ * (e.g. STT hearing "aguabonita" as "aguavonita").
+ */
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      row.push(Math.min(row[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+/** True when two tokens are equal, or close enough to be the same mis-heard word. */
+function tokensAreClose(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (a.length < SELECT_MATCH_MIN_TOKEN_LENGTH || b.length < SELECT_MATCH_MIN_TOKEN_LENGTH) {
+    return false;
+  }
+  const maxDistance = Math.min(a.length, b.length) >= 6 ? 2 : 1;
+  return levenshtein(a, b) <= maxDistance;
+}
+
+/**
+ * Score how well a spoken (normalized) phrase matches a normalized option by
+ * shared/close tokens. Returns a 0..1 score: the fraction of the spoken
+ * phrase's meaningful tokens that found a match among the option's tokens.
+ */
+function tokenOverlapScore(targetNorm: string, optionNorm: string): number {
+  const targetTokens = targetNorm.split(' ').filter((t) => t.length >= SELECT_MATCH_MIN_TOKEN_LENGTH);
+  if (!targetTokens.length) return 0;
+  const optionTokens = optionNorm.split(' ').filter((t) => t.length >= SELECT_MATCH_MIN_TOKEN_LENGTH);
+  if (!optionTokens.length) return 0;
+
+  let matched = 0;
+  for (const t of targetTokens) {
+    if (optionTokens.some((o) => tokensAreClose(t, o))) matched++;
+  }
+  return matched / targetTokens.length;
+}
+
+/** Minimum token-overlap score for `sanitizeSelectMatch`'s fuzzy fallback to accept a match. */
+const SELECT_MATCH_ACCEPT_THRESHOLD = 0.6;
+
+/**
+ * Match a spoken value against a list of Select options, ignoring case,
+ * diacritics and punctuation/separators. Returns the original option string
+ * (preserving the canonical form stored in the DocType) or null if no match.
+ *
+ * Three layers, in order: exact match, substring containment (either way),
+ * then a fuzzy token-overlap + edit-distance match — this last layer is what
+ * lets "manzanares aguabonita" match the option "Manzanares-Aguabonita" (now
+ * mostly handled upstream by `normalizeText`) and tolerates a mis-heard
+ * syllable in a multi-word option (e.g. veredas, barrios).
  *
  * @param spoken raw voice text
  * @param options list of valid Select options (lines from the DocType)
@@ -145,7 +217,7 @@ export function sanitizeSelectMatch(
   const target = normalizeText(spoken);
   if (!target) return null;
 
-  // Exact match (case-insensitive, accent-insensitive)
+  // Exact match (case-insensitive, accent/punctuation-insensitive)
   const exact = options.find((o) => normalizeText(o) === target);
   if (exact) return exact;
 
@@ -154,7 +226,55 @@ export function sanitizeSelectMatch(
     const oNorm = normalizeText(o);
     return oNorm.includes(target) || target.includes(oNorm);
   });
-  return partial || null;
+  if (partial) return partial;
+
+  // Fuzzy fallback: best token-overlap score, accepted only above threshold
+  // and only when it's a clear winner (no ambiguity with a close runner-up).
+  const ranked = rankSelectMatches(target, options);
+  if (!ranked.length) return null;
+  const [best, second] = ranked;
+  if (best.score >= SELECT_MATCH_ACCEPT_THRESHOLD && (!second || best.score > second.score)) {
+    return best.option;
+  }
+  return null;
+}
+
+/**
+ * Rank every option by token-overlap score against an ALREADY normalized
+ * spoken phrase, descending. Internal helper shared by `sanitizeSelectMatch`
+ * (fuzzy fallback) and `suggestSelectMatches` (candidate suggestions).
+ */
+function rankSelectMatches(
+  normalizedTarget: string,
+  options: string[]
+): Array<{ option: string; score: number }> {
+  return options
+    .map((option) => ({ option, score: tokenOverlapScore(normalizedTarget, normalizeText(option)) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Best candidate options for a spoken value that `sanitizeSelectMatch`
+ * couldn't confidently resolve — used to offer "¿Quisiste decir X o Y?"
+ * instead of just saying "no reconocí" again. Ranked by token-overlap score;
+ * does not require the acceptance threshold `sanitizeSelectMatch` uses, so
+ * it can surface weaker guesses too.
+ *
+ * @param spoken raw voice text
+ * @param options list of valid Select options
+ * @param topN maximum number of suggestions to return (default 2)
+ */
+export function suggestSelectMatches(
+  spoken: string,
+  options: string[],
+  topN: number = 2
+): string[] {
+  const target = normalizeText(spoken);
+  if (!target) return [];
+  return rankSelectMatches(target, options)
+    .slice(0, topN)
+    .map((r) => r.option);
 }
 
 /**
