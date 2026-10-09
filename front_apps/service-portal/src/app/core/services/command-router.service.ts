@@ -181,6 +181,20 @@ export class CommandRouterService {
       if (action) return { action, args: { query: searchMatch[2].trim() } };
     }
 
+    // Same, but when the search verb appears mid-phrase ("me gustaría buscar
+    // una indemnización"): take what comes after the verb as the query so we
+    // search it DIRECTLY instead of reopening the mic and making the citizen
+    // say it a second time (which otherwise captures noise and finds nothing).
+    const looseSearch = norm.match(/\b(buscar|busca|busco|encontrar|encuentra)\b\s+(.+)/);
+    if (looseSearch) {
+      const action = actions.find((a) => a.builtin === 'search');
+      if (action) {
+        const raw = looseSearch[2].trim();
+        const query = raw.replace(/^(un|una|unos|unas|el|la|los|las|mi|mis|de|del|para)\s+/i, '').trim();
+        return { action, args: { query: query || raw } };
+      }
+    }
+
     // Generic catch-all: overlap the transcript against every remaining
     // action's samplePhrases (non-tool actions: nav.*, help, fill_form...).
     const generic = this.matchBySamplePhrases(

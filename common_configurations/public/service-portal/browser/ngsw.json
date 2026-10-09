@@ -1,6 +1,6 @@
 {
   "configVersion": 1,
-  "timestamp": 1791512714126,
+  "timestamp": 1791514285152,
   "index": "/service-portal/index.html",
   "assetGroups": [
     {
@@ -52,7 +52,7 @@
         "/service-portal/chunk-ZVNMQR4A.js",
         "/service-portal/favicon.ico",
         "/service-portal/index.html",
-        "/service-portal/main-UGO73H74.js",
+        "/service-portal/main-DXAHPDXE.js",
         "/service-portal/manifest.webmanifest",
         "/service-portal/styles-DCZBOIRX.css"
       ],
@@ -169,8 +169,8 @@
     "/service-portal/icons/icon-512x512.png": "1de182f76f7329dfa8f9fcdd1fdcdd695bea6a99",
     "/service-portal/icons/icon-72x72.png": "aa88a6096bd973be7f6d7a5489bfa6bc2463f8c4",
     "/service-portal/icons/icon-96x96.png": "7fb8f59c30ce2ff12c700321a0b39e14b3dc8f95",
-    "/service-portal/index.html": "34f0b74b10b8d19bc660c1560c4fb7a5710fedeb",
-    "/service-portal/main-UGO73H74.js": "0287067027b2cabe2c5f35b826d5d6e9d650a75d",
+    "/service-portal/index.html": "bddfacde713159da1315abd86bd00c5e9b785a04",
+    "/service-portal/main-DXAHPDXE.js": "11940bc1394011df91997eb9d00b2f96c4563f69",
     "/service-portal/manifest.webmanifest": "e5c7c8e539aef46efb9d0be6670a39c1465f3f4a",
     "/service-portal/styles-DCZBOIRX.css": "67cb2439c83de31d8bb15ddb165aa66abf91973f"
   },
