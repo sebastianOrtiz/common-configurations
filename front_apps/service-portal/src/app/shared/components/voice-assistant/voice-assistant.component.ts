@@ -643,9 +643,13 @@ export class VoiceAssistantComponent implements OnDestroy {
    * "paso", "omitir", "no quiero responder", "sin correo".
    */
   private isSkipPhrase(text: string): boolean {
-    const norm = this.normalizeText(text || '');
+    const norm = this.normalizeText(text || '').trim();
     if (!norm) return false;
-    return /\b(no tengo|no aplica|ninguno|ninguna|saltar|salta|siguiente|paso|omitir|omite|no quiero|prefiero no|sin (correo|email|telefono)|no hay|nada)\b/.test(
+    // Only treat as "skip" when the WHOLE answer IS a skip phrase. A skip word
+    // appearing inside a real answer must NOT skip it — e.g. "eso pasó en mi
+    // casa" (contains "paso") or "no hay testigos, solo ella y yo" (contains
+    // "no hay") are valid answers, not skips.
+    return /^(no tengo|no aplica|ninguno|ninguna|nada|saltar|salta|saltalo|siguiente|paso|pasar|omitir|omite|omitelo|no quiero responder|no quiero contestar|prefiero no responder|prefiero no contestar|sin (correo|email|telefono))$/.test(
       norm
     );
   }

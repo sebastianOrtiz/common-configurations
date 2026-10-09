@@ -78,8 +78,28 @@ const TOOL_TYPE_SYNONYMS: Record<string, string[]> = {
   my_cases: ['mis casos', 'mis radicados', 'mis procesos'],
   procedures: ['tramites', 'solicitar un tramite', 'radicar un tramite'],
   pqr: ['pqr', 'peticion', 'queja', 'reclamo', 'sugerencia', 'radicar pqr'],
-  my_pqr: ['mis pqr', 'ver mis pqr', 'mis peticiones'],
-  my_logbook: ['mi bitacora', 'mis solicitudes', 'ver mis solicitudes'],
+  my_pqr: [
+    'mis pqr',
+    'mis pqrs',
+    'ver mis pqr',
+    'mis peticiones',
+    'mis quejas',
+    'mis reclamos',
+    'estado de mi pqr',
+    'como van mis pqr',
+    'seguimiento de mi reclamo',
+  ],
+  my_logbook: [
+    'mis tramites',
+    'mi bitacora',
+    'mis solicitudes',
+    'mis casos',
+    'ver mis tramites',
+    'estado de mi tramite',
+    'como van mis tramites',
+    'seguimiento de mi tramite',
+    'revisar mis tramites',
+  ],
   create_logbook: ['nueva solicitud', 'crear solicitud', 'radicar solicitud'],
   portal_quick_links: ['enlaces', 'accesos directos'],
 };
@@ -155,6 +175,32 @@ export class AssistantContextService {
 
   reportVoiceIdle(): void {
     this._externalVoice.set({ speaking: false, listening: false, interim: '' });
+  }
+
+  // One-shot "closing announcement" channel: after a tool completes an action
+  // (e.g. radicó un trámite/PQR) it sets the message the bubble must speak
+  // INSTEAD of the generic "¿Qué quieres hacer?" greeting on its next command
+  // flow. The bubble watches the signal to auto-start in continuous mode and
+  // calls `consumePostActionPrompt()` so it is spoken only once.
+  private _postActionPrompt = signal<string | null>(null);
+  readonly postActionPrompt = this._postActionPrompt.asReadonly();
+
+  /** Set the closing message the assistant should speak next (replaces any pending one). */
+  announceResult(message: string): void {
+    const clean = message?.trim();
+    this._postActionPrompt.set(clean ? clean : null);
+  }
+
+  /** Read AND clear the pending closing message (single use). */
+  consumePostActionPrompt(): string | null {
+    const msg = this._postActionPrompt();
+    if (msg !== null) this._postActionPrompt.set(null);
+    return msg;
+  }
+
+  /** Drop a pending closing message without speaking it (e.g. the user navigated away). */
+  clearPostActionPrompt(): void {
+    if (this._postActionPrompt() !== null) this._postActionPrompt.set(null);
   }
 
   // ============================================================

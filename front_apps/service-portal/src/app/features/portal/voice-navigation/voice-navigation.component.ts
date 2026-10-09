@@ -41,6 +41,10 @@ export interface NavigationResult {
   type: 'internal' | 'external';
   external_url?: string;
   score?: number;
+  /** 'pqr_type' when the result represents a PQR type (opens the PQR tool preselecting it). */
+  kind?: string;
+  /** PQR type identifier (name/code/label) to preselect in the PQR tool. */
+  pqr_type?: string | null;
 }
 
 export interface ResolveNavigationResponse {
@@ -446,7 +450,7 @@ export class VoiceNavigationComponent implements OnDestroy {
       return;
     }
 
-    const describe = { title: result.title, tool_type: result.tool_type, tool_name: result.tool_name };
+    const describe: Record<string, string> = { title: result.title, tool_type: result.tool_type, tool_name: result.tool_name };
 
     // External results never have an internal route: open the URL instead of
     // building a bogus /tool/... path that silently goes nowhere.
@@ -477,8 +481,11 @@ export class VoiceNavigationComponent implements OnDestroy {
     // GUARD: the backend may return a tool result without `tool_type`. Try to
     // resolve it from the portal's tools; if impossible, abort cleanly instead
     // of building a route with null segments (which left "Buscando…" hanging).
-    let toolType = (result.tool_type || '').trim();
-    let toolName = (result.tool_name || '').trim();
+    // tool_name comes from JSON as a NUMBER (child-row name, e.g. 177); coerce
+    // to string before .trim() — calling .trim() on a number throws and left
+    // the assistant saying "Te llevo a…" without ever navigating.
+    let toolType = String(result.tool_type ?? '').trim();
+    let toolName = String(result.tool_name ?? '').trim();
     if (!toolType) {
       const resolved = this.resolveToolFromPortal(result);
       toolType = resolved?.tool_type || '';
@@ -497,7 +504,13 @@ export class VoiceNavigationComponent implements OnDestroy {
 
     let commands: unknown[];
     let extras: { queryParams?: Record<string, string> } = {};
-    if (toolType === 'procedures' && result.procedure_name && toolName) {
+    const isPqrType = result.kind === 'pqr_type' || !!result.pqr_type;
+    if (isPqrType && toolType === 'pqr' && toolName) {
+      // PQR type result: open the PQR tool; it reads `pqr_type` and preselects it.
+      commands = ['/portal', portal.portal_name, 'tool', 'pqr', toolName];
+      if (result.pqr_type) extras = { queryParams: { pqr_type: result.pqr_type } };
+      describe['pqr_type'] = String(result.pqr_type ?? '');
+    } else if (toolType === 'procedures' && result.procedure_name && toolName) {
       commands = ['/portal', portal.portal_name, 'tool', 'procedures', toolName];
       extras = { queryParams: { procedure: result.procedure_name } };
     } else if (toolName) {

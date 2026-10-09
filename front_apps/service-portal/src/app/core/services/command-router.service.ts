@@ -257,6 +257,8 @@ export class CommandRouterService {
     const transcriptTokens = this.tokenize(norm);
     if (!transcriptTokens.length) return null;
 
+    let bestWhole: VoiceAction | null = null;
+    let bestWholeTokens = 0; // token count of the most specific whole-phrase match
     let best: VoiceAction | null = null;
     let bestScore = 0;
 
@@ -265,12 +267,19 @@ export class CommandRouterService {
         const phraseNorm = this.normalize(phrase);
         if (!phraseNorm) continue;
 
-        if (phraseNorm.length >= MIN_TOKEN_LENGTH && this.containsWholePhrase(norm, phraseNorm)) {
-          return action; // exact phrase spoken — highest confidence, short-circuit
-        }
-
         const phraseTokens = this.tokenize(phraseNorm);
         if (!phraseTokens.length) continue;
+
+        if (phraseNorm.length >= MIN_TOKEN_LENGTH && this.containsWholePhrase(norm, phraseNorm)) {
+          // Whole phrase spoken. Prefer the MOST SPECIFIC one (most tokens):
+          // "mis tramites" (My logbook) must beat "tramites" (a Secretaría),
+          // instead of the first tool in the list winning by short-circuit.
+          if (phraseTokens.length > bestWholeTokens) {
+            bestWholeTokens = phraseTokens.length;
+            bestWhole = action;
+          }
+          continue;
+        }
 
         let score = 0;
         for (const token of phraseTokens) {
@@ -285,7 +294,7 @@ export class CommandRouterService {
       }
     }
 
-    return best;
+    return bestWhole || best;
   }
 
   /**

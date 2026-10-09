@@ -28,7 +28,7 @@
  * this bubble is the only microphone button on screen at any time.
  */
 
-import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
+import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, NavigationStart, NavigationEnd } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -105,6 +105,8 @@ export class AssistantBubbleComponent implements AfterViewInit {
 
   /** Pending auto-start (debounced so the new view can register its form/actions first). */
   private autoStartTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Retry counter so a pending post-radicación closing keeps trying until the assistant is free. */
+  private postActionRetries = 0;
 
   /** Last `fillRequest` value acted on, so the effect only fires on new requests. */
   private lastFillRequest = 0;
@@ -116,7 +118,11 @@ export class AssistantBubbleComponent implements AfterViewInit {
         filter((event) => event instanceof NavigationStart),
         takeUntilDestroyed()
       )
-      .subscribe(() => this.closeEverything());
+      .subscribe(() => {
+        // A closing announcement is only meaningful on the page that set it.
+        this.assistantContext.clearPostActionPrompt();
+        this.closeEverything();
+      });
 
     // Continuous guided voice mode: once the user activated it with a tap,
     // every view they navigate to restarts the assistant by itself.
@@ -126,6 +132,15 @@ export class AssistantBubbleComponent implements AfterViewInit {
         takeUntilDestroyed()
       )
       .subscribe(() => this.scheduleAutoStart());
+
+    // A tool announced a closing message (trámite/PQR radicado). No route
+    // change happens in that case, so in continuous guided mode we trigger the
+    // auto-start ourselves; otherwise the message waits for the next tap.
+    effect(() => {
+      if (this.assistantContext.postActionPrompt() !== null) {
+        untracked(() => this.scheduleAutoStart());
+      }
+    });
 
     // A page can ask us to start filling the current form (e.g. after the
     // login page's guided branch routes to login/register and sets that form).
@@ -299,6 +314,7 @@ export class AssistantBubbleComponent implements AfterViewInit {
   private scheduleAutoStart(): void {
     if (this.autoStartTimer) clearTimeout(this.autoStartTimer);
     this.autoStartTimer = null;
+    this.postActionRetries = 0;
     // After a reload `canAutoStart` is false (no gesture yet): the mic would be blocked.
     if (!this.available() || !this.voiceSession.canAutoStart()) return;
     this.autoStartTimer = setTimeout(() => {
@@ -320,8 +336,20 @@ export class AssistantBubbleComponent implements AfterViewInit {
       !!this.voiceNavigation?.isActive();
     if (busy) {
       this.diagnostics.record({ event_type: 'other', details: { step: 'auto_start_skipped_busy' } });
+      // A post-radicación closing message is waiting but the assistant is still
+      // busy (the survey / its TTS is finishing closing right after submit).
+      // Keep retrying for a few seconds until it's free, so the closing is
+      // actually spoken instead of staying stuck pending.
+      if (this.assistantContext.postActionPrompt() && this.postActionRetries < 12) {
+        this.postActionRetries++;
+        this.autoStartTimer = setTimeout(() => {
+          this.autoStartTimer = null;
+          this.autoStart();
+        }, 600);
+      }
       return;
     }
+    this.postActionRetries = 0;
     this.diagnostics.record({ event_type: 'other', details: { step: 'auto_start' } });
     this.startInteraction();
   }
@@ -347,6 +375,13 @@ export class AssistantBubbleComponent implements AfterViewInit {
       return;
     }
 
+    // A pending closing announcement ("radicada, ¿qué sigue?") goes straight
+    // to the command flow, which speaks it and then routes the answer.
+    if (this.assistantContext.postActionPrompt() !== null) {
+      void this.runCommandFlow();
+      return;
+    }
+
     // Pages that expose a form go straight into guided voice fill — no
     // "¿qué quieres?" detour. Tapping the bubble on a form page IS filling
     // the form, field by field, right inside the bubble.
@@ -361,11 +396,15 @@ export class AssistantBubbleComponent implements AfterViewInit {
   }
 
   /** Ask what the citizen needs, listen once, and route the transcript to an action. */
-  private async runCommandFlow(): Promise<void> {
+  private async runCommandFlow(emptyRetries = 0): Promise<void> {
     const mySeq = ++this.commandSeq;
 
-    await this.say(this.commandGreeting());
-    if (mySeq !== this.commandSeq) return;
+    // Greet only on the first attempt; on an empty-capture retry we re-listen
+    // without repeating the whole greeting.
+    if (emptyRetries === 0) {
+      await this.say(this.commandGreeting());
+      if (mySeq !== this.commandSeq) return;
+    }
 
     this.interimCommand.set('');
     this.listening.set(true);
@@ -390,7 +429,14 @@ export class AssistantBubbleComponent implements AfterViewInit {
 
     const clean = transcript.trim();
     if (!clean) {
-      await this.say('No te escuché. ¿Puedes repetirlo?');
+      // Empty capture (common right after a long spoken message): re-listen a
+      // couple of times instead of giving up and forcing the user to tap.
+      if (emptyRetries < 2) {
+        await this.say('No te escuché. ¿Puedes repetirlo?');
+        if (mySeq === this.commandSeq) await this.runCommandFlow(emptyRetries + 1);
+      } else {
+        await this.say('No te escuché. Toca el micrófono cuando quieras seguir.');
+      }
       return;
     }
 
@@ -546,6 +592,14 @@ export class AssistantBubbleComponent implements AfterViewInit {
 
   /** Context-aware opening line: mentions filling the form when there is one to fill. */
   private commandGreeting(): string {
+    const closing = this.assistantContext.consumePostActionPrompt();
+    if (closing) {
+      this.diagnostics.record({
+        event_type: 'other',
+        details: { step: 'post_action_prompt_spoken', message: closing },
+      });
+      return closing;
+    }
     if (this.assistantContext.formContext()) {
       return '¿Qué quieres? Puedo llenar este formulario, o llevarte a otra parte.';
     }

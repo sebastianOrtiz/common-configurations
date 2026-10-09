@@ -6,11 +6,13 @@
  * Allows viewing detail (status, resolution if any).
  */
 
-import { Component, OnInit, signal, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed, inject, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
+import { buildCaseVoiceActions } from '../../../core/services/voice-case-actions';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 interface PQRListItem {
@@ -38,10 +40,12 @@ interface PQRDetail extends PQRListItem {
   templateUrl: './my-pqr-tool.component.html',
   styleUrls: ['./my-pqr-tool.component.scss']
 })
-export class MyPqrToolComponent implements OnInit {
+export class MyPqrToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  private assistantContext = inject(AssistantContextService);
+  private readonly voiceScopeId = 'my-pqr-items';
 
   // Portal state
   protected selectedPortal = this.stateService.selectedPortal;
@@ -71,6 +75,35 @@ export class MyPqrToolComponent implements OnInit {
     }
     return this.pqrs();
   });
+
+  constructor() {
+    // Voice: open a PQR by subject / radicado / recency while the list is visible.
+    effect(() => {
+      const items = this.pqrs();
+      const listVisible = !this.selectedPQR() && !this.loading() && !this.isAnonymousUser();
+      const actions = listVisible
+        ? buildCaseVoiceActions<PQRListItem>({
+            idPrefix: 'my-pqr',
+            noun: 'PQR',
+            items,
+            numberOf: (p) => p.name,
+            titleOf: (p) => p.subject,
+            dateOf: (p) => p.received_at,
+            open: (p) => this.viewDetail(p),
+            announce: (m) => this.assistantContext.announceResult(m),
+          })
+        : [];
+      if (actions.length) {
+        this.assistantContext.registerActions(this.voiceScopeId, actions);
+      } else {
+        this.assistantContext.unregister(this.voiceScopeId);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.unregister(this.voiceScopeId);
+  }
 
   ngOnInit(): void {
     if (this.isAnonymousUser()) return;

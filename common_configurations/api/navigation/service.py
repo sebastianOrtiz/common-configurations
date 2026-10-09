@@ -105,9 +105,14 @@ def _token_credit(a: str, b: str) -> float:
         return CREDIT_EXACT
     if len(a) < MIN_FUZZY_TOKEN_LEN or len(b) < MIN_FUZZY_TOKEN_LEN:
         return 0.0
-    if a in b or b in a:
-        return CREDIT_CONTAINMENT
     shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
+    # Containment counts only as a PREFIX relationship — that's what plurals and
+    # conjugations are (querella→querellas, consulta→consultar). A short token
+    # that merely appears MID-WORD in a longer, unrelated one must NOT score:
+    # e.g. "cita" inside "feli-CITA-r" used to give 0.9 and made "felicitar"
+    # match the "cita en personería" trámite.
+    if longer.startswith(shorter):
+        return CREDIT_CONTAINMENT
     common_prefix = 0
     for ca, cb in zip(shorter, longer):
         if ca != cb:
@@ -319,14 +324,24 @@ class NavigationService:
 
         items: List[Dict[str, Any]] = []
         tool_count = 0
+        # Cache Tool Type -> search_keywords so a tool type is only looked up once.
+        tool_type_keywords: Dict[str, str] = {}
 
         for tool in portal_doc.tools:
             if not tool.is_enabled:
                 continue
             tool_count += 1
 
+            if tool.tool_type not in tool_type_keywords:
+                tool_type_keywords[tool.tool_type] = (
+                    frappe.db.get_value("Tool Type", tool.tool_type, "search_keywords") or ""
+                )
+
             # Tool-level entry — ALWAYS added, guaranteeing every enabled
             # tool is reachable even if no provider covers its tool_type.
+            # Its keywords come from the Tool Type's `search_keywords`, so a
+            # tool like "Mis trámites" can be reached with natural phrasing
+            # ("cómo va mi caso", "estado de mi trámite") and not only its label.
             items.append(
                 {
                     "kind": "tool",
@@ -334,7 +349,7 @@ class NavigationService:
                     "title": tool.label,
                     "secretaria": tool.label,
                     "description": tool.tool_description or "",
-                    "keywords": "",
+                    "keywords": tool_type_keywords[tool.tool_type],
                     "tool_name": tool.name,
                     "tool_type": tool.tool_type,
                     "procedure_name": None,
@@ -907,9 +922,17 @@ class NavigationService:
             "title": item["title"],
             "secretaria": item["secretaria"],
             "tool_name": item["tool_name"],
+            # tool_type is what the front uses to build the route: 'procedures'
+            # for a trámite (deep-linked via the procedure queryParam) or e.g.
+            # 'pqr' for a tool entry. Without it the front can't route and the
+            # "Buscando…" panel hangs.
+            "tool_type": item.get("tool_type"),
             "procedure_name": item.get("procedure_name"),
             "type": item.get("type"),
             "external_url": item.get("external_url"),
+            # Code of the PQR Type (kind == "pqr_type") so the front can
+            # preselect it; None for every other kind.
+            "pqr_type": item.get("pqr_type"),
             "score": round(score, 4),
         }
 
@@ -1007,11 +1030,18 @@ class NavigationService:
             score_by_id = {item["id"]: score for item, score in scored}
             catalog_by_id = {item["id"]: item for item in catalog}
 
+            # Only surface items that actually CORRESPOND to the query (have a
+            # real token match, fuzzy score > 0). The AI sometimes adds loosely
+            # "related" items with zero score (e.g. Querellas/Conciliaciones for
+            # "denuncia"); including them makes the "choose" list look padded /
+            # indecisive. Drop them. If nothing corresponds, fall back to fuzzy.
             ordered_items = [
-                catalog_by_id[rid] for rid in ranked_ids if rid in catalog_by_id
+                catalog_by_id[rid]
+                for rid in ranked_ids
+                if rid in catalog_by_id and score_by_id.get(rid, 0.0) > 0
             ]
             if not ordered_items:
-                return "none", [], None
+                return None
 
             results = [
                 cls._to_result(item, score_by_id.get(item["id"], 0.0))

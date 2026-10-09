@@ -1,8 +1,10 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
+import { AssistantContextService } from '../../../core/services/assistant-context.service';
+import { buildCaseVoiceActions } from '../../../core/services/voice-case-actions';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 type CitizenRating = 'Malo' | 'Bueno' | 'Excelente';
@@ -97,11 +99,13 @@ interface SubmitRatingResponse {
   templateUrl: './my-logbook-tool.component.html',
   styleUrls: ['./my-logbook-tool.component.scss']
 })
-export class MyLogbookToolComponent implements OnInit {
+export class MyLogbookToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private assistantContext = inject(AssistantContextService);
+  private readonly voiceScopeId = 'my-logbook-items';
 
   protected selectedPortal = this.stateService.selectedPortal;
   protected userContact = this.stateService.userContact;
@@ -143,6 +147,35 @@ export class MyLogbookToolComponent implements OnInit {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   });
+
+  constructor() {
+    // Voice: open a case by title / radicado / recency while the list is visible.
+    effect(() => {
+      const items = this.entries();
+      const listVisible = !this.showEntryDetail() && !this.loading() && !this.isAnonymousUser();
+      const actions = listVisible
+        ? buildCaseVoiceActions<LogbookEntry>({
+            idPrefix: 'my-logbook',
+            noun: 'trámite',
+            items,
+            numberOf: (e) => e.name,
+            titleOf: (e) => e.title,
+            dateOf: (e) => e.start_date,
+            open: (e) => this.viewEntryDetail(e.name),
+            announce: (m) => this.assistantContext.announceResult(m),
+          })
+        : [];
+      if (actions.length) {
+        this.assistantContext.registerActions(this.voiceScopeId, actions);
+      } else {
+        this.assistantContext.unregister(this.voiceScopeId);
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.assistantContext.unregister(this.voiceScopeId);
+  }
 
   async ngOnInit() {
     if (this.isAnonymousUser()) {

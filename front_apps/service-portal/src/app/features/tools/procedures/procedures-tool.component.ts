@@ -336,6 +336,9 @@ export class ProceduresToolComponent implements OnInit, OnDestroy {
         if (response?.message) {
           this.createdEntry.set(response.message);
           this.view.set('confirm');
+          this.assistantContext.announceResult(
+            'Listo, tu solicitud quedó radicada. ¿Quieres volver al inicio, ver tus trámites, o hacer otra cosa?'
+          );
           this.userContext.set('');
           this.attachments.set([]);
           this.attachmentUploader?.reset();

@@ -120,11 +120,19 @@ export class VoicePromptBuilder {
     label: string;
     options: string[];
     optional?: boolean;
+    question?: string;
   }): VoicePrompt {
-    const question =
-      opts.options.length > VoicePromptBuilder.SELECT_ENUMERATE_LIMIT
-        ? `¿Cuál es tu ${opts.label.toLowerCase()}? Dime el nombre y lo busco.`
-        : `Selecciona tu ${opts.label.toLowerCase()}. Las opciones son: ${opts.options.join(', ')}.`;
+    const manyOptions = opts.options.length > VoicePromptBuilder.SELECT_ENUMERATE_LIMIT;
+    // `question` (when the label is already a complete question) is used as the
+    // base, keeping only the options hint. Otherwise fall back to the template.
+    const base =
+      opts.question ||
+      (manyOptions
+        ? `¿Cuál es tu ${opts.label.toLowerCase()}?`
+        : `Selecciona tu ${opts.label.toLowerCase()}.`);
+    const question = manyOptions
+      ? `${base} Dime el nombre y lo busco.`
+      : `${base} Las opciones son: ${opts.options.join(', ')}.`;
     return {
       key: opts.key,
       question,
@@ -179,6 +187,12 @@ export class VoicePromptBuilder {
     const label = field.label || field.fieldname;
     const optional = !field.reqd;
     const labelLow = label.toLowerCase();
+    // When the descriptor's label is ALREADY a complete question (our
+    // configurable question sets provide full questions like "¿Qué ocurrió?"),
+    // use it verbatim instead of wrapping it as "¿Cuál es tu <label>?" — which
+    // produced nonsense like "¿Cuál es tu ¿qué ocurrió??".
+    const asked = label.trim();
+    const baseQuestion = asked.endsWith('?') ? asked : undefined;
 
     // 1. Select with options
     if (field.fieldtype === 'Select' && field.options) {
@@ -186,7 +200,7 @@ export class VoicePromptBuilder {
         .split('\n')
         .map((o) => o.trim())
         .filter(Boolean);
-      return this.select({ key: field.fieldname, label, options, optional });
+      return this.select({ key: field.fieldname, label, options, optional, question: baseQuestion });
     }
 
     // 2. Email (fieldtype === Email OR options=Email OR label mentions correo)
@@ -203,6 +217,7 @@ export class VoicePromptBuilder {
       return this.digits({
         key: field.fieldname,
         label,
+        question: baseQuestion ? `${baseQuestion} Por favor díctalo dígito por dígito.` : undefined,
         minLength: extra.minLength ?? 6,
         optional,
       });
@@ -213,6 +228,7 @@ export class VoicePromptBuilder {
       return this.digits({
         key: field.fieldname,
         label,
+        question: baseQuestion ? `${baseQuestion} Por favor díctalo dígito por dígito.` : undefined,
         minLength: extra.minLength ?? 7,
         allowPlus: true,
         optional,
@@ -223,7 +239,7 @@ export class VoicePromptBuilder {
     return this.text({
       key: field.fieldname,
       label,
-      question: `¿Cuál es tu ${labelLow}?`,
+      question: baseQuestion || `¿Cuál es tu ${labelLow}?`,
       optional,
       minLength: extra.minLength,
       maxLength: extra.maxLength,

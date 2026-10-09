@@ -11,6 +11,7 @@
   "app_name",
   "icon",
   "description",
+  "search_keywords",
   "is_active"
  ],
  "fields": [
@@ -52,6 +53,12 @@
    "fieldname": "description",
    "fieldtype": "Small Text",
    "label": "Description"
+  },
+  {
+   "description": "Sin\u00f3nimos/palabras clave para la b\u00fasqueda por voz (separados por coma). Ayudan a que el asistente llegue a esta herramienta con lenguaje natural (ej: 'mis casos, estado de mi tr\u00e1mite, c\u00f3mo va mi solicitud').",
+   "fieldname": "search_keywords",
+   "fieldtype": "Small Text",
+   "label": "Search Keywords"
   },
   {
    "default": "1",

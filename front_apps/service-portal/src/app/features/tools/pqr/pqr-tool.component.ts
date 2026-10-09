@@ -11,9 +11,10 @@
  */
 
 import { Component, OnInit, OnDestroy, Input, effect, signal, computed, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
@@ -85,6 +86,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
   private frappeApi = inject(FrappeApiService);
   private stateService = inject(StateService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
   protected settingsService = inject(SettingsService);
   private promptBuilder = inject(VoicePromptBuilder);
   private questionSurvey = inject(PortalQuestionSurveyService);
@@ -191,7 +193,12 @@ export class PqrToolComponent implements OnInit, OnDestroy {
 
   private readonly voiceScopeId = 'pqr-tool-types';
 
+  /** `pqr_type` queryParam waiting to be applied (consumed once types are loaded). */
+  private pendingPreselect: string | null = null;
+  private queryParamsSub?: Subscription;
+
   ngOnDestroy(): void {
+    this.queryParamsSub?.unsubscribe();
     this.assistantContext.clearFormContext();
     this.assistantContext.unregister(this.voiceScopeId);
   }
@@ -210,7 +217,55 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     this.resolvedToolName = tool.name || '';
     this.toolLabel.set(tool.label || 'PQRs');
     this.toolQuestions.set(tool.questions || []);
+    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const wanted = params.get('pqr_type');
+      if (!wanted) return;
+      this.pendingPreselect = wanted;
+      this.tryPreselectType();
+    });
     this.loadTypes();
+  }
+
+  /**
+   * Applies the `pqr_type` queryParam once: finds the matching type (by
+   * name/code/label, accent-insensitive), selects it like a voice pick and
+   * starts the guided fill. No match -> the normal type list is left as is.
+   * The param is always consumed (removed from the URL) to avoid re-triggering.
+   */
+  private tryPreselectType(): void {
+    const wanted = this.pendingPreselect;
+    const available = this.types();
+    if (!wanted || !available.length) return; // wait for loadTypes
+    this.pendingPreselect = null;
+
+    const w = normalizeVoice(wanted);
+    const match =
+      available.find((t) =>
+        [t.name, t.type_code, t.label].some((v) => normalizeVoice(v || '') === w)
+      ) ||
+      available.find((t) =>
+        [t.type_code, t.label].some((v) => {
+          const n = normalizeVoice(v || '');
+          return !!n && (n.includes(w) || w.includes(n));
+        })
+      );
+
+    // Consume the param so later navigations/refreshes don't re-fire it.
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { pqr_type: null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+
+    if (!match || this.createdPQR()) return;
+    this.selectType(match);
+    this.assistantContext.setFormContext({
+      title: 'Nueva PQR',
+      prompts: this.buildPqrVoicePrompts(match.label),
+      onComplete: (answers) => this.applyPqrSurveyAnswers(answers),
+    });
+    this.assistantContext.requestFill();
   }
 
   private async loadTypes(): Promise<void> {
@@ -228,6 +283,7 @@ export class PqrToolComponent implements OnInit, OnDestroy {
       if (data) {
         this.types.set(data.types || []);
         this.allowAnonymous.set(data.allow_anonymous);
+        this.tryPreselectType();
 
         // If user is not logged in and anonymous is not allowed, show error
         if (this.isAnonymousUser() && !data.allow_anonymous) {
@@ -321,6 +377,9 @@ export class PqrToolComponent implements OnInit, OnDestroy {
       if (data) {
         this.createdPQR.set(data);
         this.view.set('confirm');
+        this.assistantContext.announceResult(
+          'Listo, tu PQR quedó radicada. ¿Quieres volver al inicio, ver tus PQRs, o hacer otra cosa?'
+        );
         this.pendingAnswers = null;
       }
     } catch (err: any) {
