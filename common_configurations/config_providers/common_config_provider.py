@@ -125,6 +125,34 @@ class CommonConfigProvider(ConfigProvider):
         self._import_tool_types(data.get("tool_types") or [], ctx)
         self._import_settings(data.get("settings") or {}, ctx)
         self._import_portals(data.get("portals") or [], ctx)
+        self._warn_dangling_question_sets(ctx)
+
+    @staticmethod
+    def _warn_dangling_question_sets(ctx) -> None:
+        """Link validation is skipped when saving docs that reference a
+        `question_set` (order-independent single-pass import), so check here,
+        once every provider that writes them has run (this provider runs
+        last), and warn — not fail — about references to non-existent sets."""
+        for doctype, name_field in (
+            ("Logbook Procedure", "name"),
+            ("PQR Type", "name"),
+            ("Service Portal Tool", "parent"),
+        ):
+            if not frappe.db.exists("DocType", doctype):
+                continue
+            rows = frappe.get_all(
+                doctype,
+                filters={"question_set": ["is", "set"]},
+                fields=[name_field, "question_set"],
+                ignore_permissions=True,
+            )
+            for row in rows:
+                if not frappe.db.exists(QUESTION_SET_DOCTYPE, row.question_set):
+                    ctx.warn(
+                        f"{doctype} '{row[name_field]}': question_set "
+                        f"'{row.question_set}' does not exist (Portal Question "
+                        f"Set not found after import)"
+                    )
 
     def _import_external_links(self, entries: list[dict], ctx) -> None:
         fields = _exportable_fields(EXTERNAL_LINK_DOCTYPE)
@@ -334,6 +362,10 @@ class CommonConfigProvider(ConfigProvider):
                 child_tables={"tools": tool_rows},
                 ctx=ctx,
                 key=portal_name,
+                # `tools[].question_set` may point to a set created later in
+                # this same import; existence is checked afterwards
+                # (`_warn_dangling_question_sets`).
+                ignore_links=True,
             )
 
     @staticmethod

@@ -23,6 +23,7 @@ def upsert_doc(
     child_tables: dict[str, list[dict[str, Any]]] | None = None,
     ctx=None,
     key: str | None = None,
+    ignore_links: bool = False,
 ) -> tuple[Any, str]:
     """Find-or-create a document and set its fields/child tables.
 
@@ -44,6 +45,13 @@ def upsert_doc(
             outcome is recorded via `ctx.record(action, doctype, key, name)`.
         key: The manifest-facing key to report against (e.g. the value used
             in `match`, or a composite label). Required if `ctx` is given.
+        ignore_links: When True, Frappe's Link-existence validation is
+            skipped for this save (`doc.flags.ignore_links`, propagated to
+            child rows). Use it ONLY for Link fields whose target is created
+            later in the same import (order-independent references, e.g.
+            `question_set`): `run_import` runs in a single transaction and
+            commits at the end, so the target exists by commit time. Default
+            False keeps normal validation for every other doc.
 
     Returns:
         (doc, action) where action is "created" or "updated". Note this
@@ -76,6 +84,11 @@ def upsert_doc(
             doc.set(fieldname, [])
             for row in rows:
                 doc.append(fieldname, row)
+
+    if ignore_links:
+        doc.flags.ignore_links = True
+        for child in doc.get_all_children():
+            child.flags.ignore_links = True
 
     if action == "created":
         doc.insert(ignore_permissions=True)
