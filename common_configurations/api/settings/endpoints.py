@@ -26,7 +26,8 @@ def get_public_settings() -> Dict[str, Any]:
 				"enabled": bool,
 				"ai_enabled": bool,
 				"name": str,
-				"language": str
+				"language": str,
+				"diagnostics_enabled": bool
 			}
 		}
 	"""
@@ -44,6 +45,8 @@ def get_public_settings() -> Dict[str, Any]:
 			issues = validate_ai_configuration(settings.voice_assistant_ai_configuration)
 			ai_enabled = not issues
 
+	voice_diagnostics_enabled = settings.voice_diagnostics_enabled is None or bool(int(settings.voice_diagnostics_enabled))
+
 	return {
 		"voice_assistant": {
 			"enabled": bool(settings.enable_voice_assistant),
@@ -51,6 +54,7 @@ def get_public_settings() -> Dict[str, Any]:
 			"name": settings.voice_assistant_name or "Asistente",
 			"language": settings.voice_assistant_language or "es-ES",
 			"gender": settings.voice_assistant_gender or "female",
+			"diagnostics_enabled": voice_diagnostics_enabled,
 		},
 	}
 

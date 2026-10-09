@@ -53,7 +53,7 @@ export interface VoiceAction {
   /** Phrases a citizen might say to trigger this action — used by the local rule matcher and as hints for the AI. */
   samplePhrases: string[];
   /** Autonomous execution. Ignored when `builtin` is set (the bubble drives those itself). */
-  run?: (args?: { query?: string }) => void | Promise<void>;
+  run?: (args?: { query?: string }) => unknown;
   /** When set, the assistant bubble executes this action with its own hosted engine instead of calling `run`. */
   builtin?: 'search' | 'fill_form';
 }
@@ -202,7 +202,7 @@ export class AssistantContextService {
       id: 'nav.home',
       description: `Ir al inicio del portal ${portal.title || portal.portal_name}`,
       samplePhrases: ['inicio', 'portada', 'menu principal', 'pagina principal'],
-      run: () => void this.router.navigate(['/portal', portal.portal_name]),
+      run: () => this.router.navigate(['/portal', portal.portal_name]),
     });
 
     actions.push({
@@ -229,7 +229,7 @@ export class AssistantContextService {
           'registrarme',
           'crear cuenta',
         ],
-        run: () => void this.router.navigate(['/portal', portal.portal_name, 'register']),
+        run: () => this.router.navigate(['/portal', portal.portal_name, 'register']),
       });
     }
 
@@ -261,11 +261,13 @@ export class AssistantContextService {
   }
 
   /** Mirrors `PortalViewComponent.selectTool` so a spoken command behaves exactly like tapping the card. */
-  private navigateToTool(portal: ServicePortal, tool: ServicePortalTool): void {
+  private navigateToTool(
+    portal: ServicePortal,
+    tool: ServicePortalTool
+  ): Promise<boolean> | 'external' {
     if (tool.tool_type === 'portal_redirect' && tool.target_portal) {
       this.stateService.setReferrerPortal(portal.portal_name);
-      void this.router.navigate(['/portal', tool.target_portal]);
-      return;
+      return this.router.navigate(['/portal', tool.target_portal]);
     }
 
     if (tool.tool_type === 'quick_link' && tool.quick_link_external_data?.url) {
@@ -275,15 +277,14 @@ export class AssistantContextService {
       } else {
         window.open(link.url, '_blank', 'noopener,noreferrer');
       }
-      return;
+      return 'external';
     }
 
     if (tool.name) {
-      void this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type, tool.name]);
-    } else {
-      // 2-segment fallback (see app.routes.ts) for tool types whose config doesn't depend on the row.
-      void this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
+      return this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type, tool.name]);
     }
+    // 2-segment fallback (see app.routes.ts) for tool types whose config doesn't depend on the row.
+    return this.router.navigate(['/portal', portal.portal_name, 'tool', tool.tool_type]);
   }
 
   // ============================================================

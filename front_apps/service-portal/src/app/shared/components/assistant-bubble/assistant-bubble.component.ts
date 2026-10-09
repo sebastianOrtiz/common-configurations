@@ -30,7 +30,7 @@
 
 import { AfterViewInit, Component, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, NavigationStart } from '@angular/router';
+import { Router, NavigationStart, NavigationEnd } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 
@@ -40,6 +40,8 @@ import { SettingsService } from '../../../core/services/settings.service';
 import { StateService } from '../../../core/services/state.service';
 import { SttService } from '../../../core/services/voice/stt.service';
 import { TtsService } from '../../../core/services/voice/tts.service';
+import { VoiceDiagnosticsService } from '../../../core/services/voice/diagnostics.service';
+import { VoiceSessionService } from '../../../core/services/voice/voice-session.service';
 import { IconComponent } from '../icon/icon.component';
 import { VoiceAssistantComponent } from '../voice-assistant/voice-assistant.component';
 import { VoiceNavigationComponent } from '../../../features/portal/voice-navigation/voice-navigation.component';
@@ -59,6 +61,8 @@ export class AssistantBubbleComponent implements AfterViewInit {
   private assistantContext = inject(AssistantContextService);
   private commandRouter = inject(CommandRouterService);
   private router = inject(Router);
+  private diagnostics = inject(VoiceDiagnosticsService);
+  private voiceSession = inject(VoiceSessionService);
 
   // `protected` (not `private`): the compact form-fill card in the template
   // reads `voiceAssistant`'s public UI signals directly (currentQuestion,
@@ -94,6 +98,14 @@ export class AssistantBubbleComponent implements AfterViewInit {
   /** Live transcript while listening for a command, so the feedback is uniform with the search/survey engines. */
   protected readonly interimCommand = signal<string>('');
 
+  /** True after a full reload while guided mode was on: the mic is blocked until one tap ("toca para continuar"). */
+  protected readonly needsResume = computed(
+    () => this.voiceSession.needsResume() && this.available()
+  );
+
+  /** Pending auto-start (debounced so the new view can register its form/actions first). */
+  private autoStartTimer: ReturnType<typeof setTimeout> | null = null;
+
   /** Last `fillRequest` value acted on, so the effect only fires on new requests. */
   private lastFillRequest = 0;
 
@@ -105,6 +117,15 @@ export class AssistantBubbleComponent implements AfterViewInit {
         takeUntilDestroyed()
       )
       .subscribe(() => this.closeEverything());
+
+    // Continuous guided voice mode: once the user activated it with a tap,
+    // every view they navigate to restarts the assistant by itself.
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.scheduleAutoStart());
 
     // A page can ask us to start filling the current form (e.g. after the
     // login page's guided branch routes to login/register and sets that form).
@@ -194,7 +215,8 @@ export class AssistantBubbleComponent implements AfterViewInit {
     this.speaking.set(true);
     try {
       await this.ttsService.speak(text, voice.language, voice.gender);
-    } catch {
+    } catch (err) {
+      this.diagnostics.recordError('assistant_bubble.say', err);
       /* TTS best-effort — never block the UI */
     } finally {
       if (mySeq === this.speakSeq) this.speaking.set(false);
@@ -221,17 +243,21 @@ export class AssistantBubbleComponent implements AfterViewInit {
   protected onBubbleClick(): void {
     // Tapping again while something is open/showing = close it (handles
     // double-clicks and gives the user an obvious way to dismiss).
+    // Closing on purpose also switches the continuous guided mode off.
     if (this.voiceAssistant?.isOpen()) {
+      this.stopGuidedMode('bubble_closed_survey');
       this.stopSpeaking();
       this.voiceAssistant.cancelSurvey();
       return;
     }
     if (this.voiceNavigation?.isActive()) {
+      this.stopGuidedMode('bubble_closed_search');
       this.stopSpeaking();
       this.voiceNavigation.closePanel();
       return;
     }
     if (this.menuOpen) {
+      this.stopGuidedMode('bubble_closed_menu');
       this.stopSpeaking();
       this.menuOpen = false;
       return;
@@ -239,6 +265,79 @@ export class AssistantBubbleComponent implements AfterViewInit {
     if (this.listening()) {
       return; // already listening for a command — ignore the extra tap
     }
+    if (this.speaking()) {
+      // Tapping while the assistant talks = "stop".
+      this.stopGuidedMode('bubble_closed_speaking');
+      this.commandSeq++;
+      this.stopSpeaking();
+      return;
+    }
+
+    // A tap is the user gesture that unlocks audio/mic: (re)activate the
+    // continuous guided mode. After a page reload this single tap resumes it.
+    const resumedAfterReload = this.voiceSession.needsResume();
+    this.voiceSession.activate();
+    this.diagnostics.record({
+      event_type: 'other',
+      details: { step: 'guided_mode_activated_by_tap', resumed_after_reload: resumedAfterReload },
+    });
+    this.startInteraction();
+  }
+
+  private stopGuidedMode(reason: string): void {
+    if (this.autoStartTimer) {
+      clearTimeout(this.autoStartTimer);
+      this.autoStartTimer = null;
+    }
+    if (this.voiceSession.guidedActive()) {
+      this.voiceSession.stop();
+      this.diagnostics.record({ event_type: 'other', details: { step: 'guided_mode_stopped', reason } });
+    }
+  }
+
+  /** Debounced auto-start for the view just navigated to (only in continuous guided mode). */
+  private scheduleAutoStart(): void {
+    if (this.autoStartTimer) clearTimeout(this.autoStartTimer);
+    this.autoStartTimer = null;
+    // After a reload `canAutoStart` is false (no gesture yet): the mic would be blocked.
+    if (!this.available() || !this.voiceSession.canAutoStart()) return;
+    this.autoStartTimer = setTimeout(() => {
+      this.autoStartTimer = null;
+      this.autoStart();
+    }, 900);
+  }
+
+  private autoStart(): void {
+    if (!this.available() || !this.voiceSession.canAutoStart()) return;
+    const ext = this.assistantContext.externalVoice();
+    const busy =
+      this.listening() ||
+      this.speaking() ||
+      this.menuOpen ||
+      ext.listening ||
+      ext.speaking ||
+      !!this.voiceAssistant?.isOpen() ||
+      !!this.voiceNavigation?.isActive();
+    if (busy) {
+      this.diagnostics.record({ event_type: 'other', details: { step: 'auto_start_skipped_busy' } });
+      return;
+    }
+    this.diagnostics.record({ event_type: 'other', details: { step: 'auto_start' } });
+    this.startInteraction();
+  }
+
+  /** Cancel button of the compact form-fill card: closing on purpose stops guided mode. */
+  protected cancelFormFill(): void {
+    this.stopGuidedMode('formfill_cancel_button');
+    this.voiceAssistant?.cancelSurvey();
+  }
+
+  protected exportDiagnostics(): void {
+    this.diagnostics.exportJson();
+  }
+
+  /** Default behavior of a tap / an auto-start: primary action, form fill, or the free-form command flow. */
+  private startInteraction(): void {
 
     // A page can designate a PRIMARY action for the tap (e.g. the login page:
     // "¿ya tienes cuenta o necesitas registrarte?"). It wins over the default.
@@ -278,7 +377,8 @@ export class AssistantBubbleComponent implements AfterViewInit {
           if (mySeq === this.commandSeq) this.interimCommand.set(t);
         }
       );
-    } catch {
+    } catch (err) {
+      this.diagnostics.recordError('assistant_bubble.listen', err);
       /* best-effort — treated as silence below */
     } finally {
       if (mySeq === this.commandSeq) {
@@ -294,6 +394,13 @@ export class AssistantBubbleComponent implements AfterViewInit {
       return;
     }
 
+    // "parar" / "detente": switch the continuous guided mode off.
+    if (this.voiceSession.isStopPhrase(this.normalizeForStop(clean))) {
+      this.stopGuidedMode('voice_stop_command');
+      await this.say('Listo, me detengo. Toca el micrófono cuando me necesites.');
+      return;
+    }
+
     const result = await this.commandRouter.interpret(clean, this.availableActions());
     if (mySeq !== this.commandSeq) return;
 
@@ -306,12 +413,32 @@ export class AssistantBubbleComponent implements AfterViewInit {
     }
   }
 
+  private normalizeForStop(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .trim();
+  }
+
   /** Run a resolved action, dispatching to the right engine for builtins. */
   private async executeAction(
     action: VoiceAction,
     args: { query?: string },
     spokenReply?: string | null
   ): Promise<void> {
+    this.diagnostics.record({
+      event_type: 'action_dispatched',
+      interpreted_action: action.id,
+      outcome: 'dispatched',
+      details: {
+        args,
+        builtin: action.builtin ?? null,
+        has_run: !!action.run,
+        spoken_reply: spokenReply ?? null,
+      },
+    });
+
     if (action.builtin === 'search') {
       // If the command already carried what to look for ("busca licencia"),
       // search that directly — don't reopen the mic and make them say it again.
@@ -335,7 +462,86 @@ export class AssistantBubbleComponent implements AfterViewInit {
     }
 
     await this.say(spokenReply || 'Listo, un momento.');
-    await action.run?.(args);
+    await this.runWithNavigationTracking(action, args);
+  }
+
+  /**
+   * Runs `action.run()` and, for navigation-like actions, logs the INTENT
+   * before and the REAL outcome after (router URL changed or not), so the
+   * "says it will redirect but goes nowhere" case shows up in the log.
+   */
+  private async runWithNavigationTracking(
+    action: VoiceAction,
+    args: { query?: string }
+  ): Promise<void> {
+    const isNav =
+      action.id === 'nav.back' ||
+      action.id === 'nav.home' ||
+      action.id === 'login' ||
+      action.id.startsWith('tool.');
+
+    if (!action.run) {
+      this.diagnostics.record({
+        event_type: isNav ? 'navigation' : 'error',
+        interpreted_action: action.id,
+        outcome: 'error',
+        details: { reason: 'action_has_no_run_handler' },
+      });
+      return;
+    }
+
+    const before = this.router.url;
+    if (isNav) {
+      this.diagnostics.record({
+        event_type: 'navigation',
+        interpreted_action: action.id,
+        outcome: 'redirect_intended',
+        details: { from: before },
+      });
+    }
+
+    let returned: unknown;
+    try {
+      returned = await action.run(args);
+    } catch (err) {
+      this.diagnostics.recordError('assistant_bubble.run', err, { action: action.id });
+      return;
+    }
+    if (!isNav) return;
+
+    if (returned === 'external') {
+      this.diagnostics.record({
+        event_type: 'navigation',
+        interpreted_action: action.id,
+        outcome: 'redirect_done',
+        details: { external: true },
+      });
+      return;
+    }
+
+    // `location.back()` returns nothing: give the router a moment to react.
+    if (returned === undefined && this.router.url === before) {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    const after = this.router.url;
+    const changed = after !== before;
+    const cancelled = returned === false;
+    this.diagnostics.record({
+      event_type: 'navigation',
+      interpreted_action: action.id,
+      outcome: changed ? 'navigated' : 'error',
+      details: {
+        from: before,
+        to: after,
+        router_result: returned ?? null,
+        ...(changed
+          ? {}
+          : {
+              reason: cancelled ? 'navigation_cancelled_or_rejected' : 'router_url_unchanged',
+              same_url: returned === true,
+            }),
+      },
+    });
   }
 
   /** Context-aware opening line: mentions filling the form when there is one to fill. */
@@ -362,6 +568,7 @@ export class AssistantBubbleComponent implements AfterViewInit {
   protected runMenuAction(action: VoiceAction): void {
     this.menuOpen = false;
     this.stopSpeaking();
+    this.voiceSession.activate();
     void this.executeAction(action, {});
   }
 
@@ -391,6 +598,10 @@ export class AssistantBubbleComponent implements AfterViewInit {
   }
 
   private closeEverything(): void {
+    if (this.autoStartTimer) {
+      clearTimeout(this.autoStartTimer);
+      this.autoStartTimer = null;
+    }
     this.commandSeq++;
     this.stopSpeaking();
     this.listening.set(false);

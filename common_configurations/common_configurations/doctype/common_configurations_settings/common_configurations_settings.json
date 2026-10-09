@@ -15,6 +15,8 @@
   "voice_assistant_ai_configuration",
   "column_break_voice_ai",
   "voice_assistant_ai_help_html",
+  "section_voice_diagnostics",
+  "voice_diagnostics_enabled",
   "section_tenant_hub",
   "tenant_hub_url",
   "column_break_tenant_hub",
@@ -97,6 +99,18 @@
    "fieldtype": "HTML",
    "label": "",
    "options": "<div style='padding:12px; background:#eff6ff; border-left:4px solid #2563eb; border-radius:4px; font-size:13px;'><strong>Validación:</strong> al guardar, el sistema verifica que la Configuración de IA tenga proveedor activo, modelo y API Key. Si algo falta, el guardado falla con el detalle.</div>"
+  },
+  {
+   "fieldname": "section_voice_diagnostics",
+   "fieldtype": "Section Break",
+   "label": "Diagnóstico del Asistente de Voz"
+  },
+  {
+   "default": "1",
+   "description": "Guarda en el servidor eventos de diagnóstico del asistente de voz (Voice Assistant Log) enviados por el portal.",
+   "fieldname": "voice_diagnostics_enabled",
+   "fieldtype": "Check",
+   "label": "Registrar diagnóstico del asistente de voz"
   },
   {
    "fieldname": "section_tenant_hub",

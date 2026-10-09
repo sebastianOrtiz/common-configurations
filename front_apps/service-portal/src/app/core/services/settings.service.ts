@@ -15,6 +15,8 @@ export interface VoiceAssistantSettings {
   name: string;
   language: string;
   gender: 'female' | 'male';
+  /** When true, the assistant sends its behavior log to the backend. */
+  diagnostics_enabled: boolean;
 }
 
 export interface PublicSettings {
@@ -28,6 +30,7 @@ const DEFAULT_SETTINGS: PublicSettings = {
     name: 'Asistente',
     language: 'es-ES',
     gender: 'female',
+    diagnostics_enabled: false,
   },
 };
 

@@ -1,0 +1,121 @@
+{
+ "actions": [],
+ "creation": "2026-10-09 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "log_time",
+  "portal",
+  "session_id",
+  "user_contact",
+  "event_type",
+  "outcome",
+  "route",
+  "transcript",
+  "interpreted_action",
+  "interpret_source",
+  "tts_text",
+  "details"
+ ],
+ "fields": [
+  {
+   "fieldname": "log_time",
+   "fieldtype": "Datetime",
+   "label": "Log Time",
+   "default": "Now",
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "portal",
+   "fieldtype": "Data",
+   "label": "Portal",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "label": "Session ID",
+   "search_index": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "user_contact",
+   "fieldtype": "Data",
+   "label": "User Contact"
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "label": "Event Type",
+   "options": "command_heard\ninterpret\naction_dispatched\nnavigation\ntts\nno_match\nerror\nother",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "outcome",
+   "fieldtype": "Select",
+   "label": "Outcome",
+   "options": "\ndispatched\nno_match\nredirect_intended\nredirect_done\nnavigated\nerror\nspoken",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Small Text",
+   "label": "Route"
+  },
+  {
+   "fieldname": "transcript",
+   "fieldtype": "Small Text",
+   "label": "Transcript"
+  },
+  {
+   "fieldname": "interpreted_action",
+   "fieldtype": "Data",
+   "label": "Interpreted Action"
+  },
+  {
+   "fieldname": "interpret_source",
+   "fieldtype": "Select",
+   "label": "Interpret Source",
+   "options": "\nrule\nai\nnone"
+  },
+  {
+   "fieldname": "tts_text",
+   "fieldtype": "Small Text",
+   "label": "TTS Text"
+  },
+  {
+   "fieldname": "details",
+   "fieldtype": "Long Text",
+   "label": "Details"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-09 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Common Configurations",
+ "name": "Voice Assistant Log",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "log_time",
+ "sort_order": "DESC",
+ "states": []
+}

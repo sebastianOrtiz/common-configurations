@@ -23,6 +23,7 @@ import { FrappeApiService } from './frappe-api.service';
 import { SettingsService } from './settings.service';
 import { StateService } from './state.service';
 import { VoiceAction } from './assistant-context.service';
+import { VoiceDiagnosticsService } from './voice/diagnostics.service';
 
 export interface CommandInterpretation {
   action: VoiceAction | null;
@@ -53,6 +54,7 @@ export class CommandRouterService {
   private frappeApi = inject(FrappeApiService);
   private settingsService = inject(SettingsService);
   private stateService = inject(StateService);
+  private diagnostics = inject(VoiceDiagnosticsService);
 
   /**
    * Resolve a transcript to an action from the given (currently available)
@@ -63,17 +65,46 @@ export class CommandRouterService {
     if (!norm) return { action: null, args: {} };
 
     const ruleMatch = this.matchRules(norm, actions);
-    if (ruleMatch) return ruleMatch;
+    if (ruleMatch) {
+      this.logInterpretation(transcript, ruleMatch, 'rule', actions.length);
+      return ruleMatch;
+    }
 
     if (this.settingsService.isVoiceAssistantAIEnabled()) {
       try {
-        return await this.interpretWithAI(transcript, actions);
+        const aiResult = await this.interpretWithAI(transcript, actions);
+        this.logInterpretation(transcript, aiResult, aiResult.action ? 'ai' : 'none', actions.length);
+        return aiResult;
       } catch (err) {
         console.error('[CommandRouter] AI interpretation failed:', err);
+        this.diagnostics.recordError('command_router.ai', err, { transcript });
       }
     }
 
-    return { action: null, args: {} };
+    const none: CommandInterpretation = { action: null, args: {} };
+    this.logInterpretation(transcript, none, 'none', actions.length);
+    return none;
+  }
+
+  /** Diagnostics: how a transcript was interpreted (rule / AI / nothing). */
+  private logInterpretation(
+    transcript: string,
+    result: CommandInterpretation,
+    source: 'rule' | 'ai' | 'none',
+    availableCount: number
+  ): void {
+    this.diagnostics.record({
+      event_type: result.action ? 'interpret' : 'no_match',
+      transcript,
+      interpreted_action: result.action?.id,
+      interpret_source: result.action ? source : 'none',
+      outcome: result.action ? 'dispatched' : 'no_match',
+      details: {
+        args: result.args,
+        spoken_reply: result.spokenReply ?? null,
+        available_actions: availableCount,
+      },
+    });
   }
 
   // ============================================================
@@ -307,6 +338,19 @@ export class CommandRouterService {
 
     const data = response?.message;
     if (!data) return { action: null, args: {} };
+
+    if (data.action_id && !this.byId(actions, data.action_id)) {
+      this.diagnostics.record({
+        event_type: 'other',
+        transcript,
+        interpret_source: 'ai',
+        details: {
+          reason: 'ai_returned_unknown_action_id',
+          action_id: data.action_id,
+          spoken_reply: data.spoken_reply,
+        },
+      });
+    }
 
     return {
       action: data.action_id ? this.byId(actions, data.action_id) : null,

@@ -26,6 +26,8 @@ import { StateService } from '../../../core/services/state.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { SttService } from '../../../core/services/voice/stt.service';
 import { TtsService } from '../../../core/services/voice/tts.service';
+import { VoiceDiagnosticsService } from '../../../core/services/voice/diagnostics.service';
+import { VoiceSessionService } from '../../../core/services/voice/voice-session.service';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 
 export interface NavigationResult {
@@ -67,6 +69,8 @@ export class VoiceNavigationComponent implements OnDestroy {
   private sttService = inject(SttService);
   private ttsService = inject(TtsService);
   private router = inject(Router);
+  private diagnostics = inject(VoiceDiagnosticsService);
+  private voiceSession = inject(VoiceSessionService);
 
   /**
    * When true, this component is hosted by the global assistant bubble
@@ -190,10 +194,16 @@ export class VoiceNavigationComponent implements OnDestroy {
     if (!portal) {
       this.errorMessage.set('No se pudo determinar el portal actual.');
       this.state.set('error');
+      this.diagnostics.recordError('voice_navigation.search', 'no_portal_selected', { query });
       return;
     }
 
     this.state.set('searching');
+    this.diagnostics.record({
+      event_type: 'other',
+      transcript: query,
+      details: { step: 'search_started', portal: portal.portal_name },
+    });
 
     this.searchSubscription = this.frappeApi
       .callMethod<ResolveNavigationResponse>(NAVIGATION_API, {
@@ -209,6 +219,7 @@ export class VoiceNavigationComponent implements OnDestroy {
         error: (err) => {
           if (myId !== this.requestId) return;
           console.error('[VoiceNavigation] Error resolving navigation:', err);
+          this.diagnostics.recordError('voice_navigation.search', err, { query });
           this.errorMessage.set('No pudimos procesar tu búsqueda. Intenta de nuevo.');
           this.state.set('error');
         },
@@ -219,8 +230,26 @@ export class VoiceNavigationComponent implements OnDestroy {
     if (!data) {
       this.errorMessage.set('Respuesta inesperada del servidor.');
       this.state.set('error');
+      this.diagnostics.recordError('voice_navigation.response', 'empty_response');
       return;
     }
+
+    this.diagnostics.record({
+      event_type: data.mode === 'none' ? 'no_match' : 'other',
+      transcript: data.transcript,
+      outcome: data.mode === 'none' ? 'no_match' : undefined,
+      details: {
+        step: 'search_result',
+        mode: data.mode,
+        used_ai: data.used_ai,
+        results: (data.results || []).map((r) => ({
+          title: r.title,
+          tool_type: r.tool_type,
+          tool_name: r.tool_name,
+          type: r.type,
+        })),
+      },
+    });
 
     switch (data.mode) {
       case 'navigate': {
@@ -301,6 +330,11 @@ export class VoiceNavigationComponent implements OnDestroy {
       }
 
       // Control words
+      if (this.voiceSession.isStopPhrase(norm)) {
+        this.voiceSession.stop();
+        this.resetToIdle();
+        return;
+      }
       if (/\b(cancelar|cancela|salir|nada|ninguna|ninguno)\b/.test(norm)) {
         this.resetToIdle();
         return;
@@ -407,15 +441,76 @@ export class VoiceNavigationComponent implements OnDestroy {
    */
   protected navigateToResult(result: NavigationResult): void {
     const portal = this.stateService.selectedPortal();
-    if (!portal) return;
-
-    if (result.tool_type === 'procedures' && result.procedure_name) {
-      this.router.navigate(['/portal', portal.portal_name, 'tool', 'procedures', result.tool_name], {
-        queryParams: { procedure: result.procedure_name },
-      });
-    } else {
-      this.router.navigate(['/portal', portal.portal_name, 'tool', result.tool_type, result.tool_name]);
+    if (!portal) {
+      this.diagnostics.recordError('voice_navigation.navigate', 'no_portal_selected');
+      return;
     }
+
+    const describe = { title: result.title, tool_type: result.tool_type, tool_name: result.tool_name };
+
+    // External results never have an internal route: open the URL instead of
+    // building a bogus /tool/... path that silently goes nowhere.
+    if (result.type === 'external') {
+      this.diagnostics.record({
+        event_type: 'navigation',
+        outcome: 'redirect_intended',
+        details: { ...describe, external_url: result.external_url },
+      });
+      if (result.external_url) {
+        window.open(result.external_url, '_blank', 'noopener,noreferrer');
+        this.diagnostics.record({
+          event_type: 'navigation',
+          outcome: 'redirect_done',
+          details: { ...describe, external: true },
+        });
+      } else {
+        this.diagnostics.record({
+          event_type: 'navigation',
+          outcome: 'error',
+          details: { ...describe, reason: 'external_result_without_url' },
+        });
+      }
+      this.resetToIdle();
+      return;
+    }
+
+    let commands: unknown[];
+    let extras: { queryParams?: Record<string, string> } = {};
+    if (result.tool_type === 'procedures' && result.procedure_name && result.tool_name) {
+      commands = ['/portal', portal.portal_name, 'tool', 'procedures', result.tool_name];
+      extras = { queryParams: { procedure: result.procedure_name } };
+    } else if (result.tool_name) {
+      commands = ['/portal', portal.portal_name, 'tool', result.tool_type, result.tool_name];
+    } else {
+      // No row name: 2-segment route (otherwise the URL matches nothing and nothing happens).
+      commands = ['/portal', portal.portal_name, 'tool', result.tool_type];
+      if (result.tool_type === 'procedures' && result.procedure_name) {
+        extras = { queryParams: { procedure: result.procedure_name } };
+      }
+    }
+
+    const before = this.router.url;
+    this.diagnostics.record({
+      event_type: 'navigation',
+      outcome: 'redirect_intended',
+      details: { ...describe, commands, from: before },
+    });
+
+    this.router.navigate(commands, extras).then(
+      (ok) => {
+        this.diagnostics.record({
+          event_type: 'navigation',
+          outcome: ok ? 'navigated' : 'error',
+          details: {
+            ...describe,
+            from: before,
+            to: this.router.url,
+            ...(ok ? {} : { reason: 'navigation_cancelled_or_rejected' }),
+          },
+        });
+      },
+      (err) => this.diagnostics.recordError('voice_navigation.navigate', err, describe)
+    );
 
     this.resetToIdle();
   }

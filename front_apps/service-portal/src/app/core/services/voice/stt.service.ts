@@ -10,6 +10,7 @@
 
 import { Injectable, inject } from '@angular/core';
 import { IdleService } from '../idle.service';
+import { VoiceDiagnosticsService } from './diagnostics.service';
 
 // Cross-browser handle (Webkit prefix in Chrome/Edge)
 declare global {
@@ -22,6 +23,7 @@ declare global {
 @Injectable({ providedIn: 'root' })
 export class SttService {
   private idleService = inject(IdleService);
+  private diagnostics = inject(VoiceDiagnosticsService);
 
   private getCtor(): any {
     if (typeof window === 'undefined') return null;
@@ -65,6 +67,11 @@ export class SttService {
         if (resolved) return;
         resolved = true;
         const text = (finalText || lastInterim || '').trim();
+        this.diagnostics.record({
+          event_type: 'command_heard',
+          transcript: text,
+          details: { language, used_interim_only: !finalText && !!lastInterim, empty: !text },
+        });
         resolve(text);
       };
 
@@ -95,6 +102,7 @@ export class SttService {
           finish();
         } else if (!resolved) {
           resolved = true;
+          this.diagnostics.recordError('stt', event.error);
           reject(new Error(`Error de reconocimiento: ${event.error}`));
         }
       };

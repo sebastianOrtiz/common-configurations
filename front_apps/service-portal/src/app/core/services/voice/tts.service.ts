@@ -7,10 +7,12 @@
  * directly, so we infer it from known voice names).
  */
 
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { VoiceDiagnosticsService } from './diagnostics.service';
 
 @Injectable({ providedIn: 'root' })
 export class TtsService {
+  private diagnostics = inject(VoiceDiagnosticsService);
   private synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
 
   /**
@@ -71,6 +73,7 @@ export class TtsService {
         resolve();
         return;
       }
+      this.diagnostics.record({ event_type: 'tts', outcome: 'spoken', tts_text: text });
 
       // Resolve exactly once. SpeechSynthesis is flaky: `onend` sometimes never
       // fires, which would otherwise hang any `await speak(...)` forever and
@@ -115,6 +118,12 @@ export class TtsService {
         noStartWatch = setTimeout(() => {
           if (settled) return;
           this.noStartStreak += 1;
+          this.diagnostics.record({
+            event_type: 'error',
+            outcome: 'error',
+            tts_text: text,
+            details: { source: 'tts', reason: 'speech_never_started', streak: this.noStartStreak },
+          });
           if (this.noStartStreak >= 2) this.degraded.set(true);
           finish();
         }, 1500);

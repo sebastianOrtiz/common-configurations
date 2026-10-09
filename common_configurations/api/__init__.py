@@ -25,6 +25,9 @@ Structure:
     │   ├── upsert.py        # upsert_doc() helper (public contract)
     │   ├── engine.py        # provider discovery/ordering + run_import/export
     │   └── endpoints.py     # import_site_config/export_site_config/describe_config_schema
+    ├── diagnostics/         # Voice assistant diagnostic log
+    │   ├── endpoints.py
+    │   └── service.py
     └── shared/              # Shared utilities
         ├── security.py      # Auth, tokens, honeypot
         ├── rate_limit.py    # Rate limiting
@@ -51,6 +54,7 @@ from . import hub
 from . import settings
 from . import config
 from . import questions
+from . import diagnostics
 from . import shared
 
 # Re-export shared utilities at package level
@@ -85,6 +89,7 @@ __all__ = [
     "hub",
     "config",
     "questions",
+    "diagnostics",
     "shared",
     # Shared utilities
     "check_rate_limit",

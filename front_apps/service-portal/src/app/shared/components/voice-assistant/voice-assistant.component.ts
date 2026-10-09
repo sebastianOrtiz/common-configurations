@@ -33,6 +33,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { TtsService } from '../../../core/services/voice/tts.service';
 import { SttService } from '../../../core/services/voice/stt.service';
+import { VoiceSessionService } from '../../../core/services/voice/voice-session.service';
 import { SoundService } from '../../../core/services/voice/sound.service';
 import { SettingsService } from '../../../core/services/settings.service';
 import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
@@ -63,6 +64,7 @@ type AssistantState =
 export class VoiceAssistantComponent implements OnDestroy {
   private tts = inject(TtsService);
   private stt = inject(SttService);
+  private voiceSession = inject(VoiceSessionService);
   private sound = inject(SoundService);
   private settings = inject(SettingsService);
 
@@ -598,6 +600,11 @@ export class VoiceAssistantComponent implements OnDestroy {
       return 'exit_search';
     }
 
+    // "parar"/"detente": cancel AND switch off the continuous guided voice mode.
+    if (this.voiceSession.isStopPhrase(norm)) {
+      this.voiceSession.stop();
+      return 'cancel';
+    }
     if (/\b(cancelar|cancela|salir|sal del asistente|terminar|abortar|adios)\b/.test(norm)) {
       return 'cancel';
     }
