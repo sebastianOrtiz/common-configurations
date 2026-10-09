@@ -164,6 +164,16 @@ export class CommandRouterService {
       if (action) return { action, args: {} };
     }
 
+    // Page-scoped options (registered by the tool the citizen is currently in,
+    // e.g. the PQR types) win over tool navigation and the global search
+    // catch-all: "quiero poner un reclamo" inside PQR must pick "Reclamo",
+    // not re-open the tool or search for it.
+    const scopedMatch = this.matchBySamplePhrases(
+      norm,
+      actions.filter((a) => a.scoped)
+    );
+    if (scopedMatch) return { action: scopedMatch, args: {} };
+
     // Tool sample-phrase match BEFORE the generic "busca/quiero X" search
     // catch-all: a phrase that names a tool by one of its samplePhrases
     // (e.g. "quiero poner una queja" → pqr's "queja" synonym) must resolve

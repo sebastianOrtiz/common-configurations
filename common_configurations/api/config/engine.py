@@ -136,8 +136,49 @@ def run_import(manifest: dict[str, Any], dry_run: bool) -> dict[str, Any]:
         frappe.db.rollback()
     else:
         frappe.db.commit()
+        _invalidate_navigation_catalogs(manifest, ctx)
 
     return ctx.to_dict()
+
+
+NAVIGATION_CATALOG_DOCTYPE = "Portal Navigation Catalog"
+
+
+def _affected_portal_names(manifest: dict[str, Any], ctx: ImportContext) -> set[str]:
+    """`portal_name`s touched by an import: those listed in the manifest's
+    `common_configurations.portals` plus any Service Portal the context
+    recorded as created/updated/skipped."""
+    names: set[str] = set()
+    section = (manifest.get("common_configurations") or {}).get("portals") or []
+    for entry in section:
+        if isinstance(entry, dict) and entry.get("portal_name"):
+            names.add(entry["portal_name"])
+    report = ctx.to_dict()
+    for bucket in ("created", "updated", "skipped"):
+        for item in report[bucket]:
+            if item.get("doctype") == "Service Portal" and item.get("key"):
+                names.add(item["key"])
+    return names
+
+
+def _invalidate_navigation_catalogs(manifest: dict[str, Any], ctx: ImportContext) -> None:
+    """Best-effort: delete the cached navigation catalog of every portal
+    affected by the import, so search never serves stale tool names.
+    `NavigationService.resolve_navigation` falls back to the on-the-fly
+    catalog when no cache row exists; a full rebuild stays an explicit
+    action. Never raises: a failure here must not fail an already
+    committed import."""
+    try:
+        portals = _affected_portal_names(manifest, ctx)
+        if not portals:
+            return
+        frappe.db.delete(NAVIGATION_CATALOG_DOCTYPE, {"portal": ["in", list(portals)]})
+        frappe.db.commit()
+    except Exception:
+        frappe.log_error(
+            title="Navigation catalog invalidation failed",
+            message=frappe.get_traceback(),
+        )
 
 
 def run_export(portal_name: str | None = None) -> dict[str, Any]:

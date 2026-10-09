@@ -56,6 +56,8 @@ export interface VoiceAction {
   run?: (args?: { query?: string }) => unknown;
   /** When set, the assistant bubble executes this action with its own hosted engine instead of calling `run`. */
   builtin?: 'search' | 'fill_form';
+  /** Set automatically by `availableActions` for page-scoped actions (registered via `registerActions`). */
+  scoped?: boolean;
 }
 
 export interface AssistantFormContext {
@@ -320,7 +322,7 @@ export class AssistantContextService {
     }
 
     for (const actions of this.scopedActions.values()) {
-      result.push(...actions);
+      result.push(...actions.map((a) => ({ ...a, scoped: true })));
     }
 
     return result;

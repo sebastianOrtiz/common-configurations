@@ -17,7 +17,7 @@ import { Router } from '@angular/router';
 import { StateService } from '../../../core/services/state.service';
 import { FrappeApiService } from '../../../core/services/frappe-api.service';
 import { SettingsService } from '../../../core/services/settings.service';
-import { AssistantContextService } from '../../../core/services/assistant-context.service';
+import { AssistantContextService, VoiceAction } from '../../../core/services/assistant-context.service';
 import { VoicePromptBuilder } from '../../../core/services/voice/voice-prompt-builder.service';
 import { PortalQuestionSurveyService } from '../../../core/services/voice/portal-question-survey.service';
 import { VoicePrompt } from '../../../core/services/voice/voice-prompt.types';
@@ -53,6 +53,26 @@ interface CreatedPQR {
 }
 
 type ViewState = 'list' | 'form' | 'confirm';
+
+/**
+ * Natural spoken synonyms per PQR type, keyed by a normalized stem found in the
+ * type's `label` / `type_code`. Layered on top of the label itself.
+ */
+const PQR_TYPE_VOICE_SYNONYMS: Array<{ stem: string; phrases: string[] }> = [
+  { stem: 'peticion', phrases: ['peticion', 'poner una peticion', 'hacer una peticion', 'solicitud', 'quiero solicitar'] },
+  { stem: 'queja', phrases: ['queja', 'poner una queja', 'quiero quejarme', 'quejarme'] },
+  { stem: 'reclamo', phrases: ['reclamo', 'reclamacion', 'poner un reclamo', 'poner una reclamacion', 'reclamar', 'quiero reclamar'] },
+  { stem: 'sugerencia', phrases: ['sugerencia', 'dar una sugerencia', 'quiero sugerir', 'sugerir'] },
+  { stem: 'felicitacion', phrases: ['felicitacion', 'felicitar', 'quiero felicitar', 'dar una felicitacion'] },
+  { stem: 'denuncia', phrases: ['denuncia', 'denunciar', 'poner una denuncia', 'quiero denunciar'] },
+];
+
+const normalizeVoice = (s: string): string =>
+  (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
 
 @Component({
   selector: 'app-pqr-tool',
@@ -139,6 +159,21 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     // active view: only offered while filling out subject/description for
     // the selected PQR type. The "search" action is global, so citizens can
     // still search another trámite by voice at any time.
+    // PQR types as page-scoped voice options, only while the list is shown
+    // (so "reclamo" picks the type instead of falling into the global search).
+    effect(() => {
+      const currentView = this.view();
+      const available = this.types();
+      if (currentView === 'list' && available.length) {
+        this.assistantContext.registerActions(
+          this.voiceScopeId,
+          available.map((t) => this.buildTypeVoiceAction(t))
+        );
+      } else {
+        this.assistantContext.unregister(this.voiceScopeId);
+      }
+    });
+
     effect(() => {
       const currentView = this.view();
       const type = this.selectedType();
@@ -154,8 +189,11 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     });
   }
 
+  private readonly voiceScopeId = 'pqr-tool-types';
+
   ngOnDestroy(): void {
     this.assistantContext.clearFormContext();
+    this.assistantContext.unregister(this.voiceScopeId);
   }
 
   ngOnInit(): void {
@@ -202,6 +240,31 @@ export class PqrToolComponent implements OnInit, OnDestroy {
     } finally {
       this.loadingTypes.set(false);
     }
+  }
+
+  /** Voice option for one PQR type: same as tapping its card, then starts the guided fill. */
+  private buildTypeVoiceAction(type: PQRType): VoiceAction {
+    const labelNorm = normalizeVoice(type.label);
+    const codeNorm = normalizeVoice(type.type_code || '');
+    const synonyms =
+      PQR_TYPE_VOICE_SYNONYMS.find((e) => labelNorm.includes(e.stem) || codeNorm.includes(e.stem))
+        ?.phrases || [];
+    return {
+      id: `pqr.type.${type.name}`,
+      description: `Seleccionar el tipo de PQR "${type.label}" y empezar a llenarlo`,
+      samplePhrases: [type.label, ...synonyms],
+      run: () => {
+        this.selectType(type);
+        // Set the form context right away (the effect would only do it after the
+        // next change-detection pass) so the guided survey can start now.
+        this.assistantContext.setFormContext({
+          title: 'Nueva PQR',
+          prompts: this.buildPqrVoicePrompts(type.label),
+          onComplete: (answers) => this.applyPqrSurveyAnswers(answers),
+        });
+        this.assistantContext.requestFill();
+      },
+    };
   }
 
   protected selectType(type: PQRType): void {

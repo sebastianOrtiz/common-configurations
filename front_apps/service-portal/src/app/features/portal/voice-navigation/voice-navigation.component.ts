@@ -474,22 +474,57 @@ export class VoiceNavigationComponent implements OnDestroy {
       return;
     }
 
+    // GUARD: the backend may return a tool result without `tool_type`. Try to
+    // resolve it from the portal's tools; if impossible, abort cleanly instead
+    // of building a route with null segments (which left "Buscando…" hanging).
+    let toolType = (result.tool_type || '').trim();
+    let toolName = (result.tool_name || '').trim();
+    if (!toolType) {
+      const resolved = this.resolveToolFromPortal(result);
+      toolType = resolved?.tool_type || '';
+      if (!toolName) toolName = resolved?.name ? String(resolved.name) : '';
+    }
+    if (!toolType) {
+      this.diagnostics.record({
+        event_type: 'error',
+        outcome: 'error',
+        details: { ...describe, reason: 'missing_tool_type', source: 'voice_navigation.navigate' },
+      });
+      this.resetToIdle();
+      this.speak('No pude abrir eso, intenta de nuevo.');
+      return;
+    }
+
     let commands: unknown[];
     let extras: { queryParams?: Record<string, string> } = {};
-    if (result.tool_type === 'procedures' && result.procedure_name && result.tool_name) {
-      commands = ['/portal', portal.portal_name, 'tool', 'procedures', result.tool_name];
+    if (toolType === 'procedures' && result.procedure_name && toolName) {
+      commands = ['/portal', portal.portal_name, 'tool', 'procedures', toolName];
       extras = { queryParams: { procedure: result.procedure_name } };
-    } else if (result.tool_name) {
-      commands = ['/portal', portal.portal_name, 'tool', result.tool_type, result.tool_name];
+    } else if (toolName) {
+      commands = ['/portal', portal.portal_name, 'tool', toolType, toolName];
     } else {
       // No row name: 2-segment route (otherwise the URL matches nothing and nothing happens).
-      commands = ['/portal', portal.portal_name, 'tool', result.tool_type];
-      if (result.tool_type === 'procedures' && result.procedure_name) {
+      commands = ['/portal', portal.portal_name, 'tool', toolType];
+      if (toolType === 'procedures' && result.procedure_name) {
         extras = { queryParams: { procedure: result.procedure_name } };
       }
     }
 
     const before = this.router.url;
+
+    // Already inside that very tool: don't re-navigate, just close the search.
+    const currentPath = before.split(/[?#]/)[0];
+    const targetPath = commands.join('/').replace(/\/{2,}/g, '/');
+    if (!extras.queryParams && currentPath === targetPath) {
+      this.diagnostics.record({
+        event_type: 'navigation',
+        outcome: 'redirect_intended',
+        details: { ...describe, commands, from: before, reason: 'already_on_target' },
+      });
+      this.resetToIdle();
+      this.speak(`Ya estás en ${result.title}.`);
+      return;
+    }
     this.diagnostics.record({
       event_type: 'navigation',
       outcome: 'redirect_intended',
@@ -513,6 +548,23 @@ export class VoiceNavigationComponent implements OnDestroy {
     );
 
     this.resetToIdle();
+  }
+
+  /** Find the portal tool matching a result by `tool_name` (docname) or by its label/title. */
+  private resolveToolFromPortal(
+    result: NavigationResult
+  ): { tool_type: string; name?: string } | null {
+    const tools = this.stateService.selectedPortal()?.tools || [];
+    const wanted = [result.tool_name, result.title]
+      .map((s) => this.normalizeText(String(s || '')))
+      .filter(Boolean);
+    if (!wanted.length) return null;
+    const found = tools.find((t) => {
+      if (!t.tool_type) return false;
+      const candidates = [t.name, t.label].map((s) => this.normalizeText(String(s || '')));
+      return wanted.some((w) => candidates.includes(w));
+    });
+    return found ? { tool_type: found.tool_type, name: found.name } : null;
   }
 
   /** "Ver todas las secretarías" / cancel — back to the idle prompt (the grid is already the portal home). */
