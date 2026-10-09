@@ -131,7 +131,15 @@ export class AssistantBubbleComponent implements AfterViewInit {
         filter((event) => event instanceof NavigationEnd),
         takeUntilDestroyed()
       )
-      .subscribe(() => this.scheduleAutoStart());
+      .subscribe(() => {
+        // On the login / registration view the guided voice must NOT auto-start:
+        // reset the flag so the citizen starts it manually there if they want.
+        if (this.isLoginView()) {
+          this.stopGuidedMode('login_view');
+          return;
+        }
+        this.scheduleAutoStart();
+      });
 
     // A tool announced a closing message (trámite/PQR radicado). No route
     // change happens in that case, so in continuous guided mode we trigger the
@@ -308,6 +316,12 @@ export class AssistantBubbleComponent implements AfterViewInit {
       this.voiceSession.stop();
       this.diagnostics.record({ event_type: 'other', details: { step: 'guided_mode_stopped', reason } });
     }
+  }
+
+  /** True on the login / registration view, where guided voice must not auto-start. */
+  private isLoginView(): boolean {
+    const path = this.router.url.split(/[?#]/)[0];
+    return /\/(register|login|registro|iniciar-sesion)$/.test(path);
   }
 
   /** Debounced auto-start for the view just navigated to (only in continuous guided mode). */
