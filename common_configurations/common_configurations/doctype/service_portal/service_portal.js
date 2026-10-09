@@ -39,6 +39,25 @@ frappe.ui.form.on('Service Portal', {
 				}
 			});
 		}
+
+		// Snapshot the tools so we can detect changes on save (see after_save).
+		frm.__tools_signature = tools_signature(frm.doc);
+	},
+	after_save: function(frm) {
+		// If the portal's tools changed, offer to regenerate the navigation
+		// catalog so the voice search doesn't keep serving a stale map.
+		const sig = tools_signature(frm.doc);
+		if (
+			frm.__tools_signature !== undefined &&
+			frm.__tools_signature !== sig &&
+			frappe.user.has_role('System Manager')
+		) {
+			frappe.confirm(
+				__('Cambiaron las herramientas de este portal. ¿Quieres regenerar el mapa de navegación (catálogo) ahora para que la búsqueda por voz quede al día?'),
+				function() { build_navigation_catalog(frm); }
+			);
+		}
+		frm.__tools_signature = sig;
 	},
 	require_auth: function(frm) {
 		// When authentication is disabled, turn off MFA OTP too
@@ -110,6 +129,25 @@ frappe.ui.form.on('Service Portal Tool', {
 		}
 	}
 });
+
+// Stable signature of a portal's tools, to detect changes (add / remove /
+// reorder / retype / re-link) between form load and save. Includes the fields
+// that affect the navigation catalog.
+function tools_signature(doc) {
+	return (doc.tools || [])
+		.map(function(t) {
+			return [
+				t.tool_type || '',
+				t.label || '',
+				t.is_enabled ? 1 : 0,
+				t.display_order || 0,
+				t.logbook_procedures_config || '',
+				t.question_set || '',
+				t.pqr_type_set || ''
+			].join('~');
+		})
+		.join('||');
+}
 
 // Builds/refreshes the Portal Navigation Catalog cache of a Service Portal
 // (common_configurations.api.navigation.build_navigation_catalog). Covers
